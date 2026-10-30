@@ -134,7 +134,7 @@ public class BleepEntity extends TamableAnimal {
     /** Ticks it takes to be put together: tracks, body, arms, head, a quarter each. */
     public static final int ASSEMBLE_TICKS = 60, ASSEMBLE_STEP = 15;
     /** How loud it talks, and how often it says something by itself (ticks, on average). */
-    public static final float VOLUME = 0.6f;
+    public static final float VOLUME = 0.6f, CHAT_VOLUME = 0.15f;
     public static final int CHATTER_EVERY = 300;
     /** Ticks between new thoughts. */
     public static final int THINK_EVERY = 600;
@@ -643,8 +643,12 @@ public class BleepEntity extends TamableAnimal {
 
     /** A blip in its own voice. */
     public void talk(Emotion emotion) {
+        talk(emotion, VOLUME);
+    }
+
+    private void talk(Emotion emotion, float volume) {
         var sound = BleepContent.VOICE.get(emotion);
-        if (sound != null) playSound(sound.get(), VOLUME, getVoicePitch());
+        if (sound != null) playSound(sound.get(), volume, getVoicePitch());
     }
 
     /** Every bleep has a voice of its own: a little higher or lower. */
@@ -1743,8 +1747,17 @@ public class BleepEntity extends TamableAnimal {
 
     /** Says something: a thought, a blip, and its owner close by reads it above the hotbar. */
     private void say(String key) {
+        say(key, VOLUME);
+    }
+
+    /** Bleeps talking to each other: much softer (owner, 30 Oct 2026). */
+    private void murmur(String key) {
+        say(key, CHAT_VOLUME);
+    }
+
+    private void say(String key, float volume) {
         pinThought(key);
-        talk(emotion() == Emotion.ASLEEP ? Emotion.HAPPY : emotion());
+        talk(emotion() == Emotion.ASLEEP ? Emotion.HAPPY : emotion(), volume);
         if (getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24) {
             owner.sendOverlayMessage(Component.translatable("message.bleep.thinks", getDisplayName(), Component.translatable(key)));
         }
@@ -1753,7 +1766,7 @@ public class BleepEntity extends TamableAnimal {
     /** Happy, excited or just bored: a sad, angry or scared bleep does not say hi. */
     private boolean inTheMood() {
         Emotion emotion = currentEmotion(); // as it is now, not as it was shown last tick
-        return emotion == Emotion.HAPPY || emotion == Emotion.EXCITED || emotion == Emotion.BORED;
+        return (emotion == Emotion.HAPPY || emotion == Emotion.EXCITED || emotion == Emotion.BORED) && !dancing(); // dancing: no time to talk
     }
 
     /** Both say hi: HI and a heart on their screens, arms in the air. */
@@ -1765,14 +1778,14 @@ public class BleepEntity extends TamableAnimal {
             b.showDisplay(Display.HI, 60);
             b.rememberFirst("greet", "diary.bleep.greet", b.greeting.getName().getString());
         }
-        say("thought.bleep.greet." + getRandom().nextInt(3));
+        murmur("thought.bleep.greet." + getRandom().nextInt(3));
         other.pinThought("thought.bleep.greet.back");
         befriend(this, other, 1);
     }
 
     /** A little chat, four lines, taking turns (tests: which chat). */
     public boolean startChat(BleepEntity other, int which) {
-        if (other == this || talkingTo != null || other.talkingTo != null || fightingWith != null || other.fightingWith != null) return false;
+        if (other == this || talkingTo != null || other.talkingTo != null || fightingWith != null || other.fightingWith != null || dancing() || other.dancing()) return false;
         for (BleepEntity b : List.of(this, other)) {
             b.talkingTo = b == this ? other : this;
             b.talkTicks = CHAT_LINES * CHAT_STEP + 20;
@@ -1903,7 +1916,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** The chat: every CHAT_STEP ticks the next line, taking turns (the one who started says the first). */
     private void tickChat() {
-        if (talkingTo == null || !talkingTo.isAlive() || slept || --talkTicks <= 0) {
+        if (talkingTo == null || !talkingTo.isAlive() || slept || dancing() || talkingTo.dancing() || --talkTicks <= 0) {
             if (talkingTo != null && leads && talkTicks <= 0) befriend(this, talkingTo, 1);
             talkingTo = null;
             return;
@@ -1913,7 +1926,7 @@ public class BleepEntity extends TamableAnimal {
         if (elapsed % CHAT_STEP != 0 || elapsed / CHAT_STEP >= CHAT_LINES) return;
         int line = elapsed / CHAT_STEP;
         BleepEntity speaker = line % 2 == 0 ? this : talkingTo;
-        speaker.say("chat.bleep." + chat + "." + line);
+        speaker.murmur("chat.bleep." + chat + "." + line);
         speaker.showDisplay(Display.TALK, CHAT_STEP - 10);
     }
 

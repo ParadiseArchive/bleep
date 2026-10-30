@@ -1,0 +1,8 @@
+{
+  "itemGroup.bleep": "Bleep",
+  "entity.bleep.bleep": "Bleep",
+  "item.bleep.bleep_core": "Bleep Core",
+  "message.bleep.stay": "%s: Stay",
+  "message.bleep.follow": "%s: Follow",
+  "message.bleep.asleep": "%s is out of battery. Zzz..."
+}

@@ -1,0 +1,29 @@
+# Mod metadata. The dollar-brace placeholders are filled in from gradle.properties.
+license="${mod_license}"
+issueTrackerURL="https://github.com/ParadiseArchive/bleep/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+displayURL="https://hookdev.io"
+authors="Hook Development"
+description='''
+Small robots on tracks with a display for a face. A bleep is a pet with a character:
+it shows how it feels, thinks out loud, and is a little bit naughty. It never dies,
+it only runs out of battery.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"

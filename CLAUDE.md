@@ -15,10 +15,14 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
 ## Technical
 - NeoForge, Java 25, MIT. Mod id `bleep` (permanent after the first release), package `io.hookdev.bleep`.
 - Minecraft 26.3 and 26.1.2, one build per version, set up the same way as Setpoint (`versions/<mc>/gradle.properties`, `-Pmc=26.1`); every change must build and pass the game tests on both.
-- Jade and JEI support, like Setpoint.
-- Animations: Minecraft's own entity animation system, no extra library, so players need nothing else installed.
+- Jade and JEI support, like Setpoint (not wired in yet).
+- Animations: Minecraft's own entity models, no extra library, so players need nothing else installed. Poses are set in BleepModel.setupAnim (wheels turn with the distance driven, arms and head per emotion).
+- `node tools/gen-assets.mjs` draws every texture (the body from the boxes in client/BleepModel, the faces, the core) and writes the item models and en_us.json. Change the drawing there, never the PNGs by hand. The test bench `data/bleep/structure/bench.nbt` is a copy of Setpoint's.
+- The display: the head's front is 10 x 5 on the model; the face textures are 128 x 128 against the model's 64 x 64, so the display has 20 x 10 pixels. Faces glow (RenderTypes.eyes) and blink every 90 ticks (BleepRenderer).
+- Game tests: `./gradlew runGameTestServer` and `-Pmc=26.1`; build.yml runs both on every push. No class differs between 26.3 and 26.1 yet: if one ever does, give it a copy per version in `versions/<mc>/java`, as Setpoint does.
 
 ## Backlog
+- [x] v0.1 step 1 (30 Oct 2026): a bleep that drives and pulls faces. BleepEntity (TamableAnimal, never bred): battery 0-100 synced, damage drains it (2% per point) instead of health (only /kill and the void remove it), driving 0.0015%/tick, below 20% tired and slower, at 0 it switches off (immobile, ASLEEP) and for now charges itself where it is until full, then wakes up sad. Emotions HAPPY, EXCITED, SAD, ANGRY, BORED (2 minutes with nothing to do), SURPRISED (hit, a llama near), TIRED, ASLEEP, BOOT. Owner: empty hand right-click stay/follow, sneak-right-click pets (hearts, excited). A name tag name always shows. Avoids llamas. The Bleep Core boots a bleep where you use it (stand-in for building one from parts). Eight game tests.
 - [ ] v0.1 (design doc, roadmap): Bleep Core and parts, assembly with a start-up animation, driving / jumping / swimming / picking up items, the display with six emotions plus tired and asleep, battery and homebase, name above the head, relationship meter and info screen, follow / stay / go home, obsession, mob thoughts, fear of llamas. Build it in steps: first a bleep that drives and pulls faces.
 - [ ] Check the mob list in the design doc against the 26.3 game files.
 - [ ] Open question: does giving redstone count as a gift (+3), as charging (v0.2), or both?

@@ -122,6 +122,10 @@ a minecart behind yours like a train. Give it emeralds and it goes shopping at t
 It buries something and its screen tells you warmer or colder while you dig. Or you hide something, and it sniffs
 about until it finds it.
 
+### Dreams
+At night on its homebase it dreams, and its screen shows bits of its day: a mob, a little scene, a falling star.
+Very rarely, something strange.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

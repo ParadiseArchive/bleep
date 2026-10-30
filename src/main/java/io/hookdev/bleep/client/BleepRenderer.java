@@ -76,6 +76,8 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         var home = bleep.home();
         state.homeAngle = home != null && home.dimension().equals(bleep.level().dimension())
                 ? DisplayTextures.homeAngle(bleep.yBodyRot, home.pos().getX() + 0.5 - bleep.getX(), home.pos().getZ() + 0.5 - bleep.getZ()) : Float.NaN;
+        state.dream = bleep.dream();
+        state.dreamName = state.dream.startsWith("mob:") ? net.minecraft.network.chat.Component.translatable(state.dream.substring(4)).getString() : "";
         var treasure = bleep.treasure();
         var player = net.minecraft.client.Minecraft.getInstance().player;
         state.treasureAngle = treasure != null ? DisplayTextures.homeAngle(bleep.yBodyRot, treasure.getX() + 0.5 - bleep.getX(), treasure.getZ() + 0.5 - bleep.getZ()) : Float.NaN;

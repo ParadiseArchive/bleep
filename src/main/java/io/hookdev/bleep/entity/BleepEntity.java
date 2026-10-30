@@ -84,6 +84,8 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> STICKER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    /** What it dreams of: "mob:" and a name key, "scene:" and a kind of place, "star" or "strange". */
+    private static final EntityDataAccessor<String> DREAM = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
@@ -99,14 +101,14 @@ public class BleepEntity extends TamableAnimal {
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
     /** The battery, in percent. Below TIRED it looks tired and drives slower. */
     public static final float FULL = 100, TIRED = 20;
-    /** Battery per tick while it drives or swims (a full battery lasts about 55 minutes of driving). */
-    public static final float DRIVE_COST = 0.0015f;
+    /** Battery per tick while it drives or swims (a full battery lasts about 83 minutes of driving). */
+    public static final float DRIVE_COST = 0.001f;
     /** Without a homebase it uses this much more. */
     public static final float HOMELESS_COST = 1.5f;
     /** Battery per point of damage (a zombie hit of 3 costs 6%). */
     public static final float DAMAGE_COST = 2;
-    /** Battery per tick on its homebase (empty to full in 50 seconds), and asleep without one (100 seconds). */
-    public static final float HOME_CHARGE = 0.1f, SLEEP_CHARGE = 0.05f;
+    /** Battery per tick on its homebase (empty to full in about 2 minutes), and asleep without one (about 4 minutes). */
+    public static final float HOME_CHARGE = 0.04f, SLEEP_CHARGE = 0.02f;
     /** Ticks without anything to do before it gets bored (half that without a homebase). */
     public static final int BORED_AFTER = 2400;
     /** Ticks it lies switched off where it ran empty before it goes home. */
@@ -244,6 +246,10 @@ public class BleepEntity extends TamableAnimal {
     /** Treasure hunt: it buries something and you dig for it (5 minutes), or you hide something (20 seconds to do it) and it looks for it. */
     public static final int BURYING = 1, BURIED = 2, UNBURYING = 3, FIND_COUNTING = 4, FINDING = 5, HUNT_TICKS = 6000, HIDE_TICKS = 400;
     private int treasureMode, treasureTicks, decoys, lastWarmth;
+    /** Dreams: what it saw today (mob name keys, kinds of place; not saved: after a reload it dreams of older things), when it dreams next, the last night it wrote one down. */
+    private final java.util.ArrayDeque<String> dayMobs = new java.util.ArrayDeque<>(), dayScenes = new java.util.ArrayDeque<>();
+    private int dreamIn = 400;
+    private long dreamtOn = -1;
     private long treasureStart, treasureUntil, lidCloses;
     private ItemStack treasureItem = ItemStack.EMPTY;
     private @Nullable Object hidden; // what its owner hid: an ItemEntity they tossed, or the BlockPos of a container they opened
@@ -330,6 +336,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(THOUGHT, "");
         builder.define(HOME, Optional.empty());
         builder.define(TREASURE, Optional.empty());
+        builder.define(DREAM, "");
         builder.define(OBSESSION, -1);
         builder.define(REVEALED, false);
         builder.define(ASSEMBLY, 0);
@@ -1118,6 +1125,7 @@ public class BleepEntity extends TamableAnimal {
         tickCare();
         tickAdventure();
         tickTreasure();
+        tickDreams();
         if (tickCount % 100 == 70 && isTame()) checkMilestones();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
@@ -2368,6 +2376,81 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- dreams ----------
+
+    /** On its homebase at night (in the Overworld): eyes shut, and now and then a dream. */
+    public boolean dozing() {
+        return !level().isClientSide() && level().dimension() == Level.OVERWORLD && level().isDarkOutside() && onHome() && getTarget() == null && !abandoned() && assembly() == 0;
+    }
+
+    public String dream() {
+        return entityData.get(DREAM);
+    }
+
+    /** By day: what it sees goes into today's bits to dream of. At night on its homebase: a dream every half minute to a minute. */
+    private void tickDreams() {
+        if (tickCount % 100 == 37 && !slept && level() instanceof ServerLevel) {
+            var near = level().getEntitiesOfClass(Mob.class, getBoundingBox().inflate(10), m -> !(m instanceof BleepEntity) && hasLineOfSight(m))
+                    .stream().min(Comparator.comparingDouble(this::distanceToSqr));
+            near.ifPresent(m -> remember(dayMobs, m.getType().getDescriptionId()));
+            remember(dayScenes, scene(level().getBiome(blockPosition())));
+        }
+        if (!dozing()) {
+            if (display() == Display.DREAM) showDisplay(Display.FACE, 0);
+            return;
+        }
+        if (--dreamIn > 0 || display() != Display.FACE) return;
+        dreamIn = 600 + getRandom().nextInt(600);
+        dreamNow();
+    }
+
+    private static void remember(java.util.ArrayDeque<String> bits, String bit) {
+        bits.remove(bit);
+        bits.addLast(bit);
+        while (bits.size() > 8) bits.removeFirst();
+    }
+
+    /** The kind of place, as a little scene on its screen. */
+    private static String scene(net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome) {
+        if (biome.is(net.minecraft.tags.BiomeTags.IS_NETHER)) return "fire";
+        if (biome.is(net.minecraft.tags.BiomeTags.IS_END)) return "void";
+        if (biome.is(net.minecraft.tags.BiomeTags.IS_OCEAN) || biome.is(net.minecraft.tags.BiomeTags.IS_RIVER) || biome.is(net.minecraft.tags.BiomeTags.IS_BEACH)) return "waves";
+        if (biome.is(net.minecraft.tags.BiomeTags.IS_BADLANDS) || biome.is(net.neoforged.neoforge.common.Tags.Biomes.IS_DESERT)) return "sand";
+        if (biome.is(net.neoforged.neoforge.common.Tags.Biomes.IS_SNOWY)) return "snow";
+        if (biome.is(net.minecraft.tags.BiomeTags.IS_FOREST) || biome.is(net.minecraft.tags.BiomeTags.IS_TAIGA) || biome.is(net.minecraft.tags.BiomeTags.IS_JUNGLE)) return "trees";
+        if (biome.is(net.neoforged.neoforge.common.Tags.Biomes.IS_CAVE)) return "cave";
+        return "hills";
+    }
+
+    /** A dream: a strange one now and then (a sign more on its ??? page), a falling star if it ever saw one, or a bit of the day. The first one each night goes in its diary. */
+    public void dreamNow() {
+        String dream;
+        float roll = getRandom().nextFloat();
+        List<String> knownMobs = new java.util.ArrayList<>(memory.mobs.keySet());
+        if (roll < 0.1f) dream = "strange";
+        else if (roll < 0.25f && memory.firsts.contains("star")) dream = "star";
+        else if (roll < 0.6f && !dayScenes.isEmpty()) dream = "scene:" + dayScenes.toArray(String[]::new)[getRandom().nextInt(dayScenes.size())];
+        else if (!dayMobs.isEmpty()) dream = "mob:" + dayMobs.toArray(String[]::new)[getRandom().nextInt(dayMobs.size())];
+        else if (!knownMobs.isEmpty()) dream = "mob:" + BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(knownMobs.get(getRandom().nextInt(knownMobs.size())))).getDescriptionId();
+        else dream = "scene:hills";
+        entityData.set(DREAM, dream);
+        showDisplay(Display.DREAM, 120);
+        long night = level().getGameTime() / 24000;
+        if (dreamtOn == night) return;
+        dreamtOn = night;
+        if (dream.equals("strange")) {
+            remember("diary.bleep.dream.strange", "");
+            addSigns(1);
+        } else if (dream.equals("star")) {
+            remember("diary.bleep.dream.star", "");
+        } else if (dream.startsWith("mob:")) {
+            remember("diary.bleep.dream.mob", dream.substring(4));
+        } else {
+            remember("diary.bleep.dream." + dream.substring(6), "");
+        }
+        rememberFirst("dream", "diary.bleep.dream.first", "");
+    }
+
     // ---------- treasure hunt ----------
 
     public @Nullable BlockPos treasure() {
@@ -2932,7 +3015,7 @@ public class BleepEntity extends TamableAnimal {
     }
 
     private Emotion currentEmotion() {
-        if (slept || bedside || hideMode == SEEK_COUNTING || treasureMode == FIND_COUNTING || trick() == Trick.PLAY_DEAD) return Emotion.ASLEEP; // eyes shut: counting, or playing dead
+        if (slept || bedside || dozing() || hideMode == SEEK_COUNTING || treasureMode == FIND_COUNTING || trick() == Trick.PLAY_DEAD) return Emotion.ASLEEP; // eyes shut: counting, or playing dead
         if (moodTicks > 0) return mood;
         if (fightingWith != null) return Emotion.ANGRY;
         if (danceTicks > 0 || playing() || greetTicks > 0 || welcomeTicks > 0) return Emotion.EXCITED;
@@ -2945,7 +3028,7 @@ public class BleepEntity extends TamableAnimal {
 
     private Activity currentActivity(boolean home) {
         if (moodTicks > 0 && mood == Emotion.BOOT) return Activity.STARTING;
-        if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
+        if (home) return display() == Display.DREAM ? Activity.DREAMING : battery() < FULL ? Activity.CHARGING : slept || dozing() ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
         if (guardAt != null) return Activity.GUARDING;
@@ -2989,7 +3072,7 @@ public class BleepEntity extends TamableAnimal {
             pinTicks--;
             return;
         }
-        String kind = activity == Activity.BEDSIDE ? "dream" : activity == Activity.DANCING ? "dance" : activity == Activity.PLAYING ? "play" : emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
+        String kind = activity == Activity.BEDSIDE || activity == Activity.DREAMING ? "dream" : activity == Activity.DANCING ? "dance" : activity == Activity.PLAYING ? "play" : emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
                 : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : activity == Activity.OVERCHARGED ? "overcharged"
                 : emotion == Emotion.BOOT ? "excited" : emotion.texture();
         // in a thunderstorm it hopes for lightning

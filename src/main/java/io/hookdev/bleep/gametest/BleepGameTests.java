@@ -132,10 +132,11 @@ public final class BleepGameTests {
         test("it_brings_food_when_you_are_hurt", BleepGameTests::itBringsFoodWhenYouAreHurt, 300);
         test("it_warns_for_a_creeper", BleepGameTests::itWarnsForACreeper, 40);
         test("a_fisher_catches_something", BleepGameTests::aFisherCatchesSomething, 500);
-        test("a_smelter_fills_the_furnace", BleepGameTests::aSmelterFillsTheFurnace, 200);
+        test("a_smelter_fills_the_furnace", BleepGameTests::aSmelterFillsTheFurnace, 400);
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_dreams", BleepGameTests::itDreams, 20);
         test("it_buries_a_treasure", BleepGameTests::itBuriesATreasure, 400);
         test("it_finds_what_you_hid", BleepGameTests::itFindsWhatYouHid, 1200);
         test("it_goes_shopping", BleepGameTests::itGoesShopping, 400);
@@ -198,7 +199,7 @@ public final class BleepGameTests {
         bleep.setBattery(0);
         helper.runAfterDelay(20, () -> {
             helper.assertTrue(bleep.emotion() == Emotion.ASLEEP, "an empty bleep should be asleep, it shows " + bleep.emotion());
-            helper.assertTrue(bleep.battery() > 0.5f, "it should charge itself while it sleeps, battery is " + bleep.battery());
+            helper.assertTrue(bleep.battery() > 0.3f, "it should charge itself while it sleeps, battery is " + bleep.battery());
             helper.succeed();
         });
     }
@@ -287,7 +288,7 @@ public final class BleepGameTests {
         bleep.setBattery(50);
         bleep.dock();
         helper.runAfterDelay(10, () -> {
-            helper.assertTrue(bleep.battery() > 50.5f, "a docked bleep should charge, battery is " + bleep.battery());
+            helper.assertTrue(bleep.battery() > 50.3f, "a docked bleep should charge, battery is " + bleep.battery());
             helper.assertTrue(helper.getLevel().getBlockState(home).getValue(HomebaseBlock.CHARGING), "the light should be on while it charges");
             bleep.setBattery(BleepEntity.FULL);
             helper.runAfterDelay(5, () -> {
@@ -1181,6 +1182,17 @@ public final class BleepGameTests {
     @SuppressWarnings("unchecked")
     private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
         return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static void itDreams(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.dreamNow();
+        helper.assertTrue(bleep.display() == io.hookdev.bleep.entity.Display.DREAM && !bleep.dream().isEmpty(), "a dream on its screen");
+        helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().startsWith("diary.bleep.dream.") && !e.key().endsWith(".first")), "and in its diary");
+        int lines = bleep.memory().diary.size();
+        bleep.dreamNow();
+        helper.assertTrue(bleep.memory().diary.size() == lines, "one dream a night goes in its diary");
+        helper.succeed();
     }
 
     private static void itBuriesATreasure(GameTestHelper helper) {

@@ -36,7 +36,9 @@ public enum Display {
     /** Ore close by (its owner holds a pickaxe): a gem. */
     ORE,
     /** Treasure hunt: warm and cold bars (how close its owner is to what it buried), an arrow when they are far off. */
-    TREASURE;
+    TREASURE,
+    /** A dream, asleep on its homebase at night: a mob it saw (its name), a place (a little scene), a falling star, or something strange. */
+    DREAM;
 
     private static final Display[] VALUES = values();
 

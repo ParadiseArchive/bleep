@@ -503,6 +503,11 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     const WARM = [[0x5a, 0xb4, 0xff], [0x8f, 0xf7, 0xff], [0xff, 0xb5, 0x47], [0xff, 0x8a, 0x3d], [0xff, 0x4f, 0x4f]];
     for (let i = 0; i < 5; i++) for (let y = 6 - i; y <= 8; y++) for (let dx = 0; dx < 3; dx++) { if (i < 3) set(1 + i * 4 + dx, y, WARM[i]); else if (y === 8) set(1 + i * 4 + dx, y, DIM); }
   });
+  screen('trick_dream', (set) => { // a dream of green hills under the moon (client/DisplayTextures.scene)
+    const GREEN = [0x5b, 0xd1, 0x6a], SNOW = [0xee, 0xf1, 0xf4];
+    for (let x = 0; x < 20; x++) { const top = 7 - Math.round(2 * Math.sin((x + 2) / 3)); for (let y = top; y < 10; y++) set(x, y, y === top ? GREEN : DIM); }
+    set(15, 1, SNOW); set(16, 1, SNOW); set(15, 2, SNOW);
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

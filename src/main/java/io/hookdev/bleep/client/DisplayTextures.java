@@ -67,6 +67,7 @@ public final class DisplayTextures {
             case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
             case YUM, CURIOUS, SWEAT, TEAR, SPARKLE, ORE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
+            case DREAM -> "dream" + state.dream + (state.dream.startsWith("mob:") ? step : (int) (state.ageInTicks / 5));
             case TREASURE -> state.treasureDistance > FAR_OFF ? "treasure_arrow" + arrow(state.treasureAngle) : "treasure" + warmth(state.treasureDistance) + ((int) (state.ageInTicks / 6) % 2);
             default -> "face";
         };
@@ -85,6 +86,7 @@ public final class DisplayTextures {
             case TEAR -> tear(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case ORE -> ore(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case DREAM -> dream(image, state.dream, state.dreamName, (int) (state.ageInTicks / 3), (int) (state.ageInTicks / 5), state.id);
             case TREASURE -> {
                 if (state.treasureDistance > FAR_OFF) arrow(image, arrow(state.treasureAngle));
                 else warmth(image, warmth(state.treasureDistance), (int) (state.ageInTicks / 6) % 2 == 0);
@@ -326,6 +328,82 @@ public final class DisplayTextures {
         String[] gem = {"..###..", ".#####.", "#######", ".#####.", "..###..", "...#..."};
         for (int y = 0; y < gem.length; y++) for (int x = 0; x < 7; x++) if (gem[y].charAt(x) == '#') set(image, 7 + x, 2 + y, (x + y) % 3 == 0 ? WHITE : GLOW);
         if (glint) { set(image, 15, 1, WHITE); set(image, 16, 2, AMBER); set(image, 4, 6, AMBER); }
+    }
+
+    // ---------- dreams ----------
+
+    private static final int GREEN = 0xFF5BD16A, SNOW = 0xFFEEF1F4, VIOLET = 0xFFB58CFF, FIRE = 0xFFFF6A3D, SKY = 0xFF5AB4FF;
+
+    private static void dream(NativeImage image, String dream, String name, int scroll, int step, int id) {
+        if (dream.startsWith("mob:")) {
+            ticker(image, name, scroll);
+            return;
+        }
+        switch (dream) {
+            case "star" -> { // a star falling across, with its trail
+                int x = 18 - step % 24, y = (step % 24) / 3;
+                for (int t = 0; t < 5; t++) set(image, x + t + 1, y - (t + 1) / 3 - 1, t < 2 ? AMBER : DIM);
+                set(image, x, y, SNOW); set(image, x - 1, y, AMBER); set(image, x + 1, y, AMBER); set(image, x, y - 1, AMBER); set(image, x, y + 1, AMBER);
+            }
+            case "strange" -> { // signs it cannot read, flickering
+                java.util.Random random = new java.util.Random(id * 31L + step / 4);
+                for (int g = 0; g < 4; g++) for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) if (random.nextInt(3) > 0) set(image, 2 + g * 4 + x, 3 + y, g == step % 4 ? SNOW : VIOLET);
+            }
+            default -> scene(image, dream.startsWith("scene:") ? dream.substring(6) : "hills", step);
+        }
+    }
+
+    /** A little place, ten pixels high. */
+    private static void scene(NativeImage image, String kind, int step) {
+        switch (kind) {
+            case "waves" -> {
+                for (int x = 0; x < W; x++) {
+                    int a = (x + step) % 6, b = (x + step / 2 + 3) % 6;
+                    set(image, x, a < 3 ? 5 : 6, SKY); set(image, x, b < 3 ? 8 : 9, DIM);
+                }
+                set(image, 15, 1, SNOW); set(image, 16, 1, SNOW); set(image, 15, 2, SNOW); // the moon
+            }
+            case "sand" -> {
+                for (int x = 0; x < W; x++) set(image, x, 9, AMBER);
+                for (int y = 3; y < 9; y++) set(image, 6, y, GREEN); // a cactus
+                set(image, 5, 5, GREEN); set(image, 4, 5, GREEN); set(image, 4, 4, GREEN); set(image, 7, 6, GREEN); set(image, 8, 6, GREEN); set(image, 8, 5, GREEN);
+                set(image, 15, 2, AMBER); set(image, 16, 2, AMBER); set(image, 15, 3, AMBER); set(image, 16, 3, AMBER); // the sun
+            }
+            case "snow" -> {
+                for (int x = 0; x < W; x++) set(image, x, 9, SNOW);
+                for (int f = 0; f < 7; f++) set(image, (f * 7 + 3) % W, (f * 3 + step) % 9, SNOW);
+            }
+            case "trees" -> {
+                for (int t = 0; t < 3; t++) {
+                    int cx = 3 + t * 7;
+                    for (int y = 0; y < 5; y++) for (int dx = -y / 2 - 1; dx <= y / 2 + 1; dx++) if (Math.abs(dx) <= y) set(image, cx + dx, 2 + y, GREEN);
+                    set(image, cx, 7, BROWN); set(image, cx, 8, BROWN);
+                }
+                for (int x = 0; x < W; x++) set(image, x, 9, DIM);
+            }
+            case "fire" -> {
+                for (int x = 0; x < W; x++) {
+                    int h = 3 + (x * 7 + step * 3) % 5;
+                    for (int y = 9; y > 9 - h; y--) set(image, x, y, y < 9 - h + 2 ? AMBER : FIRE);
+                }
+            }
+            case "void" -> {
+                for (int s = 0; s < 6; s++) set(image, (s * 7 + 2) % W, (s * 5 + 1) % 10, (s + step) % 3 == 0 ? SNOW : VIOLET);
+            }
+            case "cave" -> {
+                for (int x = 0; x < W; x++) { set(image, x, 0, DIM); set(image, x, 9, DIM); }
+                for (int x = 2; x < W; x += 5) { set(image, x, 1, DIM); set(image, x, 2, DIM); } // stalactites
+                set(image, 9, 6, AMBER); set(image, 9, 7, BROWN); // a torch
+                if (step % 2 == 0) set(image, 9, 5, FIRE);
+            }
+            default -> { // green hills under the moon
+                for (int x = 0; x < W; x++) {
+                    int top = 7 - (int) Math.round(2 * Math.sin((x + 2) / 3.0));
+                    for (int y = top; y < H; y++) set(image, x, y, y == top ? GREEN : DIM);
+                }
+                set(image, 15, 1, SNOW); set(image, 16, 1, SNOW); set(image, 15, 2, SNOW);
+            }
+        }
     }
 
     // ---------- treasure hunt: warmer, colder ----------

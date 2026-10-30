@@ -57,6 +57,20 @@ public final class Memory {
     /** Strange signs on the ??? page of its Bleepedia: they come one by one, from the stars (SIGNS at most). */
     public int signs;
     public static final int SIGNS = 64;
+    /** How often it did things (its hobbies: stargazing, digging, collecting, dancing, chatting, playing; and catches, harvests). */
+    public final Map<String, Integer> counts = new LinkedHashMap<>();
+    /** Its hobby (one of the counts), or empty. */
+    public String hobby = "";
+    /** Milestones it reached (Milestone id), and the game time it did. */
+    public final Map<String, Long> milestones = new LinkedHashMap<>();
+
+    public int count(String what) {
+        return counts.getOrDefault(what, 0);
+    }
+
+    public void add(String what) {
+        counts.merge(what, 1, Integer::sum);
+    }
     public double distance;
     /** Things that only make the diary the first time. */
     public final List<String> firsts = new ArrayList<>();
@@ -106,6 +120,9 @@ public final class Memory {
         output.putInt("times_empty", timesEmpty);
         output.putDouble("distance", distance);
         output.putInt("signs", signs);
+        output.store("counts", Codec.unboundedMap(Codec.STRING, Codec.INT), counts);
+        output.putString("hobby", hobby);
+        output.store("milestones", FOUND, milestones);
         output.store("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC), friends);
     }
 
@@ -127,6 +144,11 @@ public final class Memory {
         timesEmpty = input.getIntOr("times_empty", 0);
         distance = input.getDoubleOr("distance", 0);
         signs = input.getIntOr("signs", 0);
+        counts.clear();
+        input.read("counts", Codec.unboundedMap(Codec.STRING, Codec.INT)).ifPresent(counts::putAll);
+        hobby = input.getStringOr("hobby", "");
+        milestones.clear();
+        input.read("milestones", FOUND).ifPresent(milestones::putAll);
         friends.clear();
         input.read("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC)).ifPresent(friends::putAll);
     }

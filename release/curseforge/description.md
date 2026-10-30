@@ -92,6 +92,11 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Something to eat.** Low on health or food, and it brings you something from its storage.
 - **Look out!** A creeper about to go off behind you, and it sounds the alarm.
 
+## Hobbies and badges
+
+- **Hobbies.** What it does most in its free time becomes its hobby, and then it does it even more: stargazing, digging, collecting, dancing, chatting or playing.
+- **Badges.** Twenty milestones in its Bleepedia, from a kilometre driven to a falling star seen.
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

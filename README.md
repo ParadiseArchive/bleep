@@ -109,6 +109,10 @@ their Bleepedia with signs nobody can read. Hints, never an answer.
 When you die, it gathers up your things where you fell and gives them back when you return. Low on health or food, it
 brings you something to eat from its storage, and it warns you when a creeper is about to go off behind you.
 
+### Hobbies and badges
+What a bleep does most in its free time becomes its hobby (stargazing, digging, collecting, dancing, chatting or
+playing), and then it does it even more. Its Bleepedia has a Badges tab: twenty milestones to reach.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

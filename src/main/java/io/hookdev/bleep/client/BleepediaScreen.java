@@ -34,8 +34,8 @@ public class BleepediaScreen extends Screen {
     private static final int W = 300, H = 214, ROW = 30, TOP = 52;
     private static final int SHELL = 0xFFEEF1F4, SHELL_EDGE = 0xFFB7C0C9, PANEL = 0xFF15181E, CARD = 0xFF22262E, SCREEN = 0xFF08090C;
     private static final int TEXT = 0xFFEEF1F4, DIM = 0xFF8A93A0, GLOW = 0xFF8FF7FF, AMBER = 0xFFFFB547;
-    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary", "signs"};
-    private static final int SIGNS_TAB = 5, GLYPH_COLS = 8, GLYPH_W = 34, GLYPH_H = 18;
+    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary", "badges", "signs"};
+    private static final int SIGNS_TAB = 6, GLYPH_COLS = 8, GLYPH_W = 34, GLYPH_H = 18;
 
     /** One line on a page: an icon (a mob, a block, a colour or nothing), a title, a text, and whether it is found and new. */
     private record Row(@Nullable EntityType<?> mob, @Nullable ItemStack item, int colour, Component title, Component text, boolean known, boolean fresh) {}
@@ -64,7 +64,7 @@ public class BleepediaScreen extends Screen {
         for (int i = 0; i < TABS.length; i++) {
             int t = i;
             Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; open = -1; rebuildWidgets(); })
-                    .bounds(left + 8 + i * 47, top + 24, 45, 16).build();
+                    .bounds(left + 8 + i * 41, top + 24, 39, 16).build();
             button.active = i != tab;
             addRenderableWidget(button);
         }
@@ -138,6 +138,8 @@ public class BleepediaScreen extends Screen {
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.bond"), Component.translatable(data.bond()), true, false));
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.favourite"),
                 data.favourite().isEmpty() ? Component.literal("???") : Component.translatable(data.favourite()), true, false));
+        about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.hobby"),
+                data.hobby().isEmpty() ? Component.translatable("screen.bleep.about.no_hobby") : Component.translatable("hobby.bleep." + data.hobby()), true, false));
         net.minecraft.network.chat.MutableComponent chips = Component.empty();
         for (io.hookdev.bleep.entity.Chip chip : io.hookdev.bleep.entity.Chip.values()) {
             if ((data.chips() & chip.bit()) == 0) continue;
@@ -164,6 +166,17 @@ public class BleepediaScreen extends Screen {
         }
         pages.add(diary);
         counts[4] = String.valueOf(data.diary().size());
+        // milestones: each badge with its icon, what earns it, and the day it did
+        List<Row> badges = new ArrayList<>();
+        for (io.hookdev.bleep.entity.Milestone m : io.hookdev.bleep.entity.Milestone.values()) {
+            Long at = data.milestones().get(m.id());
+            var icon = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(m.icon)));
+            Component desc = Component.translatable("milestone.bleep." + m.id() + ".desc");
+            Component text = at == null ? desc : Component.translatable("screen.bleep.day", data.born() < 0 ? 1 : (at - data.born()) / 24000 + 1).append(": ").append(desc);
+            badges.add(new Row(null, icon, 0, Component.translatable("milestone.bleep." + m.id()), text, at != null, fresh(at)));
+        }
+        pages.add(badges);
+        counts[5] = data.milestones().size() + " / " + io.hookdev.bleep.entity.Milestone.values().length;
         pages.add(new ArrayList<>()); // the signs are drawn, not listed
         counts[SIGNS_TAB] = data.signs() + " / " + Memory.SIGNS;
     }

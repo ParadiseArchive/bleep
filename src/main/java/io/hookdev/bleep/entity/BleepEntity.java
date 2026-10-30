@@ -1097,6 +1097,7 @@ public class BleepEntity extends TamableAnimal {
         tickTrick();
         tickStars();
         tickCare();
+        if (tickCount % 100 == 70 && isTame()) checkMilestones();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
             io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
@@ -1165,7 +1166,7 @@ public class BleepEntity extends TamableAnimal {
                 showDisplay(Display.WANT, 80);
                 return;
             }
-            if ((emotion() == Emotion.HAPPY || emotion() == Emotion.BORED) && getRandom().nextFloat() < 0.12f && ownerHasBall() && distanceToSqr(getOwner()) < TOGETHER * TOGETHER) {
+            if ((emotion() == Emotion.HAPPY || emotion() == Emotion.BORED) && getRandom().nextFloat() < (hobby("playing") ? 0.25f : 0.12f) && ownerHasBall() && distanceToSqr(getOwner()) < TOGETHER * TOGETHER) {
                 showDisplay(Display.BALL, 80);
                 return;
             }
@@ -1181,6 +1182,7 @@ public class BleepEntity extends TamableAnimal {
         if (tickCount % 20 == 0 && jukeboxPlaying()) { // music: dance
             if (danceTicks == 0) {
                 rememberFirst("dance", "diary.bleep.dance", "");
+                hobbyPoint("dancing");
                 if (!level().getEntitiesOfClass(net.minecraft.world.entity.animal.allay.Allay.class, getBoundingBox().inflate(8)).isEmpty()) {
                     pinThought("thought.bleep.dance.allay");
                 }
@@ -1210,14 +1212,20 @@ public class BleepEntity extends TamableAnimal {
             return;
         }
         if (tickCount % 600 == 300 && !moving && quietTicks > 200 && getMainHandItem().isEmpty() && mayBeNaughty() && soft(level().getBlockState(blockPosition().below()))
-                && getRandom().nextFloat() < 0.15f) {
+                && getRandom().nextFloat() < (hobby("digging") ? 0.45f : 0.15f)) {
             digTicks = 40;
+            hobbyPoint("digging");
+        }
+        if (hobby("dancing") && danceTicks == 0 && tickCount % 600 == 200 && !moving && quietTicks > 200 && mayBeNaughty() && getRandom().nextFloat() < 0.3f) {
+            danceTicks = 80; // no music needed: it just dances
+            pinThought("thought.bleep.hobby.dance");
         }
     }
 
     /** Its magnet: it pulls in what lies about (not what its owner threw, not its favourite) into its storage. */
     private void tickMagnet() {
-        if (!magnet() || slept || battery() <= 0 || tickCount % 4 != 0) return;
+        boolean collecting = hobby("collecting") && quietTicks > 200 && stayAt == null; // a collector picks things up when it has nothing to do
+        if (!(magnet() || collecting) || slept || battery() <= 0 || tickCount % 4 != 0) return;
         LivingEntity owner = getOwner();
         Obsession favourite = obsession();
         for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(MAGNET_RANGE), i -> i.isAlive() && !i.hasPickUpDelay() && i != fetching
@@ -1227,6 +1235,7 @@ public class BleepEntity extends TamableAnimal {
                 ItemStack rest = storage.addItem(item.getItem().copy());
                 if (rest.getCount() < before) {
                     lastPicked = item.getItem().getItem();
+                    hobbyPoint("collecting");
                     playSound(SoundEvents.ITEM_PICKUP, 0.3f, 1.6f + getRandom().nextFloat() * 0.4f);
                 }
                 if (rest.isEmpty()) item.discard();
@@ -1560,6 +1569,7 @@ public class BleepEntity extends TamableAnimal {
     /** Brought the ball back: that was fun (a bond point, five a day). */
     private void played() {
         today();
+        hobbyPoint("playing");
         pinThought("thought.bleep.ball." + (1 + getRandom().nextInt(3)));
         rememberFirst("ball", "diary.bleep.ball", "");
         if (playsToday < Bond.PLAYS_PER_DAY) {
@@ -1685,6 +1695,7 @@ public class BleepEntity extends TamableAnimal {
             b.talkTicks = CHAT_LINES * CHAT_STEP + 20;
             b.chat = which;
             b.leads = b == this;
+            b.hobbyPoint("chatting");
         }
         return true;
     }
@@ -1772,7 +1783,7 @@ public class BleepEntity extends TamableAnimal {
         }
         if (tickCount % 200 == 0 && talkingTo == null && fightingWith == null && quietTicks > 100 && mayBeNaughty()) { // a chat
             BleepEntity best = bestFriendNear(8);
-            float chance = best != null ? 0.5f : 0.2f;
+            float chance = (best != null ? 0.5f : 0.2f) * (hobby("chatting") ? 2 : 1);
             if (getRandom().nextFloat() < chance) {
                 BleepEntity other = best != null && best.free() && best.talkingTo == null ? best
                         : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && b.free() && b.talkingTo == null && !b.playing() && friendship(b) > Memory.Friend.RIVAL)
@@ -1789,7 +1800,7 @@ public class BleepEntity extends TamableAnimal {
             BleepEntity best = bestFriendNear(24);
             if (best != null && distanceToSqr(best) > 5 * 5) getNavigation().moveTo(best, 1.0);
         }
-        if (tickCount % 200 == 100 && playTicks == 0 && playCooldown == 0 && quietTicks > 200 && mayBeNaughty() && getRandom().nextFloat() < 0.25f) {
+        if (tickCount % 200 == 100 && playTicks == 0 && playCooldown == 0 && quietTicks > 200 && mayBeNaughty() && getRandom().nextFloat() < (hobby("playing") ? 0.5f : 0.25f)) {
             level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(10), b -> b != this && !b.slept && !b.abandoned() && b.playCooldown == 0)
                     .stream().findFirst().ifPresent(this::playWith);
         }
@@ -2031,6 +2042,7 @@ public class BleepEntity extends TamableAnimal {
             io.hookdev.bleep.McVersion.swing(this);
             if (getRandom().nextFloat() < 0.3f || !catchOf.is(net.minecraft.tags.ItemTags.FISHES)) pinThought(catchOf.is(net.minecraft.tags.ItemTags.FISHES) ? "thought.bleep.work.fish_caught" : "thought.bleep.work.treasure");
             rememberFirst("fisher", "diary.bleep.fisher", "");
+            memory.add("catches");
             fishCooldown = 200 + getRandom().nextInt(400);
             fishWater = null;
         }
@@ -2181,6 +2193,7 @@ public class BleepEntity extends TamableAnimal {
             }
             if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.harvest");
             rememberFirst("farmer", "diary.bleep.farmer", "");
+            memory.add("harvests");
         } else if (level().getBlockEntity(pos) instanceof net.minecraft.world.Container chest) {
             boolean moved = false;
             for (int i = 0; i < storage.getContainerSize(); i++) {
@@ -2413,6 +2426,39 @@ public class BleepEntity extends TamableAnimal {
         guardAt = null;
     }
 
+    // ---------- hobbies, milestones ----------
+
+    /** What can grow into a hobby (each a count in its memory). */
+    public static final List<String> HOBBIES = List.of("stargazing", "digging", "collecting", "dancing", "chatting", "playing");
+    /** How much it must have done something before it is its hobby, and by how much a new one must lead to take over. */
+    public static final int HOBBY_AT = 15, HOBBY_LEAD = 10;
+
+    public boolean hobby(String what) {
+        return memory.hobby.equals(what);
+    }
+
+    /** It did something it might come to love: the one it does most (enough, and clearly) becomes its hobby. */
+    public void hobbyPoint(String what) {
+        memory.add(what);
+        String top = HOBBIES.stream().max(Comparator.comparingInt(memory::count)).orElse("");
+        int lead = memory.count(top) - (memory.hobby.isEmpty() ? 0 : memory.count(memory.hobby));
+        if (top.equals(memory.hobby) || memory.count(top) < HOBBY_AT || (!memory.hobby.isEmpty() && lead < HOBBY_LEAD)) return;
+        memory.hobby = top;
+        pinThought("thought.bleep.hobby." + top);
+        remember("diary.bleep.hobby", "hobby.bleep." + top);
+    }
+
+    /** Milestones it has just reached: a badge in its Bleepedia (and a ! for news). */
+    private void checkMilestones() {
+        for (Milestone m : Milestone.values()) {
+            if (memory.milestones.containsKey(m.id()) || !m.earnedBy(this)) continue;
+            memory.milestones.put(m.id(), level().getGameTime());
+            this.entityData.set(NEWS, true);
+            pinThought("thought.bleep.milestone");
+            remember("diary.bleep.milestone", "milestone.bleep." + m.id());
+        }
+    }
+
     // ---------- the stars ----------
 
     /** A new strange sign on the ??? page of its Bleepedia (or a few). */
@@ -2457,8 +2503,9 @@ public class BleepEntity extends TamableAnimal {
             }
         }
         if (gazeTicks == 0 && tickCount % 600 == 300 && !level().isRaining() && level().canSeeSky(blockPosition().above()) && free() && !busyWithOthers()
-                && quietTicks > 200 && getRandom().nextFloat() < 0.25f) { // looking up
+                && quietTicks > 200 && getRandom().nextFloat() < (hobby("stargazing") ? 0.6f : 0.25f)) { // looking up
             gazeTicks = 120;
+            hobbyPoint("stargazing");
             pinThought("thought.bleep.stars." + getRandom().nextInt(5));
             rememberFirst("stars", "diary.bleep.stars", "");
             if (gazeNight != night) {

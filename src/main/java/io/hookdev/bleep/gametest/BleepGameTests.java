@@ -134,6 +134,8 @@ public final class BleepGameTests {
         test("a_fisher_catches_something", BleepGameTests::aFisherCatchesSomething, 500);
         test("a_smelter_fills_the_furnace", BleepGameTests::aSmelterFillsTheFurnace, 200);
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 200);
+        test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
+        test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -1143,6 +1145,30 @@ public final class BleepGameTests {
         BleepEntity bleep = worker(helper, BleepEntity.JOB_GARDENER);
         bleep.storage().addItem(new ItemStack(Items.POPPY, 2));
         helper.succeedWhen(() -> helper.assertTrue(helper.getBlockState(bed).is(Blocks.POPPY), "a poppy should grow in its garden"));
+    }
+
+    private static void whatItDoesMostBecomesItsHobby(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        for (int i = 0; i < BleepEntity.HOBBY_AT - 1; i++) bleep.hobbyPoint("digging");
+        helper.assertTrue(bleep.memory().hobby.isEmpty(), "not quite a hobby yet");
+        bleep.hobbyPoint("digging");
+        helper.assertTrue(bleep.hobby("digging"), "fifteen digs: digging is its hobby");
+        for (int i = 0; i < BleepEntity.HOBBY_AT + 5; i++) bleep.hobbyPoint("dancing");
+        helper.assertTrue(bleep.hobby("digging"), "a new one has to lead clearly before it takes over");
+        for (int i = 0; i < 6; i++) bleep.hobbyPoint("dancing");
+        helper.assertTrue(bleep.hobby("dancing"), "and then it does");
+        helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).hobby().equals("dancing"), "its hobby, in its Bleepedia");
+        helper.succeed();
+    }
+
+    private static void aKilometreIsAMilestone(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.memory().distance = 1200;
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.memory().milestones.containsKey("drive_1k") && bleep.news(), "a kilometre driven: a badge, and news");
+            helper.assertFalse(bleep.memory().milestones.containsKey("drive_10k"), "not ten yet");
+            helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).milestones().containsKey("drive_1k"), "in its Bleepedia");
+        });
     }
 
     private static Player withCore(GameTestHelper helper) {

@@ -114,6 +114,10 @@ What a bleep does most in its free time becomes its hobby (stargazing, digging, 
 playing), and then it does it even more. Its Bleepedia has a Badges tab: twenty milestones to reach. And it reacts to
 what you do with a little picture on its screen: a heart when you eat, sweat when you fall, sparkles when you level up.
 
+### Adventures
+Underground it warns you for lava and deep drops, and with a pickaxe in your hand it beeps warmer near ore. It rides
+a minecart behind yours like a train. Give it emeralds and it goes shopping at the nearest villager.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

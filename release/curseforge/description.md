@@ -98,6 +98,12 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Badges.** Twenty milestones in its Bleepedia, from a kilometre driven to a falling star seen.
 - **Reactions.** A little picture on its screen for what you do: a heart when you eat, a question mark at a chest, sweat when you fall, a tear for an animal, sparkles when you level up.
 
+## Adventures
+
+- **Cave guide.** It warns you for lava and deep drops, and beeps warmer the closer you get to ore (with a pickaxe in your hand).
+- **Minecart fan.** It hops in a minecart behind yours and follows like a little train.
+- **Shopping.** Give it emeralds: it buys something from the nearest villager and brings you the change.
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

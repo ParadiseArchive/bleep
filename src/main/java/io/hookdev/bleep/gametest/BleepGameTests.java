@@ -133,9 +133,12 @@ public final class BleepGameTests {
         test("it_warns_for_a_creeper", BleepGameTests::itWarnsForACreeper, 40);
         test("a_fisher_catches_something", BleepGameTests::aFisherCatchesSomething, 500);
         test("a_smelter_fills_the_furnace", BleepGameTests::aSmelterFillsTheFurnace, 200);
-        test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 200);
+        test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_goes_shopping", BleepGameTests::itGoesShopping, 400);
+        test("it_brings_the_emeralds_back", BleepGameTests::itBringsTheEmeraldsBack, 400);
+        test("it_rides_along", BleepGameTests::itRidesAlong, 200);
         test("it_reacts_to_what_you_do", BleepGameTests::itReactsToWhatYouDo, 140);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
@@ -1170,6 +1173,57 @@ public final class BleepGameTests {
             helper.assertFalse(bleep.memory().milestones.containsKey("drive_10k"), "not ten yet");
             helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).milestones().containsKey("drive_1k"), "in its Bleepedia");
         });
+    }
+
+    /** A vanilla entity type by name (26.1 and 26.3 keep them in different classes). */
+    @SuppressWarnings("unchecked")
+    private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
+        return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static net.minecraft.world.entity.npc.villager.Villager shop(GameTestHelper helper, boolean stocked) {
+        net.minecraft.world.entity.npc.villager.Villager villager = helper.spawnWithNoFreeWill(type("villager"), FAR);
+        var offers = new net.minecraft.world.item.trading.MerchantOffers();
+        if (stocked) {
+            offers.add(new net.minecraft.world.item.trading.MerchantOffer(new net.minecraft.world.item.trading.ItemCost(Items.EMERALD, 3), new ItemStack(Items.BOOK), 12, 1, 0.05f));
+            offers.add(new net.minecraft.world.item.trading.MerchantOffer(new net.minecraft.world.item.trading.ItemCost(Items.EMERALD, 30), new ItemStack(Items.DIAMOND), 12, 1, 0.05f)); // too dear
+        }
+        villager.setVillagerData(villager.getVillagerData().withProfession(helper.getLevel().registryAccess(), net.minecraft.world.entity.npc.villager.VillagerProfession.LIBRARIAN).withLevel(2)); // an unemployed one has no trades
+        villager.setOffers(offers);
+        return villager;
+    }
+
+    private static void itGoesShopping(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        shop(helper, true);
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.EMERALD, 5)), "it takes the emeralds");
+        helper.assertTrue(bleep.shopping(), "and goes off shopping");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.BOOK)), "it buys the book (it cannot afford the diamond)");
+            helper.assertTrue(owner.getInventory().countItem(Items.EMERALD) == 2, "and brings back the two emeralds it did not spend");
+        });
+    }
+
+    private static void itBringsTheEmeraldsBack(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        shop(helper, false);
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.EMERALD, 4)), "it takes the emeralds");
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().countItem(Items.EMERALD) == 4, "nothing to buy: all four come back"));
+    }
+
+    private static void itRidesAlong(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        net.minecraft.world.entity.Entity ownCart = helper.spawn(type("minecart"), HOME);
+        helper.spawn(type("minecart"), FAR);
+        owner.startRiding(ownCart);
+        helper.succeedWhen(() -> helper.assertTrue(bleep.getVehicle() instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart cart && cart != ownCart,
+                "its owner rides a minecart: it hops in the empty one"));
     }
 
     private static void itReactsToWhatYouDo(GameTestHelper helper) {

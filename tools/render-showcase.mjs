@@ -495,6 +495,10 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
   screen('trick_sparkle', (set) => { // a level up, an advancement
     [[4, 3], [10, 5], [15, 2]].forEach(([x, y], i) => { set(x, y, i % 2 === 0 ? WHITE2 : AMBER); set(x - 1, y, AMBER); set(x + 1, y, AMBER); set(x, y - 1, AMBER); set(x, y + 1, AMBER); });
   });
+  screen('trick_ore', (set) => { // ore close by (client/DisplayTextures.ore)
+    ['..###..', '.#####.', '#######', '.#####.', '..###..', '...#...'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(7 + x, 2 + y, (x + y) % 3 === 0 ? WHITE2 : GLOW); }));
+    set(15, 1, WHITE2); set(16, 2, AMBER); set(4, 6, AMBER);
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

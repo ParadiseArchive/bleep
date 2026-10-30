@@ -213,6 +213,10 @@ public class BleepEntity extends TamableAnimal {
     private @Nullable BlockPos guardAt;
     private final List<ItemStack> kept = new java.util.ArrayList<>();
     private int careCooldown, warnCooldown, guardTicks, reactCooldown;
+    /** Adventures: the villager it goes shopping at with its owner's emeralds; caves (lava, drops, ore); riding a minecart behind its owner's. */
+    private net.minecraft.world.entity.npc.villager.@Nullable Villager shopAt;
+    private ItemStack purse = ItemStack.EMPTY;
+    private int shopTicks, caveCooldown, oreCooldown, cartWait;
     public static final int GUARD_RANGE = 8, GUARD_TIME = 24000;
     public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, JOB_FISHER = 8, JOB_SMELTER = 16, JOB_GARDENER = 32, MIN_RADIUS = 2, MAX_RADIUS = 16;
     /** What its work at workAt is. */
@@ -282,6 +286,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(2, new BedsideGoal());
         this.goalSelector.addGoal(2, new GuardGoal());
         this.goalSelector.addGoal(4, new WelcomeGoal());
+        this.goalSelector.addGoal(4, new ShopGoal());
         this.goalSelector.addGoal(4, new HideAndSeekGoal());
         this.goalSelector.addGoal(6, new WorkGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
@@ -721,6 +726,7 @@ public class BleepEntity extends TamableAnimal {
             changeBond(Bond.FAVOURITE);
             return true;
         }
+        if (stack.is(Items.EMERALD)) return goShopping(player, stack);
         if (stack.is(Items.COOKIE) || stack.is(Items.REDSTONE)) {
             if (giftsToday >= Bond.GIFTS_PER_DAY) {
                 player.sendOverlayMessage(Component.translatable("message.bleep.full_of_gifts", getDisplayName()));
@@ -857,6 +863,7 @@ public class BleepEntity extends TamableAnimal {
             stow();
             net.minecraft.world.Containers.dropContents(level(), this, storage);
             if (level() instanceof ServerLevel server) kept.forEach(stack -> spawnAtLocation(server, stack));
+            if (level() instanceof ServerLevel server && !purse.isEmpty()) spawnAtLocation(server, purse);
         }
         super.remove(reason);
     }
@@ -971,7 +978,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1097,6 +1104,7 @@ public class BleepEntity extends TamableAnimal {
         tickTrick();
         tickStars();
         tickCare();
+        tickAdventure();
         if (tickCount % 100 == 70 && isTame()) checkMilestones();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
@@ -1509,6 +1517,10 @@ public class BleepEntity extends TamableAnimal {
         feel(Emotion.EXCITED, 40);
         if (ball) played();
         if (food) pinThought("thought.bleep.care.eat");
+        if (!purse.isEmpty()) { // the emeralds it did not spend
+            if (!owner.getInventory().add(purse)) level().addFreshEntity(new ItemEntity(level(), owner.getX(), owner.getY(), owner.getZ(), purse));
+            purse = ItemStack.EMPTY;
+        }
     }
 
     // ---------- the ball ----------
@@ -2337,6 +2349,132 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- adventures ----------
+
+    /** Emeralds from its owner: off to the nearest villager (24 blocks) to buy something. */
+    private boolean goShopping(Player player, ItemStack emeralds) {
+        if (shopAt != null || !getMainHandItem().isEmpty() || ownHand || slept) return false;
+        var villager = level().getEntitiesOfClass(net.minecraft.world.entity.npc.villager.Villager.class, getBoundingBox().inflate(24), v -> v.isAlive() && !v.isBaby())
+                .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+        if (villager == null) {
+            player.sendOverlayMessage(Component.translatable("message.bleep.no_villager", getDisplayName()));
+            return false;
+        }
+        shopAt = villager;
+        shopTicks = 0;
+        purse = emeralds.copyAndClear(); // all of them: what it does not spend it brings back
+        say("thought.bleep.shop.off");
+        return true;
+    }
+
+    /** At the villager: a suspicious look, and then a trade (something it can pay for with emeralds alone). */
+    private void trade() {
+        var villager = shopAt;
+        shopAt = null;
+        if (villager == null) return;
+        villager.setUnhappyCounter(40);
+        villager.playSound(net.minecraft.sounds.SoundEvents.VILLAGER_NO, 1, 1);
+        List<net.minecraft.world.item.trading.MerchantOffer> affordable = villager.getOffers().stream().filter(o -> !o.isOutOfStock() && o.getItemCostB().isEmpty()
+                && o.getCostA().is(Items.EMERALD) && o.getCostA().getCount() <= purse.getCount()).toList();
+        if (affordable.isEmpty()) {
+            say("thought.bleep.shop.nothing");
+        } else {
+            var offer = affordable.get(getRandom().nextInt(affordable.size()));
+            purse.shrink(offer.getCostA().getCount());
+            setItemSlot(EquipmentSlot.MAINHAND, offer.getResult().copy()); // FetchGoal brings it over
+            villager.notifyTrade(offer);
+            say("thought.bleep.shop.bought");
+            rememberFirst("shop", "diary.bleep.shop", "");
+        }
+        if (getMainHandItem().isEmpty() && !purse.isEmpty()) { // nothing bought: the emeralds go back
+            setItemSlot(EquipmentSlot.MAINHAND, purse);
+            purse = ItemStack.EMPTY;
+        }
+    }
+
+    public boolean shopping() {
+        return shopAt != null;
+    }
+
+    /** Caves: lava or a deep drop right by its owner, and (with a pickaxe in their hand) warm or cold beeps for ore. A minecart ride behind its owner's. */
+    private void tickAdventure() {
+        if (caveCooldown > 0) caveCooldown--;
+        if (oreCooldown > 0) oreCooldown--;
+        tickMinecart();
+        if (slept || abandoned() || tickCount % 10 != 3 || !(getOwner() instanceof Player owner) || distanceToSqr(owner) > 24 * 24) return;
+        BlockPos at = owner.blockPosition();
+        boolean underground = !level().canSeeSky(at) && at.getY() < level().getSeaLevel();
+        if (!underground) return;
+        if (caveCooldown == 0) {
+            boolean lava = false, drop = false;
+            for (BlockPos pos : BlockPos.betweenClosed(at.offset(-3, -2, -3), at.offset(3, 1, 3))) {
+                if (level().getFluidState(pos).is(net.minecraft.tags.FluidTags.LAVA)) { lava = true; break; }
+            }
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                BlockPos edge = at.relative(side);
+                int depth = 0;
+                while (depth < 6 && level().getBlockState(edge.below(depth)).isAir()) depth++;
+                if (depth >= 6) drop = true;
+            }
+            if (lava || drop) {
+                caveCooldown = 300;
+                showDisplay(Display.ALERT, 40);
+                say(lava ? "thought.bleep.cave.lava" : "thought.bleep.cave.drop");
+                rememberFirst("cave", "diary.bleep.cave", "");
+                return;
+            }
+        }
+        if (oreCooldown == 0 && owner.getMainHandItem().is(net.minecraft.tags.ItemTags.PICKAXES)) {
+            BlockPos nearest = null;
+            double best = Double.MAX_VALUE;
+            for (BlockPos pos : BlockPos.betweenClosed(at.offset(-8, -8, -8), at.offset(8, 8, 8))) {
+                if (!level().getBlockState(pos).is(net.neoforged.neoforge.common.Tags.Blocks.ORES)) continue;
+                double d = pos.distSqr(at);
+                if (d < best) { best = d; nearest = pos.immutable(); }
+            }
+            if (nearest == null) return;
+            double distance = Math.sqrt(best);
+            oreCooldown = distance < 3 ? 25 : distance < 6 ? 45 : 70; // warmer: faster
+            playSound(BleepContent.VOICE.get(Emotion.HAPPY).get(), 0.5f, (float) (0.8 + (8 - Math.min(8, distance)) / 8 * 1.2)); // and higher
+            showDisplay(Display.ORE, 20);
+            if (!memory.firsts.contains("ore_sense")) {
+                rememberFirst("ore_sense", "diary.bleep.ore", "");
+                pinThought("thought.bleep.cave.ore");
+            }
+        }
+    }
+
+    /** A minecart fan: its owner in a cart, so it hops in an empty one close by, and that cart follows theirs like a little train. */
+    private void tickMinecart() {
+        if (!(getOwner() instanceof Player owner) || slept) return;
+        var ownerCart = owner.getVehicle() instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart c ? c : null;
+        if (getVehicle() instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart mine) {
+            if (ownerCart == null) {
+                if (++cartWait > 40) { // its owner got out: so does it
+                    stopRiding();
+                    cartWait = 0;
+                }
+                return;
+            }
+            cartWait = 0;
+            double gap = mine.distanceTo(ownerCart);
+            var speed = ownerCart.getDeltaMovement();
+            if (gap > 1.6 && gap < 10) mine.setDeltaMovement(speed.add(ownerCart.position().subtract(mine.position()).normalize().scale(0.05))); // keep up
+            else if (gap <= 1.6) mine.setDeltaMovement(mine.getDeltaMovement().scale(0.5)); // do not bump
+            if (moodTicks == 0) feel(Emotion.EXCITED, 40);
+            if (tickCount % 200 == 0) pinThought("thought.bleep.minecart." + getRandom().nextInt(3));
+            return;
+        }
+        if (ownerCart == null || tickCount % 10 != 7 || !free() || busyWithOthers() || distanceToSqr(owner) > 16 * 16 || isOrderedToSit()) return;
+        level().getEntitiesOfClass(net.minecraft.world.entity.vehicle.minecart.AbstractMinecart.class, getBoundingBox().inflate(6), c -> c != ownerCart && c.getPassengers().isEmpty())
+                .stream().min(Comparator.comparingDouble(this::distanceToSqr)).ifPresent(cart -> {
+                    if (startRiding(cart)) {
+                        say("thought.bleep.minecart.in");
+                        rememberFirst("minecart", "diary.bleep.minecart", "");
+                    }
+                });
+    }
+
     // ---------- care ----------
 
     /** A little picture on its screen for what its owner just did (not while it shows something else, and not too often). */
@@ -2659,6 +2797,8 @@ public class BleepEntity extends TamableAnimal {
         if (bedside) return Activity.BEDSIDE;
         if (guardAt != null) return Activity.GUARDING;
         if (fishTicks > 0) return Activity.FISHING;
+        if (shopAt != null) return Activity.SHOPPING;
+        if (getVehicle() instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart) return Activity.RIDING;
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
         if (gazeTicks > 0) return Activity.STARGAZING;
@@ -2903,6 +3043,7 @@ public class BleepEntity extends TamableAnimal {
         if (guardAt != null) output.store("guard_at", BlockPos.CODEC, guardAt);
         output.putInt("guard_ticks", guardTicks);
         if (!kept.isEmpty()) output.store("kept", ItemStack.CODEC.listOf(), kept);
+        if (!purse.isEmpty()) output.store("purse", ItemStack.CODEC, purse);
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2953,6 +3094,11 @@ public class BleepEntity extends TamableAnimal {
         guardTicks = input.getIntOr("guard_ticks", 0);
         kept.clear();
         input.read("kept", ItemStack.CODEC.listOf()).ifPresent(kept::addAll);
+        purse = input.read("purse", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        if (!purse.isEmpty() && getMainHandItem().isEmpty()) { // saved while shopping: it brings the emeralds back
+            setItemSlot(EquipmentSlot.MAINHAND, purse);
+            purse = ItemStack.EMPTY;
+        }
         this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
@@ -3171,6 +3317,40 @@ public class BleepEntity extends TamableAnimal {
                 if (ticks++ % 10 == 0) getNavigation().moveTo(guardAt.getX() + 0.5, guardAt.getY(), guardAt.getZ() + 0.5, 1.3);
             } else {
                 getNavigation().stop();
+            }
+        }
+    }
+
+    /** Off shopping: to the villager, and the trade; a minute at most, then it brings the emeralds back. */
+    private class ShopGoal extends Goal {
+        private int ticks;
+
+        ShopGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return shopAt != null && !slept;
+        }
+
+        @Override
+        public void tick() {
+            if (shopAt == null) return;
+            if (!shopAt.isAlive() || ++shopTicks > 600) { // it could not get there
+                shopAt = null;
+                if (getMainHandItem().isEmpty()) {
+                    setItemSlot(EquipmentSlot.MAINHAND, purse);
+                    purse = ItemStack.EMPTY;
+                }
+                return;
+            }
+            getLookControl().setLookAt(shopAt);
+            if (distanceToSqr(shopAt) < 2.5 * 2.5) {
+                getNavigation().stop();
+                trade();
+            } else if (ticks++ % 5 == 0) {
+                getNavigation().moveTo(shopAt, 1.2);
             }
         }
     }

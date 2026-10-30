@@ -66,7 +66,7 @@ public final class DisplayTextures {
             case STARS -> "stars" + ((int) (state.ageInTicks / 5) % 4);
             case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
-            case YUM, CURIOUS, SWEAT, TEAR, SPARKLE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
+            case YUM, CURIOUS, SWEAT, TEAR, SPARKLE, ORE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
             default -> "face";
         };
     }
@@ -83,6 +83,7 @@ public final class DisplayTextures {
             case SWEAT -> sweat(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case TEAR -> tear(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case ORE -> ore(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
@@ -313,6 +314,13 @@ public final class DisplayTextures {
             int x = stars[i][0], y = stars[i][1], c = (i % 2 == 0) == twinkle ? WHITE : AMBER;
             set(image, x, y, c); set(image, x - 1, y, AMBER); set(image, x + 1, y, AMBER); set(image, x, y - 1, AMBER); set(image, x, y + 1, AMBER);
         }
+    }
+
+    /** A gem, glinting: ore close by. */
+    private static void ore(NativeImage image, boolean glint) {
+        String[] gem = {"..###..", ".#####.", "#######", ".#####.", "..###..", "...#..."};
+        for (int y = 0; y < gem.length; y++) for (int x = 0; x < 7; x++) if (gem[y].charAt(x) == '#') set(image, 7 + x, 2 + y, (x + y) % 3 == 0 ? WHITE : GLOW);
+        if (glint) { set(image, 15, 1, WHITE); set(image, 16, 2, AMBER); set(image, 4, 6, AMBER); }
     }
 
     // ---------- news in the Bleepedia ----------

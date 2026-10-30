@@ -214,7 +214,17 @@ public class BleepEntity extends TamableAnimal {
     private final List<ItemStack> kept = new java.util.ArrayList<>();
     private int careCooldown, warnCooldown, guardTicks;
     public static final int GUARD_RANGE = 8, GUARD_TIME = 24000;
-    public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, MIN_RADIUS = 2, MAX_RADIUS = 16;
+    public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, JOB_FISHER = 8, JOB_SMELTER = 16, JOB_GARDENER = 32, MIN_RADIUS = 2, MAX_RADIUS = 16;
+    /** What its work at workAt is. */
+    private static final int WORK_CROP = 1, WORK_CHEST = 2, WORK_FISH = 3, WORK_FURNACE = 4, WORK_GARDEN = 5;
+    private int workKind;
+    /** Places it could not get to lately: skipped for a while. */
+    private final Set<BlockPos> unreachable = new java.util.HashSet<>();
+    /** Fishing: how long until a bite, the water it looks at, and the wait before it goes again. */
+    private int fishTicks, fishCooldown;
+    private @Nullable BlockPos fishWater;
+    /** A garden: no more flowers than this round its spot. */
+    public static final int GARDEN_SIZE = 12;
     /** Where its work takes it next (a ripe crop, a chest), and how long before it sounds the alarm again. */
     private @Nullable BlockPos workAt;
     private int alarmCooldown;
@@ -961,7 +971,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1319,7 +1329,12 @@ public class BleepEntity extends TamableAnimal {
     }
 
     private static boolean soft(BlockState state) {
-        return state.is(net.minecraft.tags.BlockTags.DIRT) || state.is(net.minecraft.tags.BlockTags.SAND) || state.is(Blocks.GRAVEL);
+        return earthy(state) || state.is(net.minecraft.tags.BlockTags.SAND) || state.is(Blocks.GRAVEL);
+    }
+
+    /** Dirt, grass, podzol, mycelium (grass is not in the dirt tag). */
+    public static boolean earthy(BlockState state) {
+        return state.is(net.minecraft.tags.BlockTags.DIRT) || state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM);
     }
 
     /** A jukebox close by with a record in it. */
@@ -1935,29 +1950,198 @@ public class BleepEntity extends TamableAnimal {
     /** Its jobs: a ripe crop or a chest to go to, and at night, an eye out for monsters. */
     private void tickWork() {
         if (alarmCooldown > 0) alarmCooldown--;
+        tickFishing();
         if (stayAt == null || !isOrderedToSit()) {
             workAt = null;
             return;
         }
         if (doing(JOB_GUARD) && tickCount % 20 == 5 && alarmCooldown == 0 && !slept && level().isDarkOutside()) keepGuard();
         if (workAt != null || tickCount % 40 != 15 || !atWork() || busyWithOthers()) return;
+        if (tickCount % 2400 == 15) unreachable.clear();
+        if (doing(JOB_FARMER) && find(WORK_CROP, pos -> level().getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.CropBlock crop && crop.isMaxAge(level().getBlockState(pos)))) return;
+        if (doing(JOB_TIDY) && hasTidyable() && find(WORK_CHEST, pos -> level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
+                || level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity)) return;
+        if (doing(JOB_SMELTER) && find(WORK_FURNACE, pos -> level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace && furnaceNeedsMe(furnace))) return;
+        if (doing(JOB_FISHER) && fishCooldown == 0 && find(WORK_FISH, pos -> waterNextTo(pos) != null)) {
+            fishWater = waterNextTo(workAt);
+            return;
+        }
+        BlockState flower = flowerToPlant();
+        if (doing(JOB_GARDENER) && flower != null && gardenSize() < GARDEN_SIZE) {
+            find(WORK_GARDEN, pos -> Math.floorMod(pos.getX() - stayAt.getX() + pos.getZ() - stayAt.getZ(), 2) == 0 && !pos.equals(stayAt) // a chequered garden
+                    && level().getBlockState(pos).isAir() && !level().getBlockState(pos.below()).is(Blocks.FARMLAND) && flower.canSurvive(level(), pos));
+        }
+    }
+
+    /** The nearest place round its spot (within its radius) for this kind of work; true if it found one. */
+    private boolean find(int kind, java.util.function.Predicate<BlockPos> fits) {
         int r = stayRadius();
-        if (doing(JOB_FARMER)) {
-            for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) {
-                BlockState state = level().getBlockState(pos);
-                if (state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop && crop.isMaxAge(state)) {
-                    workAt = pos.immutable();
-                    return;
+        BlockPos best = null;
+        double nearest = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) {
+            double d = pos.distSqr(blockPosition());
+            if (d >= nearest || unreachable.contains(pos) || !fits.test(pos)) continue;
+            best = pos.immutable();
+            nearest = d;
+        }
+        if (best == null) return false;
+        workAt = best;
+        workKind = kind;
+        return true;
+    }
+
+    // ---------- the fisher, the smelter, the gardener ----------
+
+    /** A spot to fish from: open ground right next to still water. */
+    private @Nullable BlockPos waterNextTo(BlockPos pos) {
+        if (!level().getBlockState(pos).isAir() || !level().getBlockState(pos.below()).isFaceSturdy(level(), pos.below(), net.minecraft.core.Direction.UP)) return null;
+        for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            BlockPos water = pos.relative(side).below();
+            if (level().getFluidState(water).is(net.minecraft.tags.FluidTags.WATER) && level().getFluidState(water).isSource()) return water.immutable();
+            if (level().getFluidState(pos.relative(side)).is(net.minecraft.tags.FluidTags.WATER) && level().getFluidState(pos.relative(side)).isSource()) return pos.relative(side).immutable();
+        }
+        return null;
+    }
+
+    /** Out with its line: a bite comes after a few seconds. */
+    private void startFishing() {
+        fishTicks = 100 + getRandom().nextInt(80);
+        if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.fish");
+    }
+
+    /** Fishing: still, looking at the water, a splash now and then; then what it caught goes in its storage. */
+    private void tickFishing() {
+        if (fishCooldown > 0) fishCooldown--;
+        if (fishTicks <= 0) return;
+        getNavigation().stop();
+        if (fishWater == null || !isOrderedToSit()) {
+            fishTicks = 0;
+            return;
+        }
+        getLookControl().setLookAt(net.minecraft.world.phys.Vec3.atCenterOf(fishWater));
+        if (level() instanceof ServerLevel server && tickCount % 20 == 0) {
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.FISHING, fishWater.getX() + 0.5, fishWater.getY() + 1, fishWater.getZ() + 0.5, 3, 0.2, 0, 0.2, 0.02);
+        }
+        if (--fishTicks == 0 && level() instanceof ServerLevel server) {
+            ItemStack catchOf = catchOf();
+            ItemStack rest = storage.addItem(catchOf.copy());
+            if (!rest.isEmpty()) spawnAtLocation(server, rest);
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.SPLASH, fishWater.getX() + 0.5, fishWater.getY() + 1, fishWater.getZ() + 0.5, 12, 0.3, 0.1, 0.3, 0.1);
+            playSound(net.minecraft.sounds.SoundEvents.FISHING_BOBBER_SPLASH, 0.6f, 1.2f);
+            io.hookdev.bleep.McVersion.swing(this);
+            if (getRandom().nextFloat() < 0.3f || !catchOf.is(net.minecraft.tags.ItemTags.FISHES)) pinThought(catchOf.is(net.minecraft.tags.ItemTags.FISHES) ? "thought.bleep.work.fish_caught" : "thought.bleep.work.treasure");
+            rememberFirst("fisher", "diary.bleep.fisher", "");
+            fishCooldown = 200 + getRandom().nextInt(400);
+            fishWater = null;
+        }
+    }
+
+    /** What bites: mostly fish, now and then junk, once in a while a treasure. */
+    private ItemStack catchOf() {
+        float roll = getRandom().nextFloat();
+        if (roll < 0.05f) {
+            var treasure = List.of(Items.NAME_TAG, Items.SADDLE, Items.NAUTILUS_SHELL, Items.BOW);
+            return new ItemStack(treasure.get(getRandom().nextInt(treasure.size())));
+        }
+        if (roll < 0.15f) {
+            var junk = List.of(Items.STICK, Items.BONE, Items.STRING, Items.BOWL, Items.LILY_PAD, Items.INK_SAC);
+            return new ItemStack(junk.get(getRandom().nextInt(junk.size())));
+        }
+        float fish = getRandom().nextFloat();
+        return new ItemStack(fish < 0.6f ? Items.COD : fish < 0.85f ? Items.SALMON : fish < 0.98f ? Items.PUFFERFISH : Items.TROPICAL_FISH);
+    }
+
+    /** What a furnace cooks: a furnace smelts, a blast furnace blasts, a smoker smokes. */
+    private net.minecraft.world.item.crafting.RecipeType<? extends net.minecraft.world.item.crafting.AbstractCookingRecipe> cooks(net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace) {
+        if (furnace instanceof net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity) return net.minecraft.world.item.crafting.RecipeType.BLASTING;
+        if (furnace instanceof net.minecraft.world.level.block.entity.SmokerBlockEntity) return net.minecraft.world.item.crafting.RecipeType.SMOKING;
+        return net.minecraft.world.item.crafting.RecipeType.SMELTING;
+    }
+
+    private boolean cookable(net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace, ItemStack stack) {
+        return !stack.isEmpty() && !keeps(stack) && level() instanceof ServerLevel server
+                && server.recipeAccess().getRecipeFor(cooks(furnace), new net.minecraft.world.item.crafting.SingleRecipeInput(stack), server, (net.minecraft.resources.ResourceKey<net.minecraft.world.item.crafting.Recipe<?>>) null).isPresent();
+    }
+
+    /** Fuel: what the furnace takes in its fuel slot (and that is not better smelted). */
+    private boolean fuel(net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace, ItemStack stack) {
+        return !stack.isEmpty() && !stack.is(Items.BUCKET) && !keeps(stack) && furnace.canPlaceItem(1, stack) && !cookable(furnace, stack);
+    }
+
+    /** Something to take out, something to put in, or fuel it has and the furnace lacks. */
+    private boolean furnaceNeedsMe(net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace) {
+        if (!furnace.getItem(2).isEmpty() && storage.canAddItem(furnace.getItem(2))) return true;
+        boolean input = false, fuel = false;
+        for (int i = 0; i < storage.getContainerSize(); i++) {
+            ItemStack stack = storage.getItem(i);
+            if (cookable(furnace, stack) && (furnace.getItem(0).isEmpty() || ItemStack.isSameItemSameComponents(furnace.getItem(0), stack))) input = true;
+            if (fuel(furnace, stack) && (furnace.getItem(1).isEmpty() || ItemStack.isSameItemSameComponents(furnace.getItem(1), stack))) fuel = true;
+        }
+        return (input && furnace.getItem(0).getCount() < furnace.getItem(0).getMaxStackSize() && (furnace.getItem(0).isEmpty() || furnace.getItem(0).getCount() < 8))
+                || (fuel && furnace.getItem(1).getCount() < 8 && (!furnace.getItem(0).isEmpty() || input));
+    }
+
+    /** At the furnace: what is done goes in its storage, more to smelt and fuel go in. */
+    private void smelt(BlockPos pos) {
+        if (!(level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace)) return;
+        ItemStack done = furnace.getItem(2);
+        if (!done.isEmpty()) furnace.setItem(2, storage.addItem(done.copy()));
+        for (int slot : new int[] {0, 1}) {
+            for (int i = 0; i < storage.getContainerSize(); i++) {
+                ItemStack stack = storage.getItem(i), there = furnace.getItem(slot);
+                if (!(slot == 0 ? cookable(furnace, stack) : fuel(furnace, stack))) continue;
+                if (there.isEmpty()) {
+                    furnace.setItem(slot, stack.split(stack.getCount()));
+                } else if (ItemStack.isSameItemSameComponents(there, stack)) {
+                    int move = Math.min(stack.getCount(), there.getMaxStackSize() - there.getCount());
+                    there.grow(move);
+                    stack.shrink(move);
+                } else {
+                    continue;
                 }
+                storage.setItem(i, stack);
+                break;
             }
         }
-        if (doing(JOB_TIDY) && hasTidyable()) {
-            for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) {
-                if (level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
-                        || level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity) {
-                    workAt = pos.immutable();
-                    return;
-                }
+        furnace.setChanged();
+        if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.smelt");
+        rememberFirst("smelter", "diary.bleep.smelter", "");
+    }
+
+    /** A flower from its storage (a small flower that can stand on its own), or -1. */
+    private int flowerSlot() {
+        for (int i = 0; i < storage.getContainerSize(); i++) {
+            if (storage.getItem(i).getItem() instanceof net.minecraft.world.item.BlockItem block && block.getBlock().defaultBlockState().is(net.minecraft.tags.BlockTags.SMALL_FLOWERS)) return i;
+        }
+        return -1;
+    }
+
+    private @Nullable BlockState flowerToPlant() {
+        int slot = flowerSlot();
+        return slot < 0 ? null : ((net.minecraft.world.item.BlockItem) storage.getItem(slot).getItem()).getBlock().defaultBlockState();
+    }
+
+    /** How many flowers already grow round its spot. */
+    private int gardenSize() {
+        int r = stayRadius(), n = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) if (level().getBlockState(pos).is(net.minecraft.tags.BlockTags.SMALL_FLOWERS)) n++;
+        return n;
+    }
+
+    /** Plants a flower from its storage here; with bone meal it gives the garden a sprinkle too. */
+    private void garden(BlockPos pos) {
+        int slot = flowerSlot();
+        BlockState flower = flowerToPlant();
+        if (slot < 0 || flower == null || !level().getBlockState(pos).isAir() || !flower.canSurvive(level(), pos)) return;
+        level().setBlock(pos, flower, 3);
+        storage.removeItem(slot, 1);
+        playSound(net.minecraft.sounds.SoundEvents.GRASS_PLACE, 0.6f, 1.2f);
+        if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.garden");
+        rememberFirst("gardener", "diary.bleep.gardener", "");
+        for (int i = 0; i < storage.getContainerSize(); i++) {
+            if (storage.getItem(i).is(Items.BONE_MEAL) && getRandom().nextFloat() < 0.3f) {
+                if (net.minecraft.world.item.BoneMealItem.applyBonemeal(storage.getItem(i), level(), pos.below(), null)) level().levelEvent(1505, pos.below(), 15);
+                break;
             }
         }
     }
@@ -1976,8 +2160,16 @@ public class BleepEntity extends TamableAnimal {
     /** Arrived at its work: harvests the crop (and plants it again) or empties its storage into the chest. */
     private void work(BlockPos pos) {
         if (!(level() instanceof ServerLevel server)) return;
-        BlockState state = level().getBlockState(pos);
+        int kind = workKind;
+        workKind = 0;
         io.hookdev.bleep.McVersion.swing(this);
+        switch (kind) {
+            case WORK_FISH -> { startFishing(); return; }
+            case WORK_FURNACE -> { smelt(pos); return; }
+            case WORK_GARDEN -> { garden(pos); return; }
+            default -> {}
+        }
+        BlockState state = level().getBlockState(pos);
         if (state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop && crop.isMaxAge(state)) {
             java.util.List<ItemStack> drops = new java.util.ArrayList<>(net.minecraft.world.level.block.Block.getDrops(state, server, pos, null));
             for (ItemStack drop : drops) if (drop.is(crop.asItem())) { drop.shrink(1); break; } // one seed goes back in the ground
@@ -2408,6 +2600,7 @@ public class BleepEntity extends TamableAnimal {
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
         if (guardAt != null) return Activity.GUARDING;
+        if (fishTicks > 0) return Activity.FISHING;
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
         if (gazeTicks > 0) return Activity.STARGAZING;
@@ -2815,8 +3008,11 @@ public class BleepEntity extends TamableAnimal {
                 work(workAt);
                 workAt = null;
             } else if (ticks++ % 10 == 0) {
-                getNavigation().moveTo(workAt.getX() + 0.5, workAt.getY(), workAt.getZ() + 0.5, 1.0);
-                if (ticks > 300) workAt = null; // cannot get there
+                boolean way = getNavigation().moveTo(workAt.getX() + 0.5, workAt.getY(), workAt.getZ() + 0.5, 1.0);
+                if (!way || ticks > 300) { // cannot get there: another time
+                    unreachable.add(workAt);
+                    workAt = null;
+                }
             }
         }
     }

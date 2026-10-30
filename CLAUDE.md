@@ -40,7 +40,7 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
   Backlog: holidays (pumpkin face, Christmas hat), weather (umbrella hat, a snowman). Far backlog: a mini bleep. Not: map maker.
 - [ ] Brainstorm 2 (30 Oct 2026), the owner's choices, in this order:
   1. [x] Care (30 Oct 2026): guardGrave on its owner's death (Bleep.guardTheGrave, owned bleeps within 64; GuardGoal beams if over 48 blocks), kept list (saved) given back within 4 blocks, a day of waiting; respawn does not call guards home. Nurse: health <= 8 or food <= 6, food from storage via FetchGoal, cooldown a minute. Creeper warning: swelling or within 3 of its owner, Display.ALERT. Display.CARE.
-  2. More work: fisher, smelter, gardener; the Work screen with icons.
+  2. [x] More work (30 Oct 2026): JOB_FISHER (still water next to sturdy ground, a catch table in catchOf), JOB_SMELTER (cookable by the furnace kind via recipeAccess, fuel = what the furnace takes in slot 1), JOB_GARDENER (small flowers from storage, chequered, max 12, bone meal); find() picks the nearest place, unreachable ones are skipped for 2400 ticks; WorkScreen with icons. Grass is not in BlockTags.DIRT: BleepEntity.earthy().
   3. Hobbies (grow from what it does most), and a Milestones tab (badges, not stickers on its body).
   4. Emoji reactions on its display.
   5. Adventure: cave guide (warns for lava and drops, warm/cold for ores), minecart fan, trading with villagers.

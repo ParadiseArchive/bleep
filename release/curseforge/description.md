@@ -74,7 +74,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - **Hide and seek.** It hides and you find it (a soft blip now and then gives it away), or it counts to ten and comes looking for you.
 - **Tricks.** Spin, jump and wave from day one, dance as a Friend, play dead as a Buddy.
-- **Work while it stays.** Set how far it goes from its spot, and switch on its jobs: farmer (harvests and replants), guard (an alarm at night), tidy up (its storage into a chest).
+- **Work while it stays.** Set how far it goes from its spot, and switch on its jobs: farmer (harvests and replants), guard (an alarm at night), tidy up (its storage into a chest), fisher (now and then a treasure), smelter (keeps a furnace going) and gardener (a garden of flowers).
 
 ## Chips and letters
 

@@ -92,7 +92,8 @@ birthday (a cake makes its day). Ten bleeps per player.
 
 ### Play and work
 The ball on its info screen opens Play: hide and seek (it hides, or you do) and tricks, more as the bond grows. The hoe
-opens Work while it stays: how far it goes from its spot, and its jobs: farmer, guard at night, tidy up into a chest.
+opens Work while it stays: how far it goes from its spot, and its jobs: farmer, guard at night, tidy up into a chest,
+fisher, smelter and gardener.
 
 ### Chips and letters
 Three upgrade chips: speed, shield and a bigger battery. The chip on its info screen shows which are in, and takes one

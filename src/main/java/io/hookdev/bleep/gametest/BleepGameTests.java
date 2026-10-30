@@ -131,6 +131,9 @@ public final class BleepGameTests {
         test("it_guards_your_things", BleepGameTests::itGuardsYourThings, 200);
         test("it_brings_food_when_you_are_hurt", BleepGameTests::itBringsFoodWhenYouAreHurt, 300);
         test("it_warns_for_a_creeper", BleepGameTests::itWarnsForACreeper, 40);
+        test("a_fisher_catches_something", BleepGameTests::aFisherCatchesSomething, 500);
+        test("a_smelter_fills_the_furnace", BleepGameTests::aSmelterFillsTheFurnace, 200);
+        test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 200);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -1108,6 +1111,38 @@ public final class BleepGameTests {
         EntityType<net.minecraft.world.entity.Mob> creeper = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("creeper"));
         helper.spawnWithNoFreeWill(creeper, new BlockPos(2, 0, 1));
         helper.succeedWhen(() -> helper.assertTrue(bleep.display() == io.hookdev.bleep.entity.Display.ALERT, "a creeper right by its owner: a big red ! on its screen, it shows " + bleep.display()));
+    }
+
+    /** A bleep with free will, staying at SPOT with this job on. */
+    private static BleepEntity worker(GameTestHelper helper, int job) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(player(helper));
+        bleep.stay();
+        bleep.toggleJob(job);
+        return bleep;
+    }
+
+    private static void aFisherCatchesSomething(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(6, -1, 1), Blocks.WATER);
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_FISHER);
+        helper.succeedWhen(() -> helper.assertFalse(bleep.storage().isEmpty(), "it should fish something out of the water"));
+    }
+
+    private static void aSmelterFillsTheFurnace(GameTestHelper helper) {
+        BlockPos at = new BlockPos(5, 0, 1);
+        helper.setBlock(at, Blocks.FURNACE);
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_SMELTER);
+        bleep.storage().addItem(new ItemStack(Items.RAW_IRON, 2));
+        bleep.storage().addItem(new ItemStack(Items.COAL, 1));
+        helper.succeedWhen(() -> helper.assertTrue(bleep.storage().countItem(Items.RAW_IRON) == 0 && bleep.storage().countItem(Items.COAL) == 0, "the raw iron and the coal go in the furnace"));
+    }
+
+    private static void aGardenerPlantsFlowers(GameTestHelper helper) {
+        BlockPos bed = new BlockPos(5, 0, 1);
+        helper.setBlock(bed.below(), Blocks.GRASS_BLOCK);
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_GARDENER);
+        bleep.storage().addItem(new ItemStack(Items.POPPY, 2));
+        helper.succeedWhen(() -> helper.assertTrue(helper.getBlockState(bed).is(Blocks.POPPY), "a poppy should grow in its garden"));
     }
 
     private static Player withCore(GameTestHelper helper) {

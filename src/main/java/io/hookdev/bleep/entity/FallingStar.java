@@ -59,7 +59,7 @@ public class FallingStar extends Entity {
             if (!level.isLoaded(new BlockPos(x, 0, z))) continue;
             BlockPos at = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
             BlockState ground = level.getBlockState(at.below());
-            if (!(ground.is(BlockTags.DIRT) || ground.is(BlockTags.SAND) || ground.is(BlockTags.BASE_STONE_OVERWORLD) || ground.is(Blocks.SNOW_BLOCK) || ground.is(Blocks.GRAVEL))) continue;
+            if (!(BleepEntity.earthy(ground) || ground.is(BlockTags.SAND) || ground.is(BlockTags.BASE_STONE_OVERWORLD) || ground.is(Blocks.SNOW_BLOCK) || ground.is(Blocks.GRAVEL))) continue;
             if (!level.getFluidState(at).isEmpty() || built(level, at)) continue;
             return at;
         }

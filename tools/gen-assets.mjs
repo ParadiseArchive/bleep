@@ -245,7 +245,7 @@ const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text
 
 // ---------- the parts in chests round the world (BleepPartsModifier has the places and chances) ----------
 json(join(DATA, 'loot_modifiers/parts.json'), { type: 'bleep:parts' });
-json(join(ROOT, 'data/neoforge/loot_modifiers/global_loot_modifiers.json'), { replace: false, entries: ['bleep:parts'] });
+// (every file in loot_modifiers is a modifier of its own: no global list any more)
 
 // ---------- the homebase ----------
 // a charging pad (1..15 across, 2 high) with a post at the back (5..11 across, 12..15 deep, up to 14): the front faces north

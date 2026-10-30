@@ -99,7 +99,7 @@ Each Minecraft version has its own file: pick the one for yours.
 
 - Full documentation, with every face, part and recipe: https://hookdev.io/projects/minecraft-mods/bleep/
 - Bugs and ideas: https://github.com/ParadiseArchive/bleep/issues
-- Source code (MIT): https://github.com/ParadiseArchive/bleep
+- Source code (GPL-3.0): https://github.com/ParadiseArchive/bleep
 
 ## How it is made
 

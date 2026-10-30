@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/minecraft-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="Minecraft 26.1.2 and 26.3">
   <img src="https://img.shields.io/badge/neoforge-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="NeoForge 26.1.2 and 26.3">
   <img src="https://img.shields.io/badge/version-0.1.0-ffb547?style=flat-square&labelColor=0a0c13" alt="Version 0.1.0">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff4f8b?style=flat-square&labelColor=0a0c13" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-ff4f8b?style=flat-square&labelColor=0a0c13" alt="License: GPL-3.0"></a>
 </p>
 
 <p align="center">
@@ -117,7 +117,9 @@ Every push is built and tested by GitHub Actions. The pictures in this README co
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The ideas, the character and the gameplay are Hook Development's; the code and the
+Copyright (c) 2026 Hook Development. Bleep is free software under the GNU General Public License v3.0 only, see
+[LICENSE](LICENSE): you may use, change and share it, as long as what you share is under the same license, with its
+source. Modpacks are welcome. The ideas, the character and the gameplay are Hook Development's; the code and the
 textures are written with Claude, an AI assistant.
 Minecraft names used in code come from Mojang's official mappings, see https://github.com/NeoForged/NeoForm/blob/main/Mojang.md.
 

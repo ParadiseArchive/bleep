@@ -27,7 +27,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A bleep's Bleepedia, opened from the book on its info screen: the mobs it met (their face, name and its remark; ???
  * for the ones it has not), the biomes it visited, the special blocks it found, its stats and its diary. Finds since
- * its owner last looked are marked NEW.
+ * its owner last looked are marked NEW. A remark too long for its row ends in ...: click it to read it all, click again
+ * to close it.
  */
 public class BleepediaScreen extends Screen {
     private static final int W = 300, H = 214, ROW = 30, TOP = 52;
@@ -45,6 +46,9 @@ public class BleepediaScreen extends Screen {
     private final List<List<Row>> pages = new ArrayList<>();
     private final String[] counts = new String[TABS.length];
     private int tab, first;
+    /** The row opened up to show its whole text, or -1; and where each row on screen was drawn (for clicks). */
+    private int open = -1;
+    private final List<int[]> drawn = new ArrayList<>();
     private int left, top;
 
     public BleepediaScreen(BleepediaData data) {
@@ -58,7 +62,7 @@ public class BleepediaScreen extends Screen {
         top = (height - H) / 2;
         for (int i = 0; i < TABS.length; i++) {
             int t = i;
-            Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; rebuildWidgets(); })
+            Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; open = -1; rebuildWidgets(); })
                     .bounds(left + 8 + i * 57, top + 24, 55, 16).build();
             button.active = i != tab;
             addRenderableWidget(button);
@@ -161,19 +165,71 @@ public class BleepediaScreen extends Screen {
         return 0xFF000000 | java.awt.Color.HSBtoRGB(hue, 0.45f, 0.7f) & 0xFFFFFF;
     }
 
-    private int rowHeight() {
-        return tab == 3 ? 14 : ROW;
+    /** The bottom of the list, above the page count. */
+    private int bottom() {
+        return top + H - 12;
     }
 
-    private int visibleRows() {
-        return (H - TOP - 8) / rowHeight();
+    /** Where a row's text starts, and how wide it may be. */
+    private int textX(int x) {
+        return tab == 4 ? x + 6 : x + 30;
+    }
+
+    private int textWidth() {
+        int x = left + 10;
+        return W - 20 - (textX(x) - x) - 4;
+    }
+
+    private boolean tooLong(Row row) {
+        return tab != 3 && font.width(row.text()) > textWidth();
+    }
+
+    /** A row is 30 high; an opened one grows with its lines; About me is a list of 14 high lines. */
+    private int rowHeight(int i) {
+        if (tab == 3) return 14;
+        if (i != open) return ROW;
+        return Math.max(ROW, 14 + font.split(pages.get(tab).get(i).text(), textWidth()).size() * 10 + 6);
+    }
+
+    /** How many rows from this one fit. */
+    private int fitting(int from) {
+        int y = top + TOP, n = 0;
+        for (int i = from; i < pages.get(tab).size() && y + rowHeight(i) - 3 <= bottom(); i++, n++) y += rowHeight(i);
+        return n;
+    }
+
+    /** The furthest it scrolls: until the last row shows. */
+    private int lastFirst() {
+        int size = pages.get(tab).size(), f = size - 1;
+        while (f > 0 && fitting(f - 1) >= size - (f - 1)) f--;
+        return Math.max(0, f);
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        int max = Math.max(0, pages.get(tab).size() - visibleRows());
-        first = Math.max(0, Math.min(max, first - (int) Math.signum(scrollY)));
+        first = Math.max(0, Math.min(lastFirst(), first - (int) Math.signum(scrollY)));
         return true;
+    }
+
+    /** A click on a remark that does not fit opens it up; a click on an open one closes it. */
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) return true;
+        for (int[] row : drawn) {
+            if (event.x() < left + 10 || event.x() >= left + W - 10 || event.y() < row[1] || event.y() >= row[2]) continue;
+            int i = row[0];
+            if (i == open) {
+                open = -1;
+            } else if (tooLong(pages.get(tab).get(i))) {
+                open = i;
+                while (first < i && fitting(first) < i - first + 1) first++; // scroll so the whole of it shows
+            } else {
+                return false;
+            }
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1));
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -187,20 +243,26 @@ public class BleepediaScreen extends Screen {
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
 
         List<Row> rows = pages.get(tab);
-        int y = top + TOP, h = rowHeight(), x = left + 10, w = W - 20;
+        int y = top + TOP, x = left + 10, w = W - 20, shown = 0;
+        drawn.clear();
         if (rows.isEmpty()) g.text(font, Component.translatable("screen.bleep.nothing_yet"), x, y + 4, DIM, false);
-        for (int i = first; i < rows.size() && i < first + visibleRows(); i++, y += h) {
+        for (int i = first; i < rows.size(); i++) {
+            int h = rowHeight(i);
+            if (y + h - 3 > bottom()) break;
             Row row = rows.get(i);
+            shown++;
             if (tab == 3) { // about me: a label and its value
                 g.text(font, row.title(), x, y, DIM, false);
                 g.text(font, row.text(), x + 120, y, TEXT, false);
+                y += h;
                 continue;
             }
-            g.fill(x, y, x + w, y + h - 3, CARD);
-            int textX = x + 6;
+            boolean hover = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h - 3 && (i == open || tooLong(row));
+            g.fill(x, y, x + w, y + h - 3, hover ? 0xFF2A2F38 : CARD);
+            drawn.add(new int[] {i, y, y + h - 3});
+            int textX = textX(x);
             if (tab != 4) { // an icon on the left
                 g.fill(x + 2, y + 2, x + 25, y + 25, SCREEN);
-                textX = x + 30;
                 if (!row.known()) {
                     g.text(font, "?", x + 11, y + 9, DIM, false);
                 } else if (row.mob() != null) {
@@ -213,10 +275,21 @@ public class BleepediaScreen extends Screen {
             }
             g.text(font, row.title(), textX, y + 3, row.known() ? (tab == 4 ? GLOW : TEXT) : DIM, false);
             if (row.fresh()) g.text(font, Component.translatable("screen.bleep.new"), x + w - 4 - font.width(Component.translatable("screen.bleep.new")), y + 3, AMBER, false);
-            g.text(font, font.substrByWidth(row.text(), w - (textX - x) - 4).getString(), textX, y + 14, DIM, false);
+            if (i == open) { // all of it, line by line
+                int ly = y + 14;
+                for (var line : font.split(row.text(), textWidth())) {
+                    g.text(font, line, textX, ly, DIM, false);
+                    ly += 10;
+                }
+            } else if (tooLong(row)) { // as much as fits, and ... to say there is more
+                g.text(font, font.substrByWidth(row.text(), textWidth() - font.width("...")).getString() + "...", textX, y + 14, DIM, false);
+            } else {
+                g.text(font, row.text(), textX, y + 14, DIM, false);
+            }
+            y += h;
         }
-        if (rows.size() > visibleRows()) {
-            String more = (first + 1) + "-" + Math.min(rows.size(), first + visibleRows()) + " / " + rows.size();
+        if (shown < rows.size()) {
+            String more = (first + 1) + "-" + (first + shown) + " / " + rows.size();
             g.text(font, more, left + W - 10 - font.width(more), top + H - 2 - 9, DIM, false);
         }
     }

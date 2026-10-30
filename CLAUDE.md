@@ -13,7 +13,7 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
 - Do not build or run the game while the owner's Minecraft is open.
 
 ## Technical
-- NeoForge, Java 25, MIT. Mod id `bleep` (permanent after the first release), package `io.hookdev.bleep`.
+- NeoForge, Java 25, GPL-3.0-only (owner, 30 Oct 2026: GPL for Bleep, Setpoint stays MIT). Mod id `bleep` (permanent after the first release), package `io.hookdev.bleep`.
 - Minecraft 26.3 and 26.1.2, one build per version, set up the same way as Setpoint (`versions/<mc>/gradle.properties`, `-Pmc=26.1`); every change must build and pass the game tests on both.
 - Jade and JEI support, like Setpoint (not wired in yet).
 - Animations: Minecraft's own entity models, no extra library, so players need nothing else installed. Poses are set in BleepModel.setupAnim (wheels turn with the distance driven, arms and head per emotion).

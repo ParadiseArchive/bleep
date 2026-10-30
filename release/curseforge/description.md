@@ -96,6 +96,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - **Hobbies.** What it does most in its free time becomes its hobby, and then it does it even more: stargazing, digging, collecting, dancing, chatting or playing.
 - **Badges.** Twenty milestones in its Bleepedia, from a kilometre driven to a falling star seen.
+- **Reactions.** A little picture on its screen for what you do: a heart when you eat, a question mark at a chest, sweat when you fall, a tear for an animal, sparkles when you level up.
 
 ## The Bleepedia
 

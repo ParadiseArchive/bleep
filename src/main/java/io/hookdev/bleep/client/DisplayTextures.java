@@ -66,6 +66,7 @@ public final class DisplayTextures {
             case STARS -> "stars" + ((int) (state.ageInTicks / 5) % 4);
             case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
+            case YUM, CURIOUS, SWEAT, TEAR, SPARKLE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
             default -> "face";
         };
     }
@@ -77,6 +78,11 @@ public final class DisplayTextures {
             case STARS -> stars(image, (int) (state.ageInTicks / 5) % 4);
             case CARE -> care(image, (int) (state.ageInTicks / 10) % 2 == 0);
             case ALERT -> alert(image, (int) (state.ageInTicks / 4) % 2 == 0);
+            case YUM -> yum(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case CURIOUS -> curious(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case SWEAT -> sweat(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case TEAR -> tear(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
@@ -256,6 +262,57 @@ public final class DisplayTextures {
         for (int y = 1; y <= 6; y++) { set(image, 9, y, colour); set(image, 10, y, colour); }
         set(image, 9, 8, colour); set(image, 10, 8, colour);
         if (on) for (int y = 2; y <= 7; y++) { set(image, 3, y, DIM); set(image, 16, y, DIM); }
+    }
+
+    // ---------- reactions: little pictures for what its owner does ----------
+
+    private static final int DROP = 0xFF5AB4FF, WHITE = 0xFFFFFFFF;
+
+    /** Happy eyes and a little pink heart: yum. */
+    private static void yum(NativeImage image, boolean beat) {
+        for (int x : new int[] {4, 9}) { set(image, x, 3, GLOW); set(image, x + 1, 2, GLOW); set(image, x + 2, 3, GLOW); } // ^ ^
+        String[] heart = {".#.#.", "#####", ".###.", "..#.."};
+        int dy = beat ? 0 : 1;
+        for (int y = 0; y < 4; y++) for (int x = 0; x < 5; x++) if (heart[y].charAt(x) == '#') set(image, 13 + x, 4 + y + dy, PINK);
+    }
+
+    /** One eye up, and a big question mark. */
+    private static void curious(NativeImage image, boolean tilt) {
+        set(image, 4, tilt ? 3 : 4, GLOW); set(image, 5, tilt ? 3 : 4, GLOW); set(image, 8, 4, GLOW); set(image, 9, 4, GLOW);
+        String glyph = FONT.get('?');
+        for (int g = 0; g < 15; g++) { // twice the size: each pixel of the glyph is two by two
+            if (glyph.charAt(g) != '#') continue;
+            int x = 12 + (g % 3) * 2, y = (g / 3) * 2;
+            set(image, x, y, AMBER); set(image, x + 1, y, AMBER); set(image, x, y + 1, AMBER); set(image, x + 1, y + 1, AMBER);
+        }
+    }
+
+    /** Squeezed eyes and drops of sweat. */
+    private static void sweat(NativeImage image, boolean drip) {
+        set(image, 4, 3, GLOW); set(image, 5, 4, GLOW); set(image, 4, 5, GLOW); // >
+        set(image, 10, 3, GLOW); set(image, 9, 4, GLOW); set(image, 10, 5, GLOW); // <
+        int dy = drip ? 0 : 2;
+        set(image, 15, 1 + dy, DROP); set(image, 14, 2 + dy, DROP); set(image, 15, 2 + dy, DROP); set(image, 16, 2 + dy, DROP); set(image, 15, 3 + dy, DROP);
+        set(image, 12, 5, DROP); set(image, 12, 6, DROP);
+    }
+
+    /** Sad eyes, a tear running down. */
+    private static void tear(NativeImage image, boolean fall) {
+        for (int x = 5; x <= 7; x++) set(image, x, 3, DIM);
+        for (int x = 12; x <= 14; x++) set(image, x, 3, DIM);
+        set(image, 6, 4, GLOW); set(image, 13, 4, GLOW);
+        int y = fall ? 5 : 7;
+        set(image, 6, y, DROP); set(image, 6, y + 1, DROP); set(image, 5, y + 1, DROP); set(image, 7, y + 1, DROP);
+        for (int x = 8; x <= 11; x++) set(image, x, 8, DIM); // a wobbly mouth
+    }
+
+    /** Sparkles: well done! */
+    private static void sparkle(NativeImage image, boolean twinkle) {
+        int[][] stars = {{4, 3}, {10, 5}, {15, 2}};
+        for (int i = 0; i < stars.length; i++) {
+            int x = stars[i][0], y = stars[i][1], c = (i % 2 == 0) == twinkle ? WHITE : AMBER;
+            set(image, x, y, c); set(image, x - 1, y, AMBER); set(image, x + 1, y, AMBER); set(image, x, y - 1, AMBER); set(image, x, y + 1, AMBER);
+        }
     }
 
     // ---------- news in the Bleepedia ----------

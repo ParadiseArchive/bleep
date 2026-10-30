@@ -212,7 +212,7 @@ public class BleepEntity extends TamableAnimal {
     /** Care: where its owner died (it guards their things there), the things it kept for them, and how long before it fusses again. */
     private @Nullable BlockPos guardAt;
     private final List<ItemStack> kept = new java.util.ArrayList<>();
-    private int careCooldown, warnCooldown, guardTicks;
+    private int careCooldown, warnCooldown, guardTicks, reactCooldown;
     public static final int GUARD_RANGE = 8, GUARD_TIME = 24000;
     public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, JOB_FISHER = 8, JOB_SMELTER = 16, JOB_GARDENER = 32, MIN_RADIUS = 2, MAX_RADIUS = 16;
     /** What its work at workAt is. */
@@ -2339,6 +2339,16 @@ public class BleepEntity extends TamableAnimal {
 
     // ---------- care ----------
 
+    /** A little picture on its screen for what its owner just did (not while it shows something else, and not too often). */
+    public boolean react(Display reaction) {
+        if (slept || abandoned() || assembly() > 0 || reactCooldown > 0 || display() != Display.FACE) return false;
+        reactCooldown = 100;
+        showDisplay(reaction, 50);
+        Emotion voice = reaction == Display.TEAR ? Emotion.SAD : reaction == Display.CURIOUS || reaction == Display.SWEAT ? Emotion.SURPRISED : Emotion.HAPPY;
+        playSound(BleepContent.VOICE.get(voice).get(), VOLUME * 0.7f, getVoicePitch());
+        return true;
+    }
+
     /** Its owner died: it goes to the spot and keeps their things safe until they come back. */
     public void guardGrave(BlockPos where) {
         if (abandoned() || assembly() > 0) return;
@@ -2363,6 +2373,7 @@ public class BleepEntity extends TamableAnimal {
      */
     private void tickCare() {
         if (careCooldown > 0) careCooldown--;
+        if (reactCooldown > 0) reactCooldown--;
         if (warnCooldown > 0) warnCooldown--;
         if (abandoned() || !(level() instanceof ServerLevel server)) return;
         Player owner = getOwner() instanceof Player p && p.isAlive() ? p : null;

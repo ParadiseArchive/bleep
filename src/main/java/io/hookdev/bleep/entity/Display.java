@@ -30,7 +30,9 @@ public enum Display {
     /** Its owner is hurt or hungry: a red heart. */
     CARE,
     /** Look out! (a creeper behind its owner) */
-    ALERT;
+    ALERT,
+    /** Reactions to what its owner does: they eat (a little heart), open a chest (?), fall (sweat), kill an animal (a tear), level up or earn an advancement (sparkles). */
+    YUM, CURIOUS, SWEAT, TEAR, SPARKLE;
 
     private static final Display[] VALUES = values();
 

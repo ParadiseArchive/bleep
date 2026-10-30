@@ -111,7 +111,8 @@ brings you something to eat from its storage, and it warns you when a creeper is
 
 ### Hobbies and badges
 What a bleep does most in its free time becomes its hobby (stargazing, digging, collecting, dancing, chatting or
-playing), and then it does it even more. Its Bleepedia has a Badges tab: twenty milestones to reach.
+playing), and then it does it even more. Its Bleepedia has a Badges tab: twenty milestones to reach. And it reacts to
+what you do with a little picture on its screen: a heart when you eat, sweat when you fall, sparkles when you level up.
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

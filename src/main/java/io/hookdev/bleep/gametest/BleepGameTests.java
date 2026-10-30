@@ -136,6 +136,7 @@ public final class BleepGameTests {
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 200);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_reacts_to_what_you_do", BleepGameTests::itReactsToWhatYouDo, 140);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -1168,6 +1169,19 @@ public final class BleepGameTests {
             helper.assertTrue(bleep.memory().milestones.containsKey("drive_1k") && bleep.news(), "a kilometre driven: a badge, and news");
             helper.assertFalse(bleep.memory().milestones.containsKey("drive_10k"), "not ten yet");
             helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).milestones().containsKey("drive_1k"), "in its Bleepedia");
+        });
+    }
+
+    private static void itReactsToWhatYouDo(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity bleep = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner); // taming earns its owner an advancement: sparkles first
+        helper.runAfterDelay(110, () -> {
+            bleep.showDisplay(io.hookdev.bleep.entity.Display.FACE, 0); // a hi from a bleep next door may be on its screen
+            io.hookdev.bleep.Bleep.react(owner, io.hookdev.bleep.entity.Display.YUM);
+            helper.assertTrue(bleep.display() == io.hookdev.bleep.entity.Display.YUM, "its owner ate something: a little heart on its screen, it shows " + bleep.display());
+            helper.assertFalse(bleep.react(io.hookdev.bleep.entity.Display.SPARKLE), "not twice in a row");
+            helper.succeed();
         });
     }
 

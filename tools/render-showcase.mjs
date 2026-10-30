@@ -473,6 +473,28 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     set(9, 8, RED); set(10, 8, RED);
     for (let y = 2; y <= 7; y++) { set(3, y, DIM); set(16, y, DIM); }
   });
+  const DROP = [0x5a, 0xb4, 0xff], WHITE2 = [255, 255, 255];
+  screen('trick_yum', (set) => { // its owner ate something (client/DisplayTextures.yum)
+    for (const x of [4, 9]) { set(x, 3, GLOW); set(x + 1, 2, GLOW); set(x + 2, 3, GLOW); }
+    ['.#.#.', '#####', '.###.', '..#..'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(13 + x, 4 + y, PINK); }));
+  });
+  screen('trick_curious', (set) => { // its owner opened a chest
+    set(4, 3, GLOW); set(5, 3, GLOW); set(8, 4, GLOW); set(9, 4, GLOW);
+    [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') { const x = 12 + (g % 3) * 2, y = Math.floor(g / 3) * 2; set(x, y, AMBER); set(x + 1, y, AMBER); set(x, y + 1, AMBER); set(x + 1, y + 1, AMBER); } });
+  });
+  screen('trick_sweat', (set) => { // its owner fell
+    set(4, 3, GLOW); set(5, 4, GLOW); set(4, 5, GLOW); set(10, 3, GLOW); set(9, 4, GLOW); set(10, 5, GLOW);
+    set(15, 1, DROP); set(14, 2, DROP); set(15, 2, DROP); set(16, 2, DROP); set(15, 3, DROP); set(12, 5, DROP); set(12, 6, DROP);
+  });
+  screen('trick_tear', (set) => { // its owner killed an animal
+    for (let x = 5; x <= 7; x++) set(x, 3, DIM);
+    for (let x = 12; x <= 14; x++) set(x, 3, DIM);
+    set(6, 4, GLOW); set(13, 4, GLOW); set(6, 5, DROP); set(6, 6, DROP); set(5, 6, DROP); set(7, 6, DROP);
+    for (let x = 8; x <= 11; x++) set(x, 8, DIM);
+  });
+  screen('trick_sparkle', (set) => { // a level up, an advancement
+    [[4, 3], [10, 5], [15, 2]].forEach(([x, y], i) => { set(x, y, i % 2 === 0 ? WHITE2 : AMBER); set(x - 1, y, AMBER); set(x + 1, y, AMBER); set(x, y - 1, AMBER); set(x, y + 1, AMBER); });
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

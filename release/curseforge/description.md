@@ -30,6 +30,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - **A battery instead of health.** Driving and damage drain it: a zombie's hit is simply power lost. Below 20 % it looks tired and drives slower; at 0 % it switches off with a last sleepy face.
 - **A homebase.** Craft a charging pad and place it near your bleep: it moves in. An empty bleep goes home to charge, and the Go Home button sends it there. The light on its post burns while it charges.
+- **More ways to charge.** Redstone tops it up, even when it has switched off. A power bank carries one full charge along and fills up again on a homebase. And lightning fills it at once and overcharges it: fast, glitchy and very happy for half a minute. In a thunderstorm it hopes for exactly that.
 - **Never really gone.** Only /kill and the void remove a bleep. Break its homebase and it is homeless, and sad about it; die with your bed near the homebase, and your bleep is waiting for you there.
 
 ![A bleep being put together, happy, excited, switched off and charging at home](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-bleep.png)

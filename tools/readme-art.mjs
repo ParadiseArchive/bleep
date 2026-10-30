@@ -77,7 +77,7 @@ const M = 150, L = 200;
 const SHELVES = {
   bleep: shelf('bleep.render', [['bleep_assembling', 'Being put together', M - 30], ['bleep', 'Happy', L], ['bleep_excited', 'Excited', L], ['bleep_asleep', 'Switched off', L], ['bleep_home', 'Charging at home', L + 20]]),
   faces: faceShelf(),
-  parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['homebase_charging', 'Homebase', M]]),
+  parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['power_bank', 'Power Bank', 96], ['homebase_charging', 'Homebase', M]]),
 };
 
 // ---------- a little server for the site, plus the pictures above ----------

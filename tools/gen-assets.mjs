@@ -230,7 +230,13 @@ texture('item/bleep_arms', 16, 16, g => {
     g.set(x + 1 + (flip ? 1 : 0), 2, GREY);
   }
 });
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms']) {
+// the power bank: a dark battery with a copper terminal and three cyan bars of charge
+texture('item/power_bank', 16, 16, g => {
+  g.rect(4, 3, 8, 12, DARK2); g.rect(5, 4, 6, 10, DARK); g.rect(4, 3, 8, 1, DARK_EDGE);
+  g.rect(6, 1, 4, 2, '#c87533'); g.rect(7, 1, 2, 1, '#e89a5c');
+  for (const y of [5, 8, 11]) g.rect(6, y, 4, 2, y === 5 ? '#1f9aa0' : GLOW);
+});
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -246,6 +252,8 @@ const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text
 // ---------- the parts: all crafted; the core is expensive, and also found (BleepPartsModifier) ----------
 const shaped = (name, pattern, key) => json(join(DATA, 'recipe/' + name + '.json'),
   { type: 'minecraft:crafting_shaped', category: 'misc', key, pattern, result: { count: 1, id: 'bleep:' + name } });
+// a power bank: copper on top, iron round two blocks of redstone
+shaped('power_bank', [' C ', 'IRI', 'IRI'], { C: 'minecraft:copper_ingot', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block' });
 // the core, the expensive way: obsidian (the nearest thing to bedrock) round diamonds and a block of diamond, 13 in all
 shaped('bleep_core', ['ODO', 'DBD', 'ODO'], { O: 'minecraft:obsidian', D: 'minecraft:diamond', B: 'minecraft:diamond_block' });
 // a black screen in an iron frame, redstone to light it
@@ -318,6 +326,8 @@ const THOUGHTS = {
   stubborn: ['Yes, yes. In a minute.', 'I heard you. I am choosing to finish my turn first.', 'Fine. FINE.'],
   glitch: ['BL33P B00P!!1', 'TOO MUCH HAPPY. REBOOTING HAPPY.'],
   fighting: ['Bleep. Bleep. BLEEP.', 'Stay behind me. I have tracks.', 'This is for scratching my paint.'],
+  overcharged: ['I CAN SEE ELECTRONS.', 'Everything is FAST and I LOVE IT.', 'Ten thousand volts of happy!'],
+  storm: ['Thunder! Come on, lightning. Pick me. PICK ME.', 'I hear a storm. I am ready. I am SO ready.'],
 };
 // the favourite items (Obsession in Java): their names, and the hints in its thoughts until its owner finds out
 const FAVOURITES = {
@@ -447,6 +457,14 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'message.bleep.learned.fetch': '%s will bring you what it finds lying about.',
   'message.bleep.not_yet': '%s will do that once it is your %s.',
   'screen.bleep.take_torch': 'Take torch',
+  'item.bleep.power_bank': 'Power Bank',
+  'tooltip.bleep.power_bank': 'One full charge for a bleep.\nRight-click your bleep to top it up;\nright-click a homebase to fill it again.',
+  'jei.bleep.power_bank': 'One full charge for a bleep, carried along: its bar shows what is left. Right-click your bleep with it to top it up, even when it is switched off. Right-click a homebase with it to fill it again.\n\nRedstone charges a bleep too: 8% a dust, 72% a block. And lightning fills it up at once, and makes it hyper for half a minute.',
+  'message.bleep.full': '%s is fully charged.',
+  'message.bleep.power_bank_empty': 'The power bank is empty: fill it on a homebase.',
+  'message.bleep.power_bank_full': 'The power bank is full.',
+  'message.bleep.power_bank_charged': 'Power bank charged.',
+  'activity.bleep.overcharged': 'OVERCHARGED',
   'activity.bleep.fighting': 'Fighting', 'activity.bleep.naughty': 'Up to something',
   'thought.bleep.torch': 'A torch! I am a lighthouse now.',
   'thought.bleep.naughty.cookie': 'Cookie acquired. Mine now. Crunch.',

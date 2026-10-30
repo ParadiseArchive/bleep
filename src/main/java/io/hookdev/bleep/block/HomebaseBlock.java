@@ -81,6 +81,22 @@ public class HomebaseBlock extends Block {
         return InteractionResult.SUCCESS;
     }
 
+    /** A power bank put against it fills up again. */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+                                          net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        if (!stack.is(BleepContent.POWER_BANK.get())) return InteractionResult.TRY_WITH_EMPTY_HAND;
+        if (level.isClientSide()) return InteractionResult.SUCCESS;
+        if (stack.getDamageValue() == 0) {
+            player.sendOverlayMessage(Component.translatable("message.bleep.power_bank_full"));
+        } else {
+            stack.setDamageValue(0);
+            level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BEACON_POWER_SELECT, net.minecraft.sounds.SoundSource.BLOCKS, 0.5f, 1.6f);
+            player.sendOverlayMessage(Component.translatable("message.bleep.power_bank_charged"));
+        }
+        return InteractionResult.SUCCESS;
+    }
+
     /** The bleep that lives here, if it is loaded. */
     public static @Nullable BleepEntity resident(Level level, BlockPos pos) {
         GlobalPos here = GlobalPos.of(level.dimension(), pos);

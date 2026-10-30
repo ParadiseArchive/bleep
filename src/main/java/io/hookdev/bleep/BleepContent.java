@@ -55,6 +55,9 @@ public final class BleepContent {
     public static final DeferredItem<Item> BLEEP_TRACKS = ITEMS.registerSimpleItem("bleep_tracks", p -> p.stacksTo(16).rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> BLEEP_ARMS = ITEMS.registerSimpleItem("bleep_arms", p -> p.stacksTo(16).rarity(Rarity.RARE));
 
+    /** One full charge for a bleep, carried along: its bar shows what is left. It fills up again on a homebase. */
+    public static final DeferredItem<Item> POWER_BANK = ITEMS.registerSimpleItem("power_bank", p -> p.durability(100).rarity(Rarity.UNCOMMON));
+
     /** A bleep's charging pad: an empty bleep goes there to charge, and the Go Home button sends it there. */
     public static final DeferredBlock<HomebaseBlock> HOMEBASE = BLOCKS.registerBlock("homebase", HomebaseBlock::new,
             p -> p.mapColor(MapColor.METAL).strength(2.0f, 6.0f).sound(SoundType.METAL).noOcclusion()
@@ -84,6 +87,7 @@ public final class BleepContent {
                 output.accept(BLEEP_TRACKS.get());
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
+                output.accept(POWER_BANK.get());
             })
             .build());
 

@@ -56,7 +56,8 @@ Home buttons. Sneak-right-click to pet it. It talks back in blips, a sound for e
 
 ### The bleep
 Eleven faces on a display that glows in the dark, arms and a head that move with its mood, and a voice of its own. A
-battery instead of health: driving and damage drain it, and an empty bleep switches off with a sleepy face. A bond that
+battery instead of health: driving and damage drain it, and an empty bleep switches off with a sleepy face. Charge it on
+its homebase, with redstone or a power bank, or let lightning overcharge it. A bond that
 grows with care and teaches it new things: a Friend carries a torch that lights the way, a Buddy fights at your side and
 brings you what it finds. A favourite item, a dry remark about every mob in the game, naughty tricks when it is bored,
 and a fear of llamas nobody can explain.
@@ -64,7 +65,7 @@ and a fear of llamas nobody can explain.
 <img src=".github/readme/shelf-bleep.png" width="100%" alt="A bleep being put together, happy, excited, switched off and charging at home.">
 
 ### Parts and home
-The core and the three parts a bleep is built from, and the homebase: a charging pad it goes home to when it runs empty, and that Go
+The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.
 
 <img src=".github/readme/shelf-parts.png" width="100%" alt="Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase.">

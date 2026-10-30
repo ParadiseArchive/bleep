@@ -99,6 +99,10 @@ public class BleepEntity extends TamableAnimal {
     public static final int GOES_HOME_AFTER = 40;
     /** Further from home than this (blocks), it does not drive but beams home. */
     public static final double BEAM_HOME_FROM = 32;
+    /** Battery from a redstone dust and a block of redstone. */
+    public static final float REDSTONE_CHARGE = 8, REDSTONE_BLOCK_CHARGE = 72;
+    /** Ticks it is overcharged after a lightning strike: hyper and glitchy. */
+    public static final int OVERCHARGE_TICKS = 600;
     /** Battery per blow it lands in a fight. */
     public static final float FIGHT_COST = 1.5f;
     /** How bright its torch lights the way. */
@@ -128,7 +132,7 @@ public class BleepEntity extends TamableAnimal {
     public static final Map<String, Integer> THOUGHTS = Map.ofEntries(
             Map.entry("happy", 5), Map.entry("excited", 3), Map.entry("sad", 3), Map.entry("angry", 3), Map.entry("bored", 4),
             Map.entry("surprised", 2), Map.entry("tired", 3), Map.entry("asleep", 3), Map.entry("charging", 3), Map.entry("llama", 2),
-            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3));
+            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2));
     /** What it says about a kind of mob it has no line for (another mod's). */
     public static final String UNKNOWN_MOB = "Never seen one of those. Filing it under weird.";
 
@@ -162,6 +166,8 @@ public class BleepEntity extends TamableAnimal {
     private @Nullable BlockPos lit;
     /** Ticks it has had nothing to do; a bored bleep gets up to something (NaughtyGoal). */
     private int quietTicks;
+    /** Ticks left of being overcharged by lightning. */
+    private int overchargeTicks;
     /** Made in registerGoals, which Minecraft calls from the constructor, before field initialisers run: no initialiser here. */
     private NaughtyGoal naughty;
 
@@ -378,6 +384,23 @@ public class BleepEntity extends TamableAnimal {
      * day). Returns whether it took it.
      */
     public boolean give(Player player, ItemStack stack) {
+        if (stack.is(Items.REDSTONE_BLOCK)) {
+            if (battery() >= FULL) {
+                player.sendOverlayMessage(Component.translatable("message.bleep.full", getDisplayName()));
+                return false;
+            }
+            charge(REDSTONE_BLOCK_CHARGE);
+            return true;
+        }
+        if (stack.is(Items.REDSTONE) && battery() < FULL) {
+            charge(REDSTONE_CHARGE);
+            today();
+            if (giftsToday < Bond.GIFTS_PER_DAY && !slept) { // still a treat too, as long as there are treats left today
+                giftsToday++;
+                changeBond(Bond.GIFT);
+            }
+            return true;
+        }
         if (stack.is(Items.TORCH)) {
             if (!can(Skill.TORCH)) {
                 player.sendOverlayMessage(Component.translatable("message.bleep.not_yet", getDisplayName(), Component.translatable(Bond.key(Skill.TORCH.level * 25))));
@@ -427,6 +450,55 @@ public class BleepEntity extends TamableAnimal {
         if (player != null) {
             player.sendOverlayMessage(Component.translatable("message.bleep.loves", getDisplayName(), Component.translatable(obsession().nameKey())));
         }
+    }
+
+    /** Charges it this much, with a few sparks. */
+    public void charge(float percent) {
+        setBattery(battery() + percent);
+        if (level() instanceof ServerLevel level) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.7, getZ(), 6, 0.3, 0.3, 0.3, 0.05);
+        }
+        playSound(SoundEvents.BEACON_POWER_SELECT, 0.4f, 1.8f);
+    }
+
+    /** Tops it up from a power bank, as far as the bank and the battery go. The bank is kept (it shows what is left). */
+    public boolean usePowerBank(Player player, ItemStack bank) {
+        int left = bank.getMaxDamage() - bank.getDamageValue();
+        int needed = (int) Math.ceil(FULL - battery());
+        if (left <= 0) {
+            player.sendOverlayMessage(Component.translatable("message.bleep.power_bank_empty"));
+            return false;
+        }
+        if (needed <= 0) {
+            player.sendOverlayMessage(Component.translatable("message.bleep.full", getDisplayName()));
+            return false;
+        }
+        int given = Math.min(left, needed);
+        bank.setDamageValue(bank.getDamageValue() + given);
+        charge(given);
+        return false; // nothing used up: the bank stays in the hand
+    }
+
+    /** Whether giving it this works while it is switched off: only what charges it. */
+    private static boolean charges(ItemStack stack) {
+        return stack.is(Items.REDSTONE) || stack.is(Items.REDSTONE_BLOCK) || stack.is(BleepContent.POWER_BANK.get());
+    }
+
+    /** Lightning overcharges it: full at once, and hyper for a while. It does not hurt it. */
+    @Override
+    public void thunderHit(ServerLevel level, net.minecraft.world.entity.LightningBolt lightning) {
+        setBattery(FULL);
+        if (slept) {
+            slept = false;
+            if (followAfterSleep) follow();
+        }
+        overchargeTicks = OVERCHARGE_TICKS;
+        setRemainingFireTicks(0);
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.7, getZ(), 30, 0.4, 0.6, 0.4, 0.2);
+    }
+
+    public boolean overcharged() {
+        return overchargeTicks > 0;
     }
 
     /** Gives its torch back. */
@@ -655,6 +727,9 @@ public class BleepEntity extends TamableAnimal {
             llamaTicks = 40;
         }
         lightTheWay();
+        if (overchargeTicks > 0 && --overchargeTicks % 10 == 0 && level() instanceof ServerLevel level) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.8, getZ(), 2, 0.3, 0.3, 0.3, 0.05);
+        }
         if (getTarget() != null && (battery() < TIRED || !getTarget().isAlive())) setTarget(null);
         boolean quiet = !moving && fetching == null && scanning == null && getTarget() == null && getMainHandItem().isEmpty();
         quietTicks = quiet ? quietTicks + 1 : 0;
@@ -812,6 +887,7 @@ public class BleepEntity extends TamableAnimal {
     private Emotion currentEmotion() {
         if (slept) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
+        if (overchargeTicks > 0) return (overchargeTicks / 10) % 2 == 0 ? Emotion.GLITCH : Emotion.EXCITED;
         if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
         if (idleTicks > (home() == null ? BORED_AFTER / 2 : BORED_AFTER)) return Emotion.BORED;
@@ -824,6 +900,7 @@ public class BleepEntity extends TamableAnimal {
         if (slept) return Activity.SLEEPING;
         if (dawdleTicks > 0) return Activity.DAWDLING;
         if (getTarget() != null) return Activity.FIGHTING;
+        if (overchargeTicks > 0) return Activity.OVERCHARGED;
         if (naughty.busy()) return Activity.NAUGHTY;
         if (goingHome) return Activity.GOING_HOME;
         if (llamaTicks > 0) return Activity.HIDING;
@@ -848,7 +925,10 @@ public class BleepEntity extends TamableAnimal {
             return;
         }
         String kind = emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
-                : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : emotion == Emotion.BOOT ? "excited" : emotion.texture();
+                : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : activity == Activity.OVERCHARGED ? "overcharged"
+                : emotion == Emotion.BOOT ? "excited" : emotion.texture();
+        // in a thunderstorm it hopes for lightning
+        if ((kind.equals("happy") || kind.equals("bored")) && level().isThundering()) kind = "storm";
         if (kind.equals(thoughtKind) && ++thinkTicks < THINK_EVERY) return;
         thoughtKind = kind;
         thinkTicks = 0;
@@ -863,6 +943,7 @@ public class BleepEntity extends TamableAnimal {
     /** A tired bleep drives slower. */
     @Override
     public float getSpeed() {
+        if (overchargeTicks > 0) return super.getSpeed() * 1.5f;
         return battery() < TIRED ? super.getSpeed() * 0.6f : super.getSpeed();
     }
 
@@ -898,7 +979,11 @@ public class BleepEntity extends TamableAnimal {
         if (!isOwnedBy(player)) return super.mobInteract(player, hand);
         if (!stack.isEmpty()) {
             if (level().isClientSide()) return super.mobInteract(player, hand);
-            if (asleep()) return super.mobInteract(player, hand);
+            if (asleep() && !charges(stack)) return super.mobInteract(player, hand);
+            if (stack.is(BleepContent.POWER_BANK.get())) { // the bank is kept: it shows what is left
+                usePowerBank(player, stack);
+                return InteractionResult.SUCCESS;
+            }
             if (give(player, stack)) {
                 stack.consume(1, player);
                 return InteractionResult.SUCCESS;
@@ -978,6 +1063,7 @@ public class BleepEntity extends TamableAnimal {
         output.putBoolean("revealed", revealed());
         output.putInt("assembly", assembly());
         output.putInt("learned", learned);
+        output.putInt("overcharge", overchargeTicks);
         output.putLong("bond_day", bondDay);
         output.putInt("pets_today", petsToday);
         output.putInt("gifts_today", giftsToday);
@@ -1001,6 +1087,7 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(REVEALED, input.getBooleanOr("revealed", false));
         this.entityData.set(ASSEMBLY, input.getIntOr("assembly", 0));
         learned = input.getIntOr("learned", 0);
+        overchargeTicks = input.getIntOr("overcharge", 0);
         bondDay = input.getLongOr("bond_day", -1);
         petsToday = input.getIntOr("pets_today", 0);
         giftsToday = input.getIntOr("gifts_today", 0);

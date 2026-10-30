@@ -27,6 +27,7 @@ public final class BleepJeiPlugin implements IModPlugin {
         info(registration, BleepContent.BLEEP_TRACKS.get(), "bleep_tracks");
         info(registration, BleepContent.BLEEP_ARMS.get(), "bleep_arms");
         info(registration, BleepContent.HOMEBASE.get(), "homebase");
+        info(registration, BleepContent.POWER_BANK.get(), "power_bank");
     }
 
     /** An information page from jei.bleep.<name> in the language file. */

@@ -338,7 +338,7 @@ render('bleep_home', [{ model: 'homebase_charging', y: S, xf: big() }, { model: 
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms']) {
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -358,7 +358,7 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 
 // ---------- item icons and recipes for the docs ----------
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
-const SCREEN_ITEMS = ['bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
+const SCREEN_ITEMS = ['bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
   'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb'];
 

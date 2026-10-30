@@ -76,6 +76,10 @@ public final class BleepGameTests {
         test("a_buddy_brings_what_it_finds", BleepGameTests::aBuddyBringsWhatItFinds, 300);
         test("a_bored_bleep_steals_a_cookie", BleepGameTests::aBoredBleepStealsACookie, 300);
         test("a_bored_bleep_moves_a_torch", BleepGameTests::aBoredBleepMovesATorch, 400);
+        test("redstone_charges_it", BleepGameTests::redstoneChargesIt, 20);
+        test("redstone_wakes_an_empty_bleep", BleepGameTests::redstoneWakesAnEmptyBleep, 40);
+        test("a_power_bank_tops_it_up", BleepGameTests::aPowerBankTopsItUp, 20);
+        test("lightning_overcharges_it", BleepGameTests::lightningOverchargesIt, 40);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -430,6 +434,56 @@ public final class BleepGameTests {
             BlockPos moved = bleep.movedTorch();
             helper.assertTrue(moved != null && helper.getLevel().getBlockState(moved).is(Blocks.TORCH), "and stand somewhere else, nothing broken");
         });
+    }
+
+    private static void redstoneChargesIt(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBattery(50);
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.REDSTONE)), "redstone charges it");
+        helper.assertTrue(Math.abs(bleep.battery() - (50 + BleepEntity.REDSTONE_CHARGE)) < 0.01f, "8% a dust, battery is " + bleep.battery());
+        helper.assertTrue(bleep.bond() == Bond.GIFT, "and it is still a treat");
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.REDSTONE_BLOCK)), "a block of redstone charges it more");
+        helper.assertTrue(bleep.battery() == BleepEntity.FULL, "up to full, battery is " + bleep.battery());
+        helper.assertFalse(bleep.give(owner, new ItemStack(Items.REDSTONE_BLOCK)), "a full bleep takes no more");
+        helper.succeed();
+    }
+
+    private static void redstoneWakesAnEmptyBleep(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBattery(0);
+        bleep.give(owner, new ItemStack(Items.REDSTONE_BLOCK));
+        bleep.give(owner, new ItemStack(Items.REDSTONE_BLOCK));
+        helper.succeedWhen(() -> helper.assertFalse(bleep.asleep(), "charged full with redstone, it wakes up"));
+    }
+
+    private static void aPowerBankTopsItUp(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBattery(30);
+        ItemStack bank = new ItemStack(BleepContent.POWER_BANK.get());
+        bleep.usePowerBank(owner, bank);
+        helper.assertTrue(bleep.battery() == BleepEntity.FULL, "a full bank fills it, battery is " + bleep.battery());
+        helper.assertTrue(bank.getDamageValue() == 70, "and has 30 left, it used " + bank.getDamageValue());
+        BlockPos home = homebase(helper, HOME);
+        helper.getLevel().getBlockState(home).useItemOn(bank, helper.getLevel(), owner, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(home), Direction.UP, home, false));
+        helper.assertTrue(bank.getDamageValue() == 0, "a homebase fills the bank again");
+        helper.succeed();
+    }
+
+    private static void lightningOverchargesIt(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.setBattery(10);
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.LightningBolt> boltType = (EntityType<net.minecraft.world.entity.LightningBolt>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("lightning_bolt"));
+        var bolt = boltType.create(helper.getLevel(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        bleep.thunderHit(helper.getLevel(), bolt);
+        helper.assertTrue(bleep.battery() == BleepEntity.FULL, "lightning fills it up");
+        helper.assertTrue(bleep.isAlive() && bleep.getHealth() == bleep.getMaxHealth(), "and does not hurt it");
+        helper.assertTrue(bleep.overcharged(), "it is overcharged");
+        helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.GLITCH || bleep.emotion() == Emotion.EXCITED, "hyper and glitchy, it shows " + bleep.emotion()));
     }
 
     private static void aNameAlwaysShows(GameTestHelper helper) {

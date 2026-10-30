@@ -11,9 +11,9 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 
-/** A button on a bleep's info screen: Follow, Stay or Go Home. */
+/** A button on a bleep's info screen: Follow, Stay, Go Home, take the torch, its Bleepedia, its storage, its magnet. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -41,6 +41,14 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
     public static boolean obey(Player player, @Nullable Entity target, int command, float roll) {
         if (!(target instanceof BleepEntity bleep) || !bleep.isOwnedBy(player) || bleep.distanceToSqr(player) > REACH * REACH) return false;
         if (command == TAKE_TORCH) return bleep.takeTorch(player);
+        if (command == OPEN_STORAGE) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer server) bleep.openStorage(server);
+            return true;
+        }
+        if (command == MAGNET) {
+            bleep.setMagnet(!bleep.magnet());
+            return true;
+        }
         if (command == OPEN_BOOK) {
             if (player instanceof net.minecraft.server.level.ServerPlayer server) bleep.openBleepedia(server);
             return true;

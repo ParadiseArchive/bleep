@@ -327,6 +327,21 @@ function bleepElements(pose = {}) {
   return elements;
 }
 MODELS.set('bleep', bleepElements());
+// the chest: its item is drawn by a special renderer, so it is built here from ChestModel's boxes. Unlike a mob's,
+// that model stands upright as it is (y up, its lock at +z, in block pixels): [u, v, x, y, z, w, h, d]. A box's faces
+// sit in its texture as always (the -y face at u + d, the +y face next to it), and its sides run upward with v.
+function chestElements() {
+  const T = 'minecraft:entity/chest/normal', r = (a, b, c, e) => [a / 4, e / 4, c / 4, b / 4]; // v flipped: sides run up
+  return [[0, 19, 1, 0, 1, 14, 10, 14], [0, 0, 1, 9, 1, 14, 5, 14], [0, 0, 7, 7, 15, 2, 4, 1]].map(([u, v, x, y, z, w, h, d]) => ({
+    from: [x, y, z], to: [x + w, y + h, z + d],
+    faces: {
+      north: { uv: r(u + d, v + d, u + d + w, v + d + h), texture: T }, south: { uv: r(u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h), texture: T },
+      west: { uv: r(u, v + d, u + d, v + d + h), texture: T }, east: { uv: r(u + d + w, v + d, u + 2 * d + w, v + d + h), texture: T },
+      down: { uv: [(u + d) / 4, v / 4, (u + d + w) / 4, (v + d) / 4], texture: T }, up: { uv: [(u + d + w) / 4, v / 4, (u + d + 2 * w) / 4, (v + d) / 4], texture: T },
+    },
+  }));
+}
+MODELS.set('chest', chestElements());
 
 // ---------- the pictures ----------
 const S = 180; // fronts toward the camera
@@ -363,6 +378,8 @@ for (const [name, pose] of DRESSED) {
   MODELS.set(name, bleepElements(pose));
   render(name, [{ model: name, xf: big(), tints: [DYES[pose.color]] }], 2);
 }
+// the magnet button on its info screen
+{ const t = texture('bleep:gui/magnet'); save('gui/magnet', t.w, t.h, t.px, 1, false); }
 // out in the world: an abandoned one (switched off, paint faded in the sun) and one dancing to a record
 MODELS.set('bleep_abandoned', bleepElements({ color: 'faded', arms: 0.15, head: { x: -0.35, z: -0.15 }, face: 'off' }));
 render('bleep_abandoned', [{ model: 'bleep_abandoned', xf: big(), tints: [[0x8a, 0x6a, 0x4a]] }], 2);
@@ -428,11 +445,15 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
 const SCREEN_ITEMS = ['minecraft:shears', 'minecraft:red_dye', 'bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
-  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book'];
+  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book', 'minecraft:chest', 'minecraft:iron_sword'];
 
 /** Writes items/<namespace>/<name>.png: a flat item at 16x16, a block item rendered like in the inventory. */
 function icon(id) {
   const [ns, name] = split(id);
+  if (id === 'minecraft:chest') { // a special item model: the chest built above
+    render('items/minecraft/chest', [{ model: 'chest', y: 0 }], 1, 0, false);
+    return { name: LANG['block.minecraft.chest'], icon: 'items/minecraft/chest.png' };
+  }
   const definition = JSON.parse(asset(ns, 'items/' + name + '.json').toString('utf8'));
   // a plain model, or the first one inside a select or range (the clock, the compass): the picture you mostly see
   const first = (m) => (m.type === 'minecraft:model' ? m.model : first(m.cases?.[0]?.model ?? m.entries?.[0]?.model ?? m.fallback ?? m.on_false ?? m.models?.[0]));

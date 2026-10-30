@@ -86,6 +86,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -182,6 +183,27 @@ public class BleepEntity extends TamableAnimal {
     private int danceTicks, digTicks, golemTicks;
     /** Asleep next to its owner's bed, while they sleep. */
     private boolean bedside;
+    /** Its storage, as big as a small chest. */
+    public static final int STORAGE = 27;
+    /** How far its magnet reaches, and how long it may take to show its owner something before it gives up. */
+    public static final int MAGNET_RANGE = 6, SHOW_TICKS = 400;
+    /** A new bleep's name. */
+    public static final String DEFAULT_NAME = "Bleep";
+    private final net.minecraft.world.SimpleContainer storage = new net.minecraft.world.SimpleContainer(STORAGE) {
+        @Override
+        public boolean stillValid(Player player) {
+            return isAlive() && !isRemoved() && distanceToSqr(player) < 8 * 8;
+        }
+    };
+    /**
+     * What it holds came out of its storage (a weapon for a fight, or something it is showing off) and goes back
+     * there, instead of being handed to its owner like a find.
+     */
+    private boolean ownHand, armed;
+    private int showTicks, disarmTicks;
+    private boolean showed;
+    /** The last thing its magnet picked up, which it likes to show off. */
+    private net.minecraft.world.item.@Nullable Item lastPicked;
     /** Made in registerGoals, which Minecraft calls from the constructor, before field initialisers run: no initialiser here. */
     private NaughtyGoal naughty;
 
@@ -198,6 +220,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
+        this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
         // bleeps are afraid of llamas, for reasons nobody knows
         this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Llama.class, 10, 1.0, 1.3));
@@ -234,6 +257,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(DISPLAY, 0);
         builder.define(NEWS, false);
         builder.define(ABANDONED, false);
+        builder.define(MAGNET, false);
     }
 
     // ---------- what the info screen shows ----------
@@ -307,6 +331,31 @@ public class BleepEntity extends TamableAnimal {
 
     public Memory memory() {
         return memory;
+    }
+
+    public net.minecraft.world.SimpleContainer storage() {
+        return storage;
+    }
+
+    /** With its magnet on it pulls in what lies about and keeps it in its storage. */
+    public boolean magnet() {
+        return this.entityData.get(MAGNET);
+    }
+
+    public void setMagnet(boolean on) {
+        this.entityData.set(MAGNET, on);
+    }
+
+    /** Its owner opens its storage (the chest on its info screen). */
+    public void openStorage(net.minecraft.server.level.ServerPlayer player) {
+        player.openMenu(new net.minecraft.world.SimpleMenuProvider((id, inventory, p) -> net.minecraft.world.inventory.ChestMenu.threeRows(id, inventory, storage), getDisplayName()));
+    }
+
+    /** A new name, typed on its info screen: plain text, never empty. */
+    public void rename(String name) {
+        String clean = net.minecraft.util.StringUtil.filterText(name).trim();
+        if (clean.length() > 20) clean = clean.substring(0, 20).trim();
+        setCustomName(Component.literal(clean.isEmpty() ? DEFAULT_NAME : clean));
     }
 
     public boolean abandoned() {
@@ -708,6 +757,10 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public void remove(RemovalReason reason) {
         if (!level().isClientSide()) removeLight();
+        if (!level().isClientSide() && reason == RemovalReason.KILLED) {
+            stow();
+            net.minecraft.world.Containers.dropContents(level(), this, storage);
+        }
         super.remove(reason);
     }
 
@@ -907,6 +960,12 @@ public class BleepEntity extends TamableAnimal {
         lightTheWay();
         tickDisplay(moving);
         tickWorld(moving);
+        if (isTame() && !hasCustomName()) { // every bleep is called Bleep until you give it a name of its own
+            super.setCustomName(Component.literal(DEFAULT_NAME));
+            setCustomNameVisible(true);
+        }
+        tickMagnet();
+        tickHands();
         if (overchargeTicks > 0 && --overchargeTicks % 10 == 0 && level() instanceof ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.8, getZ(), 2, 0.3, 0.3, 0.3, 0.05);
         }
@@ -1014,6 +1073,108 @@ public class BleepEntity extends TamableAnimal {
                 && getRandom().nextFloat() < 0.15f) {
             digTicks = 40;
         }
+    }
+
+    /** Its magnet: it pulls in what lies about (not what its owner threw, not its favourite) into its storage. */
+    private void tickMagnet() {
+        if (!magnet() || slept || battery() <= 0 || tickCount % 4 != 0) return;
+        LivingEntity owner = getOwner();
+        Obsession favourite = obsession();
+        for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(MAGNET_RANGE), i -> i.isAlive() && !i.hasPickUpDelay() && i != fetching
+                && (owner == null || i.getOwner() != owner) && (favourite == null || !favourite.matches().test(i.getItem())) && storage.canAddItem(i.getItem()))) {
+            if (distanceToSqr(item) < 1.5 * 1.5) {
+                int before = item.getItem().getCount();
+                ItemStack rest = storage.addItem(item.getItem().copy());
+                if (rest.getCount() < before) {
+                    lastPicked = item.getItem().getItem();
+                    playSound(SoundEvents.ITEM_PICKUP, 0.3f, 1.6f + getRandom().nextFloat() * 0.4f);
+                }
+                if (rest.isEmpty()) item.discard();
+                else item.setItem(rest);
+            } else {
+                var pull = position().add(0, 0.4, 0).subtract(item.position()).normalize().scale(0.3);
+                item.setDeltaMovement(item.getDeltaMovement().scale(0.5).add(pull));
+                item.needsSync = true;
+            }
+        }
+    }
+
+    /**
+     * Its hands: a weapon from its storage for a fight (put back after), and now and then it takes something out to
+     * show its owner, happily (ShowGoal).
+     */
+    private void tickHands() {
+        if (getTarget() != null) {
+            disarmTicks = 0;
+            if (ownHand && !armed) stow(); // it was showing something off: the fight comes first
+            if (getMainHandItem().isEmpty()) {
+                int slot = bestWeapon();
+                if (slot >= 0) {
+                    setItemSlot(EquipmentSlot.MAINHAND, storage.removeItem(slot, 1));
+                    ownHand = armed = true;
+                }
+            }
+            return;
+        }
+        if (armed && ++disarmTicks > 40) stow();
+        if (showTicks > 0 && --showTicks == 0) stow();
+        if (tickCount % 600 == 450 && !ownHand && getMainHandItem().isEmpty() && !storage.isEmpty() && free() && mayBeNaughty()
+                && getOwner() instanceof Player owner && distanceToSqr(owner) < 16 * 16 && getRandom().nextFloat() < (lastPicked != null ? 0.5f : 0.15f)) {
+            showOff();
+        }
+    }
+
+    /** Takes something out of its storage to show its owner: the last thing its magnet found, or anything. */
+    public boolean showOff() {
+        if (ownHand || !getMainHandItem().isEmpty() || storage.isEmpty()) return false;
+        int slot = -1;
+        java.util.List<Integer> full = new java.util.ArrayList<>();
+        for (int i = 0; i < storage.getContainerSize(); i++) {
+            if (storage.getItem(i).isEmpty()) continue;
+            full.add(i);
+            if (lastPicked != null && storage.getItem(i).is(lastPicked)) slot = i;
+        }
+        if (slot < 0) slot = full.get(getRandom().nextInt(full.size()));
+        setItemSlot(EquipmentSlot.MAINHAND, storage.removeItem(slot, 1));
+        ownHand = true;
+        showed = false;
+        showTicks = SHOW_TICKS;
+        lastPicked = null;
+        return true;
+    }
+
+    /** Its best weapon in its storage (what hits hardest), or -1. */
+    private int bestWeapon() {
+        int best = -1;
+        double most = 0;
+        for (int i = 0; i < storage.getContainerSize(); i++) {
+            ItemStack stack = storage.getItem(i);
+            if (stack.isEmpty() || !stack.has(net.minecraft.core.component.DataComponents.WEAPON)) continue;
+            double damage = stack.getOrDefault(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS, net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY)
+                    .compute(Attributes.ATTACK_DAMAGE, 0, EquipmentSlot.MAINHAND);
+            if (best < 0 || damage > most) {
+                best = i;
+                most = damage;
+            }
+        }
+        return best;
+    }
+
+    /** What it holds from its storage goes back in (or on the ground, if it is full). */
+    private void stow() {
+        ItemStack hand = getMainHandItem();
+        if (ownHand && !hand.isEmpty()) {
+            ItemStack rest = storage.addItem(hand.copy());
+            setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+            if (!rest.isEmpty() && level() instanceof ServerLevel server) spawnAtLocation(server, rest);
+        }
+        ownHand = armed = false;
+        showTicks = disarmTicks = 0;
+    }
+
+    /** Holding a weapon from its storage. */
+    public boolean armed() {
+        return armed;
     }
 
     /** What it digs up: mostly bits and bobs, now and then something nice. */
@@ -1320,7 +1481,17 @@ public class BleepEntity extends TamableAnimal {
         return InteractionResult.SUCCESS;
     }
 
-    /** A name tag gives a bleep a name that always shows, like a player's. */
+    /** Name tags do nothing to a bleep: you rename it on its info screen. */
+    @Override
+    public InteractionResult interact(Player player, InteractionHand hand, net.minecraft.world.phys.Vec3 location) {
+        if (player.getItemInHand(hand).is(Items.NAME_TAG)) {
+            if (!level().isClientSide()) player.sendOverlayMessage(Component.translatable("message.bleep.no_name_tag", getDisplayName()));
+            return InteractionResult.SUCCESS;
+        }
+        return super.interact(player, hand, location);
+    }
+
+    /** Its name always shows above its head, like a player's. */
     @Override
     public void setCustomName(@Nullable Component name) {
         super.setCustomName(name);
@@ -1395,6 +1566,11 @@ public class BleepEntity extends TamableAnimal {
         memory.save(output);
         output.putBoolean("news", news());
         output.putBoolean("abandoned", abandoned());
+        storage.storeAsItemList(output.list("storage", ItemStack.CODEC));
+        output.putBoolean("magnet", magnet());
+        output.putBoolean("own_hand", ownHand);
+        output.putBoolean("armed", armed);
+        output.putInt("show", showTicks);
     }
 
     @Override
@@ -1423,6 +1599,11 @@ public class BleepEntity extends TamableAnimal {
         memory.load(input);
         this.entityData.set(NEWS, input.getBooleanOr("news", false));
         this.entityData.set(ABANDONED, input.getBooleanOr("abandoned", false));
+        input.list("storage", ItemStack.CODEC).ifPresent(storage::fromItemList);
+        setMagnet(input.getBooleanOr("magnet", false));
+        ownHand = input.getBooleanOr("own_hand", false);
+        armed = input.getBooleanOr("armed", false);
+        showTicks = input.getIntOr("show", 0);
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */
@@ -1458,6 +1639,37 @@ public class BleepEntity extends TamableAnimal {
                 dock();
             } else if (ticks % 20 == 1) {
                 getNavigation().moveTo(pos.getX() + 0.5, pos.getY() + 0.125, pos.getZ() + 0.5, 1.0);
+            }
+        }
+    }
+
+    /** Something from its storage in its hand: it drives to its owner, holds it up, and puts it back. */
+    private class ShowGoal extends Goal {
+        private int ticks;
+
+        ShowGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return showTicks > 0 && ownHand && !armed && free() && getOwner() instanceof Player;
+        }
+
+        @Override
+        public void tick() {
+            if (!(getOwner() instanceof Player owner)) return;
+            getLookControl().setLookAt(owner);
+            if (distanceToSqr(owner) < 2.5 * 2.5) {
+                getNavigation().stop();
+                if (!showed) { // look! a minute of pride, then it goes back in
+                    showed = true;
+                    showTicks = Math.min(showTicks, 60);
+                    feel(Emotion.EXCITED, 50);
+                    pinThought("thought.bleep.show." + getRandom().nextInt(3));
+                }
+            } else if (ticks++ % 5 == 0) {
+                getNavigation().moveTo(owner, 1.1);
             }
         }
     }
@@ -1560,7 +1772,7 @@ public class BleepEntity extends TamableAnimal {
         public boolean canUse() {
             if (!free()) return false;
             if (fetching != null) return fetching.isAlive();
-            return !getMainHandItem().isEmpty() && getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24;
+            return !getMainHandItem().isEmpty() && !ownHand && getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24;
         }
 
         @Override

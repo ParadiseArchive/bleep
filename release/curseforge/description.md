@@ -22,7 +22,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - **Eleven faces** on a display that glows in the dark: happy, excited, sad, angry, bored, surprised, tired, asleep, stubborn, glitching and the start-up screen.
 - **It blinks** every few seconds, each bleep at its own moment, and its arms and head move with its mood.
-- **A voice of its own.** Short blips, a sound for every mood, a little higher or lower for every bleep.
+- **A voice of its own.** Cute robot chirps, a few for every mood, a little higher or lower for every bleep.
 
 ![Every face on the display](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-faces.png)
 
@@ -51,6 +51,13 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Tricks on its display.** A new name scrolls across like a ticker, a bored bleep plays tic-tac-toe against itself, an arrow points the way home, and now and then it asks for a cookie.
 
 ![Six bleeps in six colours, in hats, with stickers](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-dress.png)
+
+## Storage and magnet
+
+- **Its own little chest.** 27 slots, as big as a small chest, behind the chest on its info screen.
+- **A magnet.** Switch it on and it pulls in what lies about within 6 blocks. Now and then it drives over to show you something it found, very proud, and puts it back.
+- **A sword for a fight.** Put a weapon in its storage and a Buddy fights with the one that hits hardest.
+- **Its name.** Every bleep is called Bleep until you type a new name on its info screen. It always shows above its head.
 
 ## The Bleepedia
 

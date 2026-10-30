@@ -46,10 +46,10 @@ every new kind of mob for a good look, and drives off in a hurry when it sees a 
 
 Right-click your bleep for its info screen: its face as on its display, its mood and what it is doing, its battery,
 your bond, its favourite item (??? until you find out what it is), what it is thinking, and the Follow, Stay and Go
-Home buttons. Sneak-right-click to pet it. It talks back in blips, a sound for every mood.
+Home buttons. Sneak-right-click to pet it. It talks back in cute robot chirps, a few for every mood.
 
 <p align="center">
-  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt, mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and a book with a ! for its Bleepedia.">
+  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt (click to rename), mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and down the right a book with a ! for its Bleepedia, a chest for its storage and a magnet.">
 </p>
 
 ## What is in it
@@ -79,6 +79,11 @@ bits and bobs and adores iron golems. Now and then you find an old, abandoned bl
 <img src=".github/readme/bleepedia.png" width="420" alt="The Bleepedia: tabs for mobs, biomes, finds, about me and its diary, with a creeper it has met between the ones it has not.">
 
 <img src=".github/readme/shelf-world.png" width="100%" alt="An abandoned bleep in faded paint, an orange bleep dancing in a party hat, and a bleep asleep.">
+
+### Storage and magnet
+Every bleep carries a storage as big as a small chest, behind the chest on its info screen. Switch on its magnet and it
+pulls in what lies about; now and then it drives over to show you something it found. Put a sword in it and a Buddy
+fights with it. Its name is Bleep until you type a new one on its info screen.
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

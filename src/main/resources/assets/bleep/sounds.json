@@ -2,49 +2,64 @@
   "entity.bleep.happy": {
     "subtitle": "subtitles.bleep.happy",
     "sounds": [
-      "bleep:entity/bleep/happy"
+      "bleep:entity/bleep/happy_1",
+      "bleep:entity/bleep/happy_2",
+      "bleep:entity/bleep/happy_3"
     ]
   },
   "entity.bleep.excited": {
     "subtitle": "subtitles.bleep.excited",
     "sounds": [
-      "bleep:entity/bleep/excited"
+      "bleep:entity/bleep/excited_1",
+      "bleep:entity/bleep/excited_2",
+      "bleep:entity/bleep/excited_3"
     ]
   },
   "entity.bleep.sad": {
     "subtitle": "subtitles.bleep.sad",
     "sounds": [
-      "bleep:entity/bleep/sad"
+      "bleep:entity/bleep/sad_1",
+      "bleep:entity/bleep/sad_2",
+      "bleep:entity/bleep/sad_3"
     ]
   },
   "entity.bleep.angry": {
     "subtitle": "subtitles.bleep.angry",
     "sounds": [
-      "bleep:entity/bleep/angry"
+      "bleep:entity/bleep/angry_1",
+      "bleep:entity/bleep/angry_2",
+      "bleep:entity/bleep/angry_3"
     ]
   },
   "entity.bleep.bored": {
     "subtitle": "subtitles.bleep.bored",
     "sounds": [
-      "bleep:entity/bleep/bored"
+      "bleep:entity/bleep/bored_1",
+      "bleep:entity/bleep/bored_2",
+      "bleep:entity/bleep/bored_3"
     ]
   },
   "entity.bleep.surprised": {
     "subtitle": "subtitles.bleep.surprised",
     "sounds": [
-      "bleep:entity/bleep/surprised"
+      "bleep:entity/bleep/surprised_1",
+      "bleep:entity/bleep/surprised_2",
+      "bleep:entity/bleep/surprised_3"
     ]
   },
   "entity.bleep.tired": {
     "subtitle": "subtitles.bleep.tired",
     "sounds": [
-      "bleep:entity/bleep/tired"
+      "bleep:entity/bleep/tired_1",
+      "bleep:entity/bleep/tired_2",
+      "bleep:entity/bleep/tired_3"
     ]
   },
   "entity.bleep.asleep": {
     "subtitle": "subtitles.bleep.asleep",
     "sounds": [
-      "bleep:entity/bleep/asleep"
+      "bleep:entity/bleep/asleep_1",
+      "bleep:entity/bleep/asleep_2"
     ]
   },
   "entity.bleep.boot": {
@@ -56,19 +71,23 @@
   "entity.bleep.stubborn": {
     "subtitle": "subtitles.bleep.stubborn",
     "sounds": [
-      "bleep:entity/bleep/stubborn"
+      "bleep:entity/bleep/stubborn_1",
+      "bleep:entity/bleep/stubborn_2",
+      "bleep:entity/bleep/stubborn_3"
     ]
   },
   "entity.bleep.glitch": {
     "subtitle": "subtitles.bleep.glitch",
     "sounds": [
-      "bleep:entity/bleep/glitch"
+      "bleep:entity/bleep/glitch_1",
+      "bleep:entity/bleep/glitch_2"
     ]
   },
   "entity.bleep.hurt": {
     "subtitle": "subtitles.bleep.hurt",
     "sounds": [
-      "bleep:entity/bleep/hurt"
+      "bleep:entity/bleep/hurt_1",
+      "bleep:entity/bleep/hurt_2"
     ]
   },
   "entity.bleep.assemble": {

@@ -95,6 +95,11 @@ public final class BleepGameTests {
         test("it_digs_something_up", BleepGameTests::itDigsSomethingUp, 100);
         test("an_iron_golem_is_its_big_brother", BleepGameTests::anIronGolemIsItsBigBrother, 100);
         test("an_abandoned_bleep_wakes_with_redstone", BleepGameTests::anAbandonedBleepWakesWithRedstone, 20);
+        test("it_is_called_bleep_until_you_rename_it", BleepGameTests::itIsCalledBleepUntilYouRenameIt, 20);
+        test("a_name_tag_does_not_stick", BleepGameTests::aNameTagDoesNotStick, 20);
+        test("its_magnet_fills_its_storage", BleepGameTests::itsMagnetFillsItsStorage, 100);
+        test("it_fights_with_a_sword_from_its_storage", BleepGameTests::itFightsWithASwordFromItsStorage, 100);
+        test("it_shows_off_and_keeps_it", BleepGameTests::itShowsOffAndKeepsIt, 120);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -653,6 +658,75 @@ public final class BleepGameTests {
         helper.assertTrue(bleep.isOwnedBy(player) && bleep.battery() == BleepEntity.FULL, "it is the player's now, fully charged");
         helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().startsWith("diary.bleep.past.")), "with its past in its diary");
         helper.succeed();
+    }
+
+    private static void itIsCalledBleepUntilYouRenameIt(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.runAfterDelay(2, () -> {
+            helper.assertTrue(bleep.hasCustomName() && bleep.getCustomName().getString().equals("Bleep") && bleep.isCustomNameVisible(), "a new bleep is called Bleep, above its head");
+            helper.assertTrue(io.hookdev.bleep.network.BleepRename.rename(owner, bleep, "  Sparky "), "its owner renames it");
+            helper.assertTrue(bleep.getCustomName().getString().equals("Sparky"), "to Sparky, it is " + bleep.getCustomName().getString());
+            io.hookdev.bleep.network.BleepRename.rename(owner, bleep, "   ");
+            helper.assertTrue(bleep.getCustomName().getString().equals("Bleep"), "an empty name makes it Bleep again");
+            helper.assertFalse(io.hookdev.bleep.network.BleepRename.rename(player(helper), bleep, "Thief"), "someone else cannot rename it");
+            helper.succeed();
+        });
+    }
+
+    private static void aNameTagDoesNotStick(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        ItemStack tag = new ItemStack(Items.NAME_TAG);
+        tag.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, Component.literal("Zap"));
+        owner.setItemInHand(InteractionHand.MAIN_HAND, tag);
+        bleep.interact(owner, InteractionHand.MAIN_HAND, Vec3.ZERO);
+        helper.assertTrue(tag.getCount() == 1, "the name tag is not used up");
+        helper.succeedWhen(() -> helper.assertTrue(bleep.getCustomName() != null && bleep.getCustomName().getString().equals("Bleep"), "and it is still called Bleep"));
+    }
+
+    private static void itsMagnetFillsItsStorage(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.setMagnet(true);
+        helper.spawnItem(Items.STRING, new Vec3(6.5, 0.2, 1.5));
+        helper.succeedWhen(() -> helper.assertTrue(bleep.storage().countItem(Items.STRING) == 1, "its magnet should pull the string into its storage"));
+    }
+
+    private static void itFightsWithASwordFromItsStorage(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(1.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity buddy = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        buddy.tame(owner);
+        buddy.setBond(60);
+        buddy.storage().addItem(new ItemStack(Items.STICK));
+        buddy.storage().addItem(new ItemStack(Items.WOODEN_SWORD));
+        buddy.storage().addItem(new ItemStack(Items.IRON_SWORD));
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> zombieType = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("zombie"));
+        var zombie = helper.spawnWithNoFreeWill(zombieType, FAR);
+        owner.tickCount = 100;
+        owner.setLastHurtMob(zombie);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(buddy.armed() && buddy.getMainHandItem().is(Items.IRON_SWORD), "it should take its best sword out to fight, it holds " + buddy.getMainHandItem());
+            helper.assertTrue(buddy.storage().countItem(Items.IRON_SWORD) == 0 && buddy.storage().countItem(Items.WOODEN_SWORD) == 1, "the iron one, out of its storage");
+        });
+    }
+
+    private static void itShowsOffAndKeepsIt(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(1.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        bleep.storage().addItem(new ItemStack(Items.DIAMOND));
+        helper.assertTrue(bleep.showOff(), "it takes something out to show");
+        helper.assertTrue(bleep.getMainHandItem().is(Items.DIAMOND) && bleep.storage().isEmpty(), "the diamond, in its hand");
+        helper.runAfterDelay(100, () -> {
+            helper.assertFalse(owner.getInventory().contains(new ItemStack(Items.DIAMOND)), "showing is not giving: its owner does not get it");
+            helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 1 && bleep.getMainHandItem().isEmpty(), "after showing it, it goes back in its storage");
+            helper.succeed();
+        });
     }
 
     private static Player withCore(GameTestHelper helper) {

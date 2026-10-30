@@ -1,7 +1,7 @@
 // Generates Bleep's textures, item models and language file. Run from the project root:  node tools/gen-assets.mjs
 // The bleep's texture follows the boxes in client/BleepModel.java (64 x 64, Minecraft's usual box layout); the faces
 // on its display are 128 x 128, so the display (10 x 5 on the model) gets 20 x 10 pixels.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 
@@ -257,6 +257,13 @@ texture('item/power_bank', 16, 16, g => {
   g.rect(6, 1, 4, 2, '#c87533'); g.rect(7, 1, 2, 1, '#e89a5c');
   for (const y of [5, 8, 11]) g.rect(6, y, 4, 2, y === 5 ? '#1f9aa0' : GLOW);
 });
+// the magnet button on its info screen: a red horseshoe magnet with silver tips
+texture('gui/magnet', 16, 16, g => {
+  const RED = '#d6283b', RED_DARK = '#a01a2a', TIP = '#d6dce2', TIP_DARK = '#8d949c';
+  g.rect(3, 2, 4, 9, RED); g.rect(9, 2, 4, 9, RED); g.rect(3, 10, 10, 3, RED); g.rect(5, 12, 6, 2, RED);
+  g.rect(6, 2, 1, 9, RED_DARK); g.rect(12, 2, 1, 9, RED_DARK); g.rect(4, 13, 8, 1, RED_DARK);
+  g.rect(3, 1, 4, 3, TIP); g.rect(9, 1, 4, 3, TIP); g.rect(6, 1, 1, 3, TIP_DARK); g.rect(12, 1, 1, 3, TIP_DARK);
+});
 // the accessories as items
 texture('item/party_hat', 16, 16, g => {
   for (let y = 3; y < 15; y++) { const half = Math.floor((y - 3) / 2); for (let x = 7 - half; x <= 8 + half; x++) g.set(x, y, (x + y) % 3 ? '#ff4f8b' : '#2de2e6'); }
@@ -281,8 +288,11 @@ for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank',
 const VOICES = { happy: 'Bleep bloops', excited: 'Bleep cheers', sad: 'Bleep sighs', angry: 'Bleep grumbles', bored: 'Bleep hums',
   surprised: 'Bleep gasps', tired: 'Bleep yawns', asleep: 'Bleep powers down', boot: 'Bleep starts up', stubborn: 'Bleep huffs',
   glitch: 'Bleep glitches', hurt: 'Bleep buzzes', assemble: 'Bleep parts clunk' };
+// every take of a sound that tools/make-sounds.mjs made (<name>.ogg or <name>_1.ogg, _2 ...): Minecraft picks one
+const SOUND_DIR = join(ASSETS, 'sounds/entity/bleep');
+const takesOf = (name) => readdirSync(SOUND_DIR).filter((file) => new RegExp('^' + name + '(_\\d+)?\\.ogg$').test(file)).sort().map((file) => 'bleep:entity/bleep/' + file.slice(0, -4));
 json(join(ASSETS, 'sounds.json'), Object.fromEntries(Object.keys(VOICES).map((name) =>
-  ['entity.bleep.' + name, { subtitle: 'subtitles.bleep.' + name, sounds: ['bleep:entity/bleep/' + name] }])));
+  ['entity.bleep.' + name, { subtitle: 'subtitles.bleep.' + name, sounds: takesOf(name) }])));
 const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text]) => ['subtitles.bleep.' + name, text]));
 
 // ---------- the parts: all crafted; the core is expensive, and also found (BleepPartsModifier) ----------
@@ -631,6 +641,13 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'message.bleep.learned.fetch': '%s will bring you what it finds lying about.',
   'message.bleep.not_yet': '%s will do that once it is your %s.',
   'screen.bleep.take_torch': 'Take torch',
+  'screen.bleep.name': 'Name', 'screen.bleep.rename': 'Click to give it a new name',
+  'screen.bleep.storage': 'Storage',
+  'screen.bleep.magnet.on': 'Magnet: on. It picks up what lies about.', 'screen.bleep.magnet.off': 'Magnet: off',
+  'message.bleep.no_name_tag': 'Name tags do not stick to %s. Rename it on its info screen.',
+  'thought.bleep.show.0': 'Look what I found! Is it not beautiful?',
+  'thought.bleep.show.1': 'I am keeping this safe for you. Look!',
+  'thought.bleep.show.2': 'Treasure! In my storage! Well, in my hand now.',
   'item.bleep.power_bank': 'Power Bank',
   'item.bleep.party_hat': 'Party Hat', 'item.bleep.top_hat': 'Top Hat', 'item.bleep.antenna': 'Antenna with a Bow',
   'item.bleep.sticker_star': 'Star Sticker', 'item.bleep.sticker_heart': 'Heart Sticker', 'item.bleep.sticker_bolt': 'Lightning Sticker',

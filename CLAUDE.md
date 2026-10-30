@@ -19,6 +19,7 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
 - Animations: Minecraft's own entity models, no extra library, so players need nothing else installed. Poses are set in BleepModel.setupAnim (wheels turn with the distance driven, arms and head per emotion).
 - `node tools/gen-assets.mjs` draws every texture (the body from the boxes in client/BleepModel, the faces, the core) and writes the item models and en_us.json. Change the drawing there, never the PNGs by hand. The test bench `data/bleep/structure/bench.nbt` is a copy of Setpoint's.
 - The display: the head's front is 10 x 5 on the model; the face textures are 128 x 128 against the model's 64 x 64, so the display has 20 x 10 pixels. Faces glow (RenderTypes.eyes) and blink every 90 ticks (BleepRenderer).
+- The website: `node tools/render-showcase.mjs ../hook-development/projects/minecraft-mods/bleep/img` draws the renders (the bleep from the boxes in BleepModel: keep bleepParts in step with it), the faces, item icons and recipes.js with the mob remarks, favourites and thoughts from en_us.json. Every change players can see goes into the docs page (../hook-development/projects/minecraft-mods/bleep/) in the same session; re-run the renderer.
 - Game tests: `./gradlew runGameTestServer` and `-Pmc=26.1`; build.yml runs both on every push. No class differs between 26.3 and 26.1 yet: if one ever does, give it a copy per version in `versions/<mc>/java`, as Setpoint does.
 
 ## Backlog

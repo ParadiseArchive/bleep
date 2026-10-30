@@ -86,15 +86,15 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
         leftArm.xRot = ARMS_FORWARD - sway - swing;
         Emotion emotion = state.emotion;
         switch (emotion) {
-            case EXCITED -> { // waving both arms over its head
-                rightArm.xRot = leftArm.xRot = -2.6f;
-                rightArm.zRot = 0.3f + Mth.sin(age * 0.6f) * 0.4f;
-                leftArm.zRot = -0.3f - Mth.sin(age * 0.6f) * 0.4f;
+            case EXCITED -> { // both arms up in a V beside its head, waving
+                rightArm.xRot = leftArm.xRot = -0.2f;
+                rightArm.zRot = 2.5f + Mth.sin(age * 0.6f) * 0.3f;
+                leftArm.zRot = -2.5f - Mth.sin(age * 0.6f) * 0.3f;
             }
-            case SURPRISED -> {
-                rightArm.xRot = leftArm.xRot = -2.0f;
-                rightArm.zRot = 0.6f;
-                leftArm.zRot = -0.6f;
+            case SURPRISED -> { // arms flung out to the sides
+                rightArm.xRot = leftArm.xRot = -0.3f;
+                rightArm.zRot = 1.6f;
+                leftArm.zRot = -1.6f;
                 head.xRot -= 0.15f;
             }
             case ANGRY -> { // fists up, shaking

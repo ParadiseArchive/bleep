@@ -50,7 +50,7 @@ public final class BleepContent {
      */
     public static final DeferredItem<BleepCoreItem> BLEEP_CORE = ITEMS.registerItem("bleep_core", BleepCoreItem::new,
             p -> p.stacksTo(1).rarity(Rarity.EPIC).fireResistant());
-    /** The other parts, found around the world (BleepPartsModifier): its face, its tracks and its arms. */
+    /** The other parts, crafted: its face, its tracks and its arms. */
     public static final DeferredItem<Item> BLEEP_DISPLAY = ITEMS.registerSimpleItem("bleep_display", p -> p.stacksTo(16).rarity(Rarity.RARE));
     public static final DeferredItem<Item> BLEEP_TRACKS = ITEMS.registerSimpleItem("bleep_tracks", p -> p.stacksTo(16).rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> BLEEP_ARMS = ITEMS.registerSimpleItem("bleep_arms", p -> p.stacksTo(16).rarity(Rarity.RARE));

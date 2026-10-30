@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/readme/banner.png" width="100%" alt="Bleep: a robot pet with a screen for a face. BLEEP in pixel letters next to an excited bleep and one charging on its homebase.">
+  <img src=".github/readme/banner.png" width="100%" alt="Bleep: a robot pet with an attitude. BLEEP in pixel letters next to an excited bleep and one charging on its homebase.">
 </p>
 
 <p align="center">
@@ -27,11 +27,11 @@ thing. A new bleep sometimes dawdles over what you ask; a best friend hardly eve
 
 ## The heart of it: build your own
 
-A bleep is made of four parts, spread over the whole world. The most important one is the core: made of bedrock, rare,
-and meant to feel like a real reward.
+A bleep is made of four parts. Three you craft; the most important one you have to find: the core, made of bedrock,
+waiting deep down.
 
-1. Find a **Bleep Core** in an ominous vault of the Trial Chambers.
-2. Find its **Display** in an Ancient City, its **Tracks** at a village smith and its **Arms** in a bastion.
+1. Find a **Bleep Core** in the chest of a dungeon or an abandoned mineshaft.
+2. Craft its **Display**, its **Tracks** and its **Arms** from iron, redstone, black glass and dried kelp.
 3. Right-click the ground with the core, the other three in your inventory. Your bleep is put together part by part,
    clunk by clunk, until its screen comes on for the very first time.
 
@@ -62,7 +62,7 @@ grows with care, a favourite item, a dry remark about every mob in the game, and
 <img src=".github/readme/shelf-bleep.png" width="100%" alt="A bleep being put together, happy, excited, switched off and charging at home.">
 
 ### Parts and home
-The four parts a bleep is built from, and the homebase: a charging pad it goes home to when it runs empty, and that Go
+The core you find and the three parts you craft, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.
 
 <img src=".github/readme/shelf-parts.png" width="100%" alt="Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase.">
@@ -73,7 +73,7 @@ Bleep is not out yet: the first release, **0.1.0**, is on its way to CurseForge.
 (see below).
 
 - Minecraft 26.3 or 26.1.2 (the version of All the Mods 11) with NeoForge, Java 25: pick the file for your Minecraft version
-- In-game help: tooltips on every part, and in JEI where every part is found
+- In-game help: tooltips on every part, and in JEI every recipe and where the core is found
 - Works with Jade (battery, mood and bond when you look at a bleep) and JEI
 - Stand-alone: no other mod needed
 

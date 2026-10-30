@@ -71,7 +71,7 @@ public final class BleepGameTests {
         test("a_name_always_shows", BleepGameTests::aNameAlwaysShows, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
-        test("parts_turn_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
+        test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
     }
 
     private static final BlockPos SPOT = new BlockPos(3, 0, 1), HOME = new BlockPos(0, 0, 1), FAR = new BlockPos(6, 0, 1);
@@ -404,11 +404,9 @@ public final class BleepGameTests {
     }
 
     private static void partsTurnUpInChests(GameTestHelper helper) {
-        helper.assertTrue(rolls(helper, "chests/ancient_city", BleepContent.BLEEP_DISPLAY.get(), 100) > 0, "an Ancient City chest should sometimes hold a display");
-        helper.assertTrue(rolls(helper, "chests/village/village_weaponsmith", BleepContent.BLEEP_TRACKS.get(), 100) > 0, "a weaponsmith should sometimes have tracks");
-        helper.assertTrue(rolls(helper, "chests/bastion_treasure", BleepContent.BLEEP_ARMS.get(), 100) > 0, "a bastion should sometimes hold arms");
-        helper.assertTrue(rolls(helper, "chests/trial_chambers/reward_ominous", BleepContent.BLEEP_CORE.get(), 200) > 0, "an ominous vault should sometimes give a core");
-        helper.assertTrue(rolls(helper, "chests/village/village_plains_house", BleepContent.BLEEP_TRACKS.get(), 100) == 0, "a plain house has no bleep parts");
+        helper.assertTrue(rolls(helper, "chests/simple_dungeon", BleepContent.BLEEP_CORE.get(), 100) > 0, "a dungeon chest should sometimes hold a core");
+        helper.assertTrue(rolls(helper, "chests/abandoned_mineshaft", BleepContent.BLEEP_CORE.get(), 100) > 0, "a mineshaft chest should sometimes hold a core");
+        helper.assertTrue(rolls(helper, "chests/village/village_plains_house", BleepContent.BLEEP_CORE.get(), 100) == 0, "a plain house has no core");
         helper.succeed();
     }
 }

@@ -45,8 +45,8 @@ p{margin:0;font-size:18px;color:#aeb6c9;max-width:440px}
 <div class="art" id="art"><div class="grid"></div><div class="ground"></div>
   <div class="left">
     <div class="logo">BLEEP</div>
-    <h1>A robot pet with<br>a screen for a face</h1>
-    <p>Build one from parts found around the world. It shows how it feels, thinks out loud, and never dies: it only runs out of battery.</p>
+    <h1>A robot pet<br>with an attitude</h1>
+    <p>Build one from a core you find deep down. It shows how it feels, thinks out loud, and never dies: it only runs out of battery.</p>
     <div class="chips"><span class="chip" style="color:#2de2e6">Minecraft 26.1.2 · 26.3</span><span class="chip" style="color:#2de2e6">NeoForge</span><span class="chip" style="color:#ffb547">Version ${VERSION}</span><span class="chip" style="color:#ff4f8b">Open source</span></div>
   </div>
   <div class="sky">

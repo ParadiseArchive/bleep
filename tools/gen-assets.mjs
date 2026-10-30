@@ -243,7 +243,15 @@ json(join(ASSETS, 'sounds.json'), Object.fromEntries(Object.keys(VOICES).map((na
   ['entity.bleep.' + name, { subtitle: 'subtitles.bleep.' + name, sounds: ['bleep:entity/bleep/' + name] }])));
 const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text]) => ['subtitles.bleep.' + name, text]));
 
-// ---------- the parts in chests round the world (BleepPartsModifier has the places and chances) ----------
+// ---------- the parts: display, tracks and arms are crafted; the core is found (BleepPartsModifier) ----------
+const shaped = (name, pattern, key) => json(join(DATA, 'recipe/' + name + '.json'),
+  { type: 'minecraft:crafting_shaped', category: 'misc', key, pattern, result: { count: 1, id: 'bleep:' + name } });
+// a black screen in an iron frame, redstone to light it
+shaped('bleep_display', ['III', 'IGI', 'IRI'], { I: 'minecraft:iron_ingot', G: 'minecraft:black_stained_glass_pane', R: 'minecraft:redstone' });
+// rubber treads of dried kelp round iron wheels, redstone for the motor
+shaped('bleep_tracks', ['KKK', 'IRI', 'KKK'], { K: 'minecraft:dried_kelp', I: 'minecraft:iron_ingot', R: 'minecraft:redstone' });
+// two iron arms with nugget fingers, redstone between the shoulders
+shaped('bleep_arms', ['IRI', 'I I', 'N N'], { I: 'minecraft:iron_ingot', R: 'minecraft:redstone', N: 'minecraft:iron_nugget' });
 json(join(DATA, 'loot_modifiers/parts.json'), { type: 'bleep:parts' });
 // (every file in loot_modifiers is a modifier of its own: no global list any more)
 
@@ -425,19 +433,19 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'item.bleep.bleep_display': 'Bleep Display',
   'item.bleep.bleep_tracks': 'Bleep Tracks',
   'item.bleep.bleep_arms': 'Bleep Arms',
-  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in ominous vaults (Trial Chambers).',
-  'tooltip.bleep.bleep_display': 'A bleep\'s face.\nFound in Ancient City chests.',
-  'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nFound at a village weaponsmith or toolsmith.',
-  'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nFound in bastion chests.',
+  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in dungeons and abandoned mineshafts.',
+  'tooltip.bleep.bleep_display': 'A bleep\'s face.\nOne of the three parts a core needs.',
+  'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nOne of the three parts a core needs.',
+  'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nOne of the three parts a core needs.',
   'tooltip.bleep.homebase': 'Place it near your bleep: it moves in\nand charges here.',
   'message.bleep.missing_parts': 'Still missing: %s',
   'jade.bleep.nobody_home': 'Nobody lives here yet',
   'config.jade.plugin_bleep.bleep': 'Bleep: battery, mood and bond',
   'config.jade.plugin_bleep.homebase': 'Bleep: who lives in a homebase',
-  'jei.bleep.bleep_core': 'The heart of a bleep, made of bedrock. Found in an ominous vault in the Trial Chambers (one in ten).\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
-  'jei.bleep.bleep_display': 'A bleep\'s face. Found in Ancient City chests (one in four).\n\nOne of the three parts a Bleep Core needs.',
-  'jei.bleep.bleep_tracks': 'What a bleep drives on. Found in the chest of a village weaponsmith or toolsmith (three in ten).\n\nOne of the three parts a Bleep Core needs.',
-  'jei.bleep.bleep_arms': 'Big enough to hold things. Found in bastion chests (half the treasure rooms, one in five of the others).\n\nOne of the three parts a Bleep Core needs.',
+  'jei.bleep.bleep_core': 'The heart of a bleep, made of bedrock. Found in dungeon chests (one in four) and abandoned mineshaft chests (about one in seven).\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
+  'jei.bleep.bleep_display': 'A bleep\'s face. One of the three parts a Bleep Core needs.',
+  'jei.bleep.bleep_tracks': 'What a bleep drives on. One of the three parts a Bleep Core needs.',
+  'jei.bleep.bleep_arms': 'Big enough to hold things, like its favourite item when it brings it to you. One of the three parts a Bleep Core needs.',
   'jei.bleep.homebase': 'Place it near your bleep and it moves in. An empty bleep goes home to charge here, and Go Home on its info screen sends it here. The light on the post burns while it charges.',
   ...subtitleLines,
   'message.bleep.stay': '%s: Stay',

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "R": "minecraft:redstone",
+    "N": "minecraft:iron_nugget"
+  },
+  "pattern": [
+    "IRI",
+    "I I",
+    "N N"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:bleep_arms"
+  }
+}

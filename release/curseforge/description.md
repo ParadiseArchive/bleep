@@ -1,8 +1,8 @@
 # Bleep
 
-![Bleep: a robot pet with a screen for a face](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/banner.png)
+![Bleep: a robot pet with an attitude](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/banner.png)
 
-**A robot pet with a screen for a face: build one from parts found around the world.**
+**A robot pet with an attitude: build one from a core you find deep down.**
 
 Bleep adds bleeps to Minecraft: little robots on two tracks, with a wide head that is one black display. On it they show how they feel, in pixel art. A bleep is not a worker but a pet with a character: it thinks out loud, is a little bit naughty, and never dies. It only runs out of battery.
 
@@ -10,8 +10,9 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## Build your own
 
-- **Four parts, spread over the whole world.** The Bleep Core waits in an ominous vault of the Trial Chambers, the Display in an Ancient City, the Tracks at a village weaponsmith or toolsmith, and the Arms in a bastion.
-- **The core is the heart.** Made of bedrock, rare, and meant to feel like a real reward. Right-click the ground with it, the other three parts in your inventory.
+- **Find the core.** The Bleep Core, the heart of a bleep, made of bedrock, waits in the chests of dungeons and abandoned mineshafts.
+- **Craft the rest.** A Display, Tracks and Arms, from iron, redstone, black glass and dried kelp.
+- **Build it.** Right-click the ground with the core, the other three parts in your inventory.
 - **Put together part by part.** The tracks go down first, then its body, its arms and its head, each with a clunk and a few sparks, and then its screen comes on for the very first time.
 - Missing a part? The core tells you which ones, and stays in your hand.
 
@@ -49,8 +50,8 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## Help in the game
 
-- Every part has a tooltip that says where it is found.
-- Works with **Jade** (battery, mood and bond when you look at a bleep, and who lives in a homebase) and **JEI** (the homebase recipe, and a page for every part).
+- Every part has a tooltip that says what it is for.
+- Works with **Jade** (battery, mood and bond when you look at a bleep, and who lives in a homebase) and **JEI** (every recipe, and where the core is found).
 - Stand-alone: no other mod needed.
 
 ## Requirements

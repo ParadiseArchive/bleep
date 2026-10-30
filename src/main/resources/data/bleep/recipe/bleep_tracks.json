@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "K": "minecraft:dried_kelp",
+    "I": "minecraft:iron_ingot",
+    "R": "minecraft:redstone"
+  },
+  "pattern": [
+    "KKK",
+    "IRI",
+    "KKK"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:bleep_tracks"
+  }
+}

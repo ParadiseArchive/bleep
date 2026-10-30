@@ -35,7 +35,7 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
   - A Play button on the info screen: hide and seek, tricks, and more games. Not: snowballs, arcade.
   - Letters: now and then it writes you a letter (a book) from its diary.
   - Welcome home: after a long time away (or logging in) it races over, over the moon.
-  - Lore: a bleep turns out to be something mystical, a kind of alien gift (instead of a robot workshop structure); to be designed with the owner.
+  - Lore (owner, 30 Oct 2026): a bleep is something mystical, a gift from the stars. The core is no longer bedrock but something alien (new material name, docs text changes). On clear nights, very rarely, a falling star lands nearby: a small crater of strange, softly glowing rock, a warm humming Bleep Core in the middle (dungeon chests stay a second place). Bleeps do not know where they come from: now and then they stare at the night sky, a thought or diary line hints at it; at full moon all bleeps nearby beep in the same rhythm; strange signs in the crater; a Bleepedia page of question marks that fills very slowly. Hints only, never an answer.
   Backlog: holidays (pumpkin face, Christmas hat), weather (umbrella hat, a snowman). Far backlog: a mini bleep. Not: map maker.
 - [ ] At the release (owner, 30 Oct 2026): tidy the roadmap on the docs page: everything in now becomes "0.1.0 · Out now"; then 0.2 Best friend skills, 0.3 multiplayer.
 - [ ] First release 0.1.0: a big playtest, the owner creates the CurseForge project (name Bleep, author Hook Development) and the CURSEFORGE secret, then ask the owner and push the tag v0.1.0. Then: download buttons on the site.

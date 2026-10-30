@@ -87,6 +87,9 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Its work while it stays: the jobs that are on (JOB_*), and how far it goes from its spot. */
+    private static final EntityDataAccessor<Integer> JOBS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> RADIUS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -201,6 +204,17 @@ public class BleepEntity extends TamableAnimal {
     /** Long.MIN_VALUE: never with its owner yet. */
     private long lastWithOwner = Long.MIN_VALUE, lastWithOwnerReal = Long.MIN_VALUE, lastBirthday = -1;
     private int welcomeTicks, partyTicks;
+    public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, MIN_RADIUS = 2, MAX_RADIUS = 16;
+    /** Where its work takes it next (a ripe crop, a chest), and how long before it sounds the alarm again. */
+    private @Nullable BlockPos workAt;
+    private int alarmCooldown;
+    /** A trick it is doing, and hide and seek: HIDE_* what it is doing, until when, and where. */
+    private @Nullable Trick trick;
+    private int trickTicks, hideMode;
+    /** Hide and seek by the clock (goals only run every other tick): when it started, and when it gives up. */
+    private long hideStart, hideUntil;
+    private @Nullable BlockPos hideSpot;
+    public static final int HIDE_GOING = 1, HIDE_HIDDEN = 2, SEEK_COUNTING = 3, SEEK_LOOKING = 4, COUNT_TICKS = 200;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -247,6 +261,8 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
         this.goalSelector.addGoal(4, new WelcomeGoal());
+        this.goalSelector.addGoal(4, new HideAndSeekGoal());
+        this.goalSelector.addGoal(6, new WorkGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
@@ -288,6 +304,8 @@ public class BleepEntity extends TamableAnimal {
         builder.define(ABANDONED, false);
         builder.define(MAGNET, false);
         builder.define(PARTY, false);
+        builder.define(JOBS, 0);
+        builder.define(RADIUS, STAY_RADIUS);
     }
 
     // ---------- what the info screen shows ----------
@@ -907,7 +925,7 @@ public class BleepEntity extends TamableAnimal {
     private void stayHere(@Nullable BlockPos at) {
         stayAt = at;
         if (at == null) clearHome();
-        else setHomeTo(at, STAY_RADIUS);
+        else setHomeTo(at, stayRadius());
     }
 
     public @Nullable BlockPos stayAt() {
@@ -921,7 +939,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return welcomeTicks > 0 || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1043,6 +1061,8 @@ public class BleepEntity extends TamableAnimal {
         tickTogether();
         tickWelcome();
         tickBirthday();
+        tickWork();
+        tickTrick();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
             io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
@@ -1784,6 +1804,236 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
+    // ---------- work, while it stays ----------
+
+    public int jobs() {
+        return this.entityData.get(JOBS);
+    }
+
+    public boolean doing(int job) {
+        return (jobs() & job) != 0;
+    }
+
+    public void toggleJob(int job) {
+        this.entityData.set(JOBS, jobs() ^ job);
+        workAt = null;
+    }
+
+    /** How far it potters about (and works) from its spot. */
+    public int stayRadius() {
+        return this.entityData.get(RADIUS);
+    }
+
+    public void setStayRadius(int radius) {
+        this.entityData.set(RADIUS, Mth.clamp(radius, MIN_RADIUS, MAX_RADIUS));
+        if (stayAt != null) setHomeTo(stayAt, stayRadius());
+    }
+
+    /** Can it work now: staying somewhere (not parked), awake, nothing else going on. */
+    private boolean atWork() {
+        return stayAt != null && isOrderedToSit() && !slept && !abandoned() && free();
+    }
+
+    /** Its jobs: a ripe crop or a chest to go to, and at night, an eye out for monsters. */
+    private void tickWork() {
+        if (alarmCooldown > 0) alarmCooldown--;
+        if (stayAt == null || !isOrderedToSit()) {
+            workAt = null;
+            return;
+        }
+        if (doing(JOB_GUARD) && tickCount % 20 == 5 && alarmCooldown == 0 && !slept && level().isDarkOutside()) keepGuard();
+        if (workAt != null || tickCount % 40 != 15 || !atWork() || busyWithOthers()) return;
+        int r = stayRadius();
+        if (doing(JOB_FARMER)) {
+            for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) {
+                BlockState state = level().getBlockState(pos);
+                if (state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop && crop.isMaxAge(state)) {
+                    workAt = pos.immutable();
+                    return;
+                }
+            }
+        }
+        if (doing(JOB_TIDY) && hasTidyable()) {
+            for (BlockPos pos : BlockPos.betweenClosed(stayAt.offset(-r, -2, -r), stayAt.offset(r, 2, r))) {
+                if (level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
+                        || level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity) {
+                    workAt = pos.immutable();
+                    return;
+                }
+            }
+        }
+    }
+
+    /** What it keeps when it tidies up: weapons, balls and its favourite item. */
+    private boolean keeps(ItemStack stack) {
+        Obsession favourite = obsession();
+        return stack.has(net.minecraft.core.component.DataComponents.WEAPON) || isBall(stack) || (favourite != null && favourite.matches().test(stack));
+    }
+
+    private boolean hasTidyable() {
+        for (int i = 0; i < storage.getContainerSize(); i++) if (!storage.getItem(i).isEmpty() && !keeps(storage.getItem(i))) return true;
+        return false;
+    }
+
+    /** Arrived at its work: harvests the crop (and plants it again) or empties its storage into the chest. */
+    private void work(BlockPos pos) {
+        if (!(level() instanceof ServerLevel server)) return;
+        BlockState state = level().getBlockState(pos);
+        io.hookdev.bleep.McVersion.swing(this);
+        if (state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop && crop.isMaxAge(state)) {
+            java.util.List<ItemStack> drops = new java.util.ArrayList<>(net.minecraft.world.level.block.Block.getDrops(state, server, pos, null));
+            for (ItemStack drop : drops) if (drop.is(crop.asItem())) { drop.shrink(1); break; } // one seed goes back in the ground
+            level().levelEvent(2001, pos, net.minecraft.world.level.block.Block.getId(state));
+            level().setBlock(pos, crop.getStateForAge(0), 3);
+            for (ItemStack drop : drops) {
+                ItemStack rest = drop.isEmpty() ? ItemStack.EMPTY : storage.addItem(drop);
+                if (!rest.isEmpty()) spawnAtLocation(server, rest);
+            }
+            if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.harvest");
+            rememberFirst("farmer", "diary.bleep.farmer", "");
+        } else if (level().getBlockEntity(pos) instanceof net.minecraft.world.Container chest) {
+            boolean moved = false;
+            for (int i = 0; i < storage.getContainerSize(); i++) {
+                ItemStack stack = storage.getItem(i);
+                if (stack.isEmpty() || keeps(stack)) continue;
+                int before = stack.getCount();
+                for (int j = 0; j < chest.getContainerSize() && !stack.isEmpty(); j++) {
+                    ItemStack there = chest.getItem(j);
+                    if (there.isEmpty()) {
+                        chest.setItem(j, stack.split(stack.getCount()));
+                    } else if (ItemStack.isSameItemSameComponents(there, stack) && there.getCount() < there.getMaxStackSize()) {
+                        int move = Math.min(stack.getCount(), there.getMaxStackSize() - there.getCount());
+                        there.grow(move);
+                        stack.shrink(move);
+                    }
+                }
+                if (stack.getCount() != before) moved = true;
+                storage.setItem(i, stack);
+            }
+            if (moved) {
+                chest.setChanged();
+                pinThought("thought.bleep.work.tidy");
+                rememberFirst("tidy", "diary.bleep.tidy", "");
+            }
+        }
+    }
+
+    /** Guard: monsters near its post at night: an alarm, and its owner hears about it (a Buddy goes for them too). */
+    private void keepGuard() {
+        var post = new net.minecraft.world.phys.AABB(stayAt).inflate(stayRadius() + 8);
+        var monster = level().getEntitiesOfClass(net.minecraft.world.entity.Mob.class, post, m -> m instanceof net.minecraft.world.entity.monster.Enemy && m.isAlive()).stream()
+                .min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+        if (monster == null) return;
+        alarmCooldown = 600;
+        feel(Emotion.ANGRY, 60);
+        for (int i = 0; i < 3; i++) playSound(BleepContent.VOICE.get(Emotion.SURPRISED).get(), 1.5f, 1.5f + i * 0.1f);
+        pinThought("thought.bleep.work.alarm");
+        rememberFirst("guard", "diary.bleep.guard", "");
+        if (getOwner() instanceof Player owner) owner.sendSystemMessage(Component.translatable("message.bleep.alarm", getDisplayName(), monster.getDisplayName()));
+        if (can(Skill.FIGHT) && wantsToAttack(monster, getOwner()) && distanceToSqr(monster) < (stayRadius() + 4) * (stayRadius() + 4)) setTarget(monster);
+    }
+
+    // ---------- play: tricks, hide and seek ----------
+
+    /** Does a trick, if it knows it (and is free to). */
+    public boolean doTrick(Trick t) {
+        if (slept || abandoned() || trickTicks > 0 || hideMode != 0 || Bond.level(bond()) < t.level || getTarget() != null) return false;
+        trick = t;
+        trickTicks = t.ticks;
+        getNavigation().stop();
+        say("thought.bleep.trick." + t.id());
+        switch (t) {
+            case WAVE -> showDisplay(Display.HI, t.ticks);
+            case DANCE -> danceTicks = t.ticks;
+            default -> {}
+        }
+        return true;
+    }
+
+    private void tickTrick() {
+        if (trickTicks <= 0 || trick == null) return;
+        getNavigation().stop();
+        switch (trick) {
+            case SPIN -> { setYRot(getYRot() + 18); setYBodyRot(getYRot()); setYHeadRot(getYRot()); }
+            case JUMP -> { if (trickTicks % 12 == 0 && onGround()) getJumpControl().jump(); }
+            default -> {}
+        }
+        if (--trickTicks == 0) {
+            if (trick == Trick.PLAY_DEAD) say("thought.bleep.trick.alive");
+            feel(Emotion.EXCITED, 30);
+            played();
+            trick = null;
+        }
+    }
+
+    public @Nullable Trick trick() {
+        return trickTicks > 0 ? trick : null;
+    }
+
+    public int hideMode() {
+        return hideMode;
+    }
+
+    /** Hide and seek, it hides: off to a spot its owner cannot see. */
+    public boolean startHiding() {
+        if (!(getOwner() instanceof Player owner) || slept || abandoned() || hideMode != 0 || distanceToSqr(owner) > 24 * 24) return false;
+        hideSpot = hidingSpot(owner);
+        if (hideSpot == null) return false;
+        hideMode = HIDE_GOING;
+        hideStart = level().getGameTime();
+        hideUntil = hideStart + 3600;
+        stopOtherThings();
+        say("thought.bleep.hide.start");
+        return true;
+    }
+
+    /** Hide and seek, you hide: it counts to ten with its eyes shut, then comes looking. */
+    public boolean startSeeking() {
+        if (!(getOwner() instanceof Player owner) || slept || abandoned() || hideMode != 0 || distanceToSqr(owner) > 24 * 24) return false;
+        hideMode = SEEK_COUNTING;
+        hideStart = level().getGameTime();
+        hideUntil = hideStart + COUNT_TICKS + 2400;
+        hideSpot = blockPosition();
+        stopOtherThings();
+        say("thought.bleep.seek.count.0");
+        return true;
+    }
+
+    private void stopOtherThings() {
+        getNavigation().stop();
+        talkingTo = null;
+        playTicks = 0;
+        partner = null;
+        workAt = null;
+    }
+
+    /** A spot 8 to 18 blocks from its owner that they cannot see, and that it can drive to. */
+    private @Nullable BlockPos hidingSpot(Player owner) {
+        BlockPos fallback = null;
+        for (int i = 0; i < 40; i++) {
+            double angle = getRandom().nextDouble() * Math.PI * 2, distance = 6 + getRandom().nextDouble() * 8; // it plans routes up to 16 blocks
+            int x = (int) Math.floor(owner.getX() + Math.cos(angle) * distance), z = (int) Math.floor(owner.getZ() + Math.sin(angle) * distance);
+            BlockPos spot = new BlockPos(x, level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+            if (Math.abs(spot.getY() - owner.getY()) > 6) continue;
+            var path = getNavigation().createPath(spot, 1);
+            if (path == null || !path.canReach()) continue;
+            if (fallback == null) fallback = spot;
+            var seen = level().clip(new net.minecraft.world.level.ClipContext(owner.getEyePosition(), net.minecraft.world.phys.Vec3.atCenterOf(spot.above()),
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, owner));
+            if (seen.getType() != net.minecraft.world.phys.HitResult.Type.MISS) return spot; // something in between: hidden
+        }
+        return fallback;
+    }
+
+    private void endHideAndSeek(String thought, boolean fun) {
+        hideMode = 0;
+        hideSpot = null;
+        say(thought);
+        feel(Emotion.EXCITED, 40);
+        rememberFirst("hide_and_seek", "diary.bleep.hide_and_seek", "");
+        if (fun) played();
+    }
+
     // ---------- welcome home, birthdays ----------
 
     /** Its owner back after a long time away (or logged in again): it races over, over the moon. */
@@ -1894,7 +2144,7 @@ public class BleepEntity extends TamableAnimal {
     }
 
     private Emotion currentEmotion() {
-        if (slept || bedside) return Emotion.ASLEEP;
+        if (slept || bedside || hideMode == SEEK_COUNTING || trick() == Trick.PLAY_DEAD) return Emotion.ASLEEP; // eyes shut: counting, or playing dead
         if (moodTicks > 0) return mood;
         if (fightingWith != null) return Emotion.ANGRY;
         if (danceTicks > 0 || playing() || greetTicks > 0 || welcomeTicks > 0) return Emotion.EXCITED;
@@ -1911,6 +2161,9 @@ public class BleepEntity extends TamableAnimal {
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
         if (welcomeTicks > 0) return Activity.WELCOMING;
+        if (hideMode != 0) return Activity.HIDE_AND_SEEK;
+        if (trickTicks > 0) return Activity.TRICK;
+        if (workAt != null) return Activity.WORKING;
         if (fightingWith != null) return Activity.SQUABBLING;
         if (talkingTo != null) return Activity.CHATTING;
         if (playing()) return Activity.PLAYING;
@@ -2142,6 +2395,8 @@ public class BleepEntity extends TamableAnimal {
         output.putLong("last_with_owner_real", lastWithOwnerReal);
         output.putLong("last_birthday", lastBirthday);
         output.putInt("party", partyTicks);
+        output.putInt("jobs", jobs());
+        output.putInt("stay_radius", stayRadius());
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2183,6 +2438,8 @@ public class BleepEntity extends TamableAnimal {
         lastWithOwnerReal = input.getLongOr("last_with_owner_real", Long.MIN_VALUE);
         lastBirthday = input.getLongOr("last_birthday", -1);
         partyTicks = input.getIntOr("party", 0);
+        this.entityData.set(JOBS, input.getIntOr("jobs", 0));
+        this.entityData.set(RADIUS, Mth.clamp(input.getIntOr("stay_radius", STAY_RADIUS), MIN_RADIUS, MAX_RADIUS));
         this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
@@ -2191,7 +2448,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0;
+        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0;
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -2244,7 +2501,7 @@ public class BleepEntity extends TamableAnimal {
         @Override
         public boolean canUse() {
             if (!isOrderedToSit() || slept) return false;
-            return stayAt == null || (away(STAY_RADIUS + 2) && !busyWithOthers());
+            return stayAt == null || (away(stayRadius() + 2) && !busyWithOthers());
         }
 
         @Override
@@ -2265,6 +2522,106 @@ public class BleepEntity extends TamableAnimal {
                 getNavigation().stop();
             } else if (ticks++ % 10 == 0) {
                 getNavigation().moveTo(stayAt.getX() + 0.5, stayAt.getY(), stayAt.getZ() + 0.5, 1.0);
+            }
+        }
+    }
+
+    /** At work: drives to the crop or the chest and does the job. */
+    private class WorkGoal extends Goal {
+        private int ticks;
+
+        WorkGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return workAt != null && stayAt != null && !slept && getTarget() == null && talkingTo == null && fightingWith == null && hideMode == 0;
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+        }
+
+        @Override
+        public void tick() {
+            if (workAt == null) return;
+            getLookControl().setLookAt(net.minecraft.world.phys.Vec3.atCenterOf(workAt));
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(workAt)) < 2.0 * 2.0) {
+                getNavigation().stop();
+                work(workAt);
+                workAt = null;
+            } else if (ticks++ % 10 == 0) {
+                getNavigation().moveTo(workAt.getX() + 0.5, workAt.getY(), workAt.getZ() + 0.5, 1.0);
+                if (ticks > 300) workAt = null; // cannot get there
+            }
+        }
+    }
+
+    /** Hide and seek: off to its hiding spot and keeping still, or counting and then looking for its owner. */
+    private class HideAndSeekGoal extends Goal {
+        private int ticks;
+
+        HideAndSeekGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return hideMode != 0 && getOwner() instanceof Player && !slept;
+        }
+
+        @Override
+        public void stop() {
+            if (hideMode != 0 && !(getOwner() instanceof Player)) { hideMode = 0; hideSpot = null; }
+        }
+
+        @Override
+        public void tick() {
+            if (!(getOwner() instanceof Player owner)) return;
+            ticks++;
+            long now = level().getGameTime();
+            if (now >= hideUntil) {
+                endHideAndSeek(hideMode <= HIDE_HIDDEN ? "thought.bleep.hide.won" : "thought.bleep.seek.gave_up", false);
+                return;
+            }
+            boolean sees = distanceToSqr(owner) < 14 * 14 && hasLineOfSight(owner);
+            switch (hideMode) {
+                case HIDE_GOING -> {
+                    if (hideSpot == null || distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(hideSpot)) < 1.5 * 1.5) {
+                        getNavigation().stop();
+                        hideMode = HIDE_HIDDEN;
+                    } else if (ticks % 10 == 0) {
+                        getNavigation().moveTo(hideSpot.getX() + 0.5, hideSpot.getY(), hideSpot.getZ() + 0.5, 1.3);
+                    }
+                }
+                case HIDE_HIDDEN -> { // keeping still; a soft blip now and then, as a hint
+                    getNavigation().stop();
+                    if (ticks % 100 == 0) playSound(BleepContent.VOICE.get(Emotion.HAPPY).get(), 0.3f, getVoicePitch());
+                    if (distanceToSqr(owner) < 3 * 3 && owner.hasLineOfSight(BleepEntity.this)) endHideAndSeek("thought.bleep.hide.found", true);
+                }
+                case SEEK_COUNTING -> {
+                    getNavigation().stop();
+                    int counted = (int) (now - hideStart);
+                    int line = counted / 40;
+                    if (line > 0 && line < COUNT_TICKS / 40 && !thought().equals("thought.bleep.seek.count." + line)) pinThought("thought.bleep.seek.count." + line);
+                    if (counted >= COUNT_TICKS) {
+                        hideMode = SEEK_LOOKING;
+                        say("thought.bleep.seek.ready");
+                    }
+                }
+                case SEEK_LOOKING -> {
+                    if (sees) {
+                        getLookControl().setLookAt(owner);
+                        if (distanceToSqr(owner) < 2.5 * 2.5) endHideAndSeek("thought.bleep.seek.found", true);
+                        else if (ticks % 5 == 0) getNavigation().moveTo(owner, 1.3);
+                    } else if (ticks % 60 == 0 && hideSpot != null) { // looking about
+                        double angle = getRandom().nextDouble() * Math.PI * 2, distance = 3 + getRandom().nextDouble() * 12;
+                        getNavigation().moveTo(hideSpot.getX() + Math.cos(angle) * distance, hideSpot.getY(), hideSpot.getZ() + Math.sin(angle) * distance, 1.1);
+                    }
+                }
+                default -> {}
             }
         }
     }

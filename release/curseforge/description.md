@@ -70,6 +70,12 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Llama spit** gets in its circuits: its screen glitches.
 - **Ten bleeps** per player at most. Any more and it really turns into a fight.
 
+## Play and work
+
+- **Hide and seek.** It hides and you find it (a soft blip now and then gives it away), or it counts to ten and comes looking for you.
+- **Tricks.** Spin, jump and wave from day one, dance as a Friend, play dead as a Buddy.
+- **Work while it stays.** Set how far it goes from its spot, and switch on its jobs: farmer (harvests and replants), guard (an alarm at night), tidy up (its storage into a chest).
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

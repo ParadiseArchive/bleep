@@ -28,7 +28,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet;
+    private Button goHome, torch, book, chest, magnet, play, work;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -50,6 +50,10 @@ public class BleepScreen extends Screen {
         chest = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.OPEN_STORAGE)).bounds(left + W - 32, top + 32, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.storage"))).build());
         magnet = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.MAGNET)).bounds(left + W - 32, top + 56, 22, 22).build());
+        // and two more screens: games and tricks, and its work while it stays
+        play = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new PlayScreen(bleep))).bounds(left + W - 32, top + 80, 22, 22)
+                .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.play"))).build());
+        work = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new WorkScreen(bleep))).bounds(left + W - 32, top + 104, 22, 22).build());
         // its name: click it and type a new one (Enter, or closing the screen, saves it)
         name = addRenderableWidget(new net.minecraft.client.gui.components.EditBox(font, left + 100, top + 11, 120, 10, Component.translatable("screen.bleep.name")));
         name.setBordered(false);
@@ -58,7 +62,7 @@ public class BleepScreen extends Screen {
         name.setValue(currentName());
         name.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.rename")));
         // only while it carries a torch: take it back
-        torch = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.take_torch"), b -> send(BleepCommand.TAKE_TORCH)).bounds(left + W - 78, top + 92, 68, 16).build());
+        torch = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.take_torch"), b -> send(BleepCommand.TAKE_TORCH)).bounds(left + W - 112, top + 92, 70, 16).build());
     }
 
     private void send(int command) {
@@ -99,6 +103,8 @@ public class BleepScreen extends Screen {
         if (bleep.isRemoved() || player == null || bleep.distanceToSqr(player) > 16 * 16) onClose();
         goHome.active = bleep.home() != null;
         torch.visible = bleep.getOffhandItem().is(net.minecraft.world.item.Items.TORCH);
+        work.active = bleep.isOrderedToSit() && !bleep.onHome();
+        work.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(work.active ? "screen.bleep.work" : "screen.bleep.work.stay_first")));
         magnet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(bleep.magnet() ? "screen.bleep.magnet.on" : "screen.bleep.magnet.off")));
         if (!name.isFocused() && !name.getValue().equals(currentName())) name.setValue(currentName());
     }
@@ -136,25 +142,27 @@ public class BleepScreen extends Screen {
         Obsession favourite = bleep.obsession();
         if (favourite != null && bleep.revealed()) {
             g.item(favourite.iconStack(), left + 62, oy);
-            g.text(font, Component.translatable(favourite.nameKey()), left + 82, oy + 4, TEXT, false);
+            g.text(font, font.substrByWidth(Component.translatable(favourite.nameKey()), 62).getString(), left + 82, oy + 4, TEXT, false);
         } else {
             g.text(font, "???", left + 62, oy + 4, TEXT, false);
         }
 
         // what it is thinking
         int qy = oy + 22, qh = 34;
-        g.fill(left + 10, qy, left + W - 10, qy + qh, 0xFF22262E);
+        g.fill(left + 10, qy, left + W - 38, qy + qh, 0xFF22262E);
         if (!bleep.thought().isEmpty()) {
             // a mob from another mod has no line of its own
             String key = Language.getInstance().has(bleep.thought()) ? bleep.thought() : "thought.bleep.unknown_mob";
             Component thought = Component.literal("“").append(Component.translatable(key)).append("”");
-            g.textWithWordWrap(font, thought, left + 16, qy + 6, W - 32, TEXT);
+            g.textWithWordWrap(font, thought, left + 16, qy + 6, W - 60, TEXT);
         }
 
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), book.getX() + 3, book.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST), chest.getX() + 3, chest.getY() + 3);
         g.blit(MAGNET, magnet.getX() + 3, magnet.getY() + 3, magnet.getX() + 19, magnet.getY() + 19, 0, 1, 0, 1);
+        g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.BALL.get()), play.getX() + 3, play.getY() + 3);
+        g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_HOE), work.getX() + 3, work.getY() + 3);
         if (bleep.magnet()) g.fill(magnet.getX() + 3, magnet.getY() + 19, magnet.getX() + 19, magnet.getY() + 20, GLOW); // on: a glowing line under it
         if (bleep.news() && (bleep.tickCount / 10) % 2 == 0) g.text(font, "!", book.getX() + 16, book.getY() + 1, AMBER, true);
     }

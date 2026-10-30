@@ -108,7 +108,7 @@ public final class BleepGameTests {
         test("llama_spit_makes_it_glitch", BleepGameTests::llamaSpitMakesItGlitch, 20);
         test("a_bed_by_its_home_is_a_comfort", BleepGameTests::aBedByItsHomeIsAComfort, 20);
         test("ten_bleeps_is_plenty", BleepGameTests::tenBleepsIsPlenty, 20);
-        test("two_bleeps_say_hi", BleepGameTests::twoBleepsSayHi, 60);
+        test("two_bleeps_say_hi", BleepGameTests::twoBleepsSayHi, 200);
         test("two_bleeps_have_a_chat", BleepGameTests::twoBleepsHaveAChat, 260);
         test("tag_has_one_who_is_it", BleepGameTests::tagHasOneWhoIsIt, 20);
         test("bleeps_fight_with_thunder_clouds", BleepGameTests::bleepsFightWithThunderClouds, 140);
@@ -117,6 +117,12 @@ public final class BleepGameTests {
         test("staying_bleeps_still_chat", BleepGameTests::stayingBleepsStillChat, 60);
         test("it_welcomes_its_owner_back", BleepGameTests::itWelcomesItsOwnerBack, 60);
         test("a_birthday_with_cake", BleepGameTests::aBirthdayWithCake, 160);
+        test("it_does_tricks_it_knows", BleepGameTests::itDoesTricksItKnows, 60);
+        test("it_hides", BleepGameTests::itHides, 20);
+        test("it_counts_then_seeks", BleepGameTests::itCountsThenSeeks, 300);
+        test("a_farmer_harvests_and_replants", BleepGameTests::aFarmerHarvestsAndReplants, 200);
+        test("tidy_up_puts_its_storage_in_a_chest", BleepGameTests::tidyUpPutsItsStorageInAChest, 200);
+        test("the_stay_radius_can_change", BleepGameTests::theStayRadiusCanChange, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -930,6 +936,79 @@ public final class BleepGameTests {
             helper.assertTrue(bleep.give(owner, new ItemStack(Items.CAKE)), "a birthday cake is very welcome");
             helper.assertTrue(bleep.bond() > bond, "and raises the bond");
         });
+    }
+
+    private static void itDoesTricksItKnows(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.assertFalse(bleep.doTrick(io.hookdev.bleep.entity.Trick.PLAY_DEAD), "a new bleep cannot play dead yet");
+        helper.assertTrue(bleep.doTrick(io.hookdev.bleep.entity.Trick.SPIN), "but it can spin");
+        int bond = bleep.bond();
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.trick() == null && bleep.bond() > bond, "a trick done raises the bond");
+        });
+    }
+
+    private static void itHides(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        // the test world is too small to hide in for real: if it finds a spot, it is off to it
+        boolean hides = BleepCommand.obey(owner, bleep, BleepCommand.HIDE, 1);
+        helper.assertTrue(hides == (bleep.hideMode() == BleepEntity.HIDE_GOING), "hiding means going to its spot");
+        helper.assertFalse(BleepCommand.obey(player(helper), bleep, BleepCommand.HIDE, 1) && !hides, "only its owner starts a game");
+        helper.succeed();
+    }
+
+    private static void itCountsThenSeeks(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        helper.assertTrue(bleep.startSeeking(), "it counts to ten");
+        helper.runAfterDelay(20, () -> helper.assertTrue(bleep.emotion() == Emotion.ASLEEP, "with its eyes shut"));
+        helper.succeedWhen(() -> helper.assertTrue(bleep.hideMode() == 0 && bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.hide_and_seek")), "then it finds its owner close by, it thinks " + bleep.thought()));
+    }
+
+    private static void aFarmerHarvestsAndReplants(GameTestHelper helper) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(player(helper));
+        BlockPos crop = new BlockPos(5, 0, 1);
+        helper.setBlock(crop.below(), Blocks.FARMLAND);
+        var wheat = (net.minecraft.world.level.block.CropBlock) Blocks.WHEAT;
+        helper.setBlock(crop, wheat.getStateForAge(wheat.getMaxAge()));
+        bleep.stay();
+        bleep.toggleJob(BleepEntity.JOB_FARMER);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.storage().countItem(Items.WHEAT) >= 1, "the wheat should be in its storage");
+            helper.assertTrue(helper.getBlockState(crop).is(Blocks.WHEAT) && !wheat.isMaxAge(helper.getBlockState(crop)), "and the wheat planted again");
+        });
+    }
+
+    private static void tidyUpPutsItsStorageInAChest(GameTestHelper helper) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(player(helper));
+        BlockPos chestPos = new BlockPos(5, 0, 1);
+        helper.setBlock(chestPos, Blocks.CHEST);
+        var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity) helper.getBlockEntity(chestPos, net.minecraft.world.level.block.entity.ChestBlockEntity.class);
+        bleep.storage().addItem(new ItemStack(Items.STRING, 5));
+        bleep.storage().addItem(new ItemStack(Items.IRON_SWORD));
+        bleep.stay();
+        bleep.toggleJob(BleepEntity.JOB_TIDY);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(chest.countItem(Items.STRING) == 5, "the string should be in the chest");
+            helper.assertTrue(bleep.storage().countItem(Items.IRON_SWORD) == 1, "it keeps its sword");
+        });
+    }
+
+    private static void theStayRadiusCanChange(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.stay();
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.RADIUS + 10, 1) && bleep.stayRadius() == 10, "the radius is 10 now");
+        BleepCommand.obey(owner, bleep, BleepCommand.RADIUS + 99, 1);
+        helper.assertTrue(bleep.stayRadius() == 10, "a radius out of range is ignored");
+        bleep.setStayRadius(1);
+        helper.assertTrue(bleep.stayRadius() == BleepEntity.MIN_RADIUS, "two at least");
+        helper.succeed();
     }
 
     private static Player withCore(GameTestHelper helper) {

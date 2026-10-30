@@ -49,7 +49,7 @@ your bond, its favourite item (??? until you find out what it is), what it is th
 Home buttons. Sneak-right-click to pet it. It talks back in cute robot chirps, a few for every mood.
 
 <p align="center">
-  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt (click to rename), mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and down the right a book with a ! for its Bleepedia, a chest for its storage and a magnet.">
+  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt (click to rename), mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and down the right a book with a ! for its Bleepedia, a chest for its storage, a magnet, a ball for Play and a hoe for Work.">
 </p>
 
 ## What is in it
@@ -89,6 +89,10 @@ fights with it. Its name is Bleep until you type a new one on its info screen.
 Throw a ball and it brings it back. Have more than one bleep and they say hi, chat, play tag, pass the ball, fight
 (thunder clouds and all), get jealous and cheer each other up, and become friends, best friends or rivals. A bed, a toy and its name on a sign make its home cosy. It welcomes you home, and every thirty days it has a
 birthday (a cake makes its day). Ten bleeps per player.
+
+### Play and work
+The ball on its info screen opens Play: hide and seek (it hides, or you do) and tricks, more as the bond grows. The hoe
+opens Work while it stays: how far it goes from its spot, and its jobs: farmer, guard at night, tidy up into a chest.
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

@@ -13,7 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 /** A button on a bleep's info screen: Follow, Stay, Go Home, take the torch, its Bleepedia, its storage, its magnet. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, HIDE = 10, SEEK = 11;
+    /** Plus a trick (Trick ordinal), a stay radius, or a job (its JOB_ bit). */
+    public static final int TRICK = 20, RADIUS = 100, JOB = 200;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -43,6 +45,17 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
         if (command == TAKE_TORCH) return bleep.takeTorch(player);
         if (command == OPEN_STORAGE) {
             if (player instanceof net.minecraft.server.level.ServerPlayer server) bleep.openStorage(server);
+            return true;
+        }
+        if (command == HIDE) return bleep.startHiding();
+        if (command == SEEK) return bleep.startSeeking();
+        if (command >= TRICK && command < TRICK + io.hookdev.bleep.entity.Trick.values().length) return bleep.doTrick(io.hookdev.bleep.entity.Trick.byId(command - TRICK));
+        if (command >= RADIUS && command <= RADIUS + BleepEntity.MAX_RADIUS) {
+            bleep.setStayRadius(command - RADIUS);
+            return true;
+        }
+        if (command > JOB && command < JOB + 64) {
+            bleep.toggleJob(command - JOB);
             return true;
         }
         if (command == MAGNET) {

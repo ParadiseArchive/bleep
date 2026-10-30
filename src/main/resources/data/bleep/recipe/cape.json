@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:gold_nugget",
+    "W": "minecraft:red_wool"
+  },
+  "pattern": [
+    " G ",
+    "WWW",
+    "WWW"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:cape"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "N": "minecraft:iron_nugget",
+    "G": "minecraft:black_stained_glass_pane"
+  },
+  "pattern": [
+    "N N",
+    "GNG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:sunglasses"
+  }
+}

@@ -19,6 +19,8 @@ public class BleepRenderState extends ArmedEntityRenderState {
     /** Its colour (ARGB, -1 for its own white), what it wears, what its display shows, its name and where home is (degrees, NaN if unknown). */
     public int color = -1;
     public io.hookdev.bleep.entity.Accessory hat, sticker;
+    /** Everything it wears, by slot (the hat is the party hat on its birthday). */
+    public final java.util.Map<io.hookdev.bleep.entity.Accessory.Slot, io.hookdev.bleep.entity.Accessory> worn = new java.util.EnumMap<>(io.hookdev.bleep.entity.Accessory.Slot.class);
     public io.hookdev.bleep.entity.Display display = io.hookdev.bleep.entity.Display.FACE;
     public String name = "";
     public float homeAngle = Float.NaN;

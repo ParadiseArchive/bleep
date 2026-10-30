@@ -82,6 +82,8 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> HAT = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> STICKER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    /** What it wears over its eyes, round its body, on its back and round its neck: a byte each (the accessory + 1, 0 for nothing). */
+    private static final EntityDataAccessor<Integer> WEAR = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     /** What it dreams of: "mob:" and a name key, "scene:" and a kind of place, "star" or "strange". */
@@ -348,6 +350,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(COLOR, -1);
         builder.define(HAT, -1);
         builder.define(STICKER, -1);
+        builder.define(WEAR, 0);
         builder.define(DISPLAY, 0);
         builder.define(NEWS, false);
         builder.define(ABANDONED, false);
@@ -560,24 +563,49 @@ public class BleepEntity extends TamableAnimal {
         return Accessory.byId(this.entityData.get(STICKER));
     }
 
-    /** Puts this on; what it wore in that place goes back to the player. */
-    public void wear(Player player, Accessory accessory) {
-        Accessory old = accessory.hat ? hat() : sticker();
-        if (old != null) giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(old).get()));
-        this.entityData.set(accessory.hat ? HAT : STICKER, accessory.ordinal());
-        feel(Emotion.EXCITED, 40);
+    /** What it wears in this slot, if anything. */
+    public @Nullable Accessory worn(Accessory.Slot slot) {
+        return switch (slot) {
+            case HAT -> hat();
+            case STICKER -> sticker();
+            default -> Accessory.byId(((this.entityData.get(WEAR) >> shift(slot)) & 0xFF) - 1);
+        };
     }
 
-    /** Shears take off its hat and sticker, back to the player. False if it wears nothing. */
+    private static int shift(Accessory.Slot slot) {
+        return 8 * (slot.ordinal() - Accessory.Slot.EYES.ordinal());
+    }
+
+    private void setWorn(Accessory.Slot slot, @Nullable Accessory accessory) {
+        switch (slot) {
+            case HAT -> this.entityData.set(HAT, accessory == null ? -1 : accessory.ordinal());
+            case STICKER -> this.entityData.set(STICKER, accessory == null ? -1 : accessory.ordinal());
+            default -> this.entityData.set(WEAR, (this.entityData.get(WEAR) & ~(0xFF << shift(slot))) | ((accessory == null ? 0 : accessory.ordinal() + 1) << shift(slot)));
+        }
+    }
+
+    /** Puts this on; what it wore in that place goes back to the player. */
+    public void wear(Player player, Accessory accessory) {
+        Accessory old = worn(accessory.slot);
+        if (old != null) giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(old).get()));
+        setWorn(accessory.slot, accessory);
+        feel(Emotion.EXCITED, 40);
+        if (accessory == Accessory.SUNGLASSES) pinThought("thought.bleep.dress.sunglasses");
+        else if (accessory == Accessory.LEATHER_JACKET) pinThought("thought.bleep.dress.jacket");
+        else if (accessory == Accessory.CAPE) pinThought("thought.bleep.dress.cape");
+        else if (accessory == Accessory.CROWN) pinThought("thought.bleep.dress.crown");
+    }
+
+    /** Shears take off everything it wears, back to the player. False if it wears nothing. */
     public boolean takeOff(Player player) {
         boolean any = false;
-        for (Accessory worn : new Accessory[]{hat(), sticker()}) {
+        for (Accessory.Slot slot : Accessory.Slot.values()) {
+            Accessory worn = worn(slot);
             if (worn == null) continue;
             giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(worn).get()));
+            setWorn(slot, null);
             any = true;
         }
-        this.entityData.set(HAT, -1);
-        this.entityData.set(STICKER, -1);
         return any;
     }
 
@@ -3300,6 +3328,7 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("color", color());
         output.putInt("hat", this.entityData.get(HAT));
         output.putInt("sticker", this.entityData.get(STICKER));
+        output.putInt("wear", this.entityData.get(WEAR));
         output.putLong("bond_day", bondDay);
         output.putInt("pets_today", petsToday);
         output.putInt("gifts_today", giftsToday);
@@ -3354,6 +3383,7 @@ public class BleepEntity extends TamableAnimal {
         setColor(input.getIntOr("color", -1));
         this.entityData.set(HAT, input.getIntOr("hat", -1));
         this.entityData.set(STICKER, input.getIntOr("sticker", -1));
+        this.entityData.set(WEAR, input.getIntOr("wear", 0));
         bondDay = input.getLongOr("bond_day", -1);
         petsToday = input.getIntOr("pets_today", 0);
         giftsToday = input.getIntOr("gifts_today", 0);

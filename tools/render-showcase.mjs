@@ -274,18 +274,31 @@ function bleepParts(pose = {}) {
   return [
     { pivot: [0, 0, 0], boxes: [[0, 30, -4, -5, -4, 8, 2, 8], [0, 41, -7, -4, -5.5, 3, 4, 11], [28, 41, 4, -4, -5.5, 3, 4, 11]] },
     ...wheels,
-    { pivot: body, step: 2, boxes: [[0, 16, -4, -6, -3.5, 8, 6, 7], [32, 16, -3, -5.5, -4.5, 6, 5, 1], [32, 16, -3, -5.5, 3.5, 6, 5, 1], [32, 30, -2, -8, -2, 4, 2, 4]] },
-    { pivot: [0, -13, 0], step: 4, turn: pose.head, boxes: [[0, 0, -6, -7, -4, 12, 7, 8], [56, 48, -7, -5, -1.5, 1, 3, 3], [56, 48, 6, -5, -1.5, 1, 3, 3]], face: pose.face ?? 'happy' },
-    { pivot: [-4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? pose.armSpread : 0 }, boxes: [[40, 0, -2, 0, -1, 2, 6, 2], [48, 0, -2.5, 6, -1.5, 3, 2, 3]] },
-    { pivot: [4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? -pose.armSpread : 0 }, boxes: [[40, 0, 0, 0, -1, 2, 6, 2], [48, 0, -0.5, 6, -1.5, 3, 2, 3]] },
+    { name: 'body', pivot: body, step: 2, boxes: [[0, 16, -4, -6, -3.5, 8, 6, 7], [32, 16, -3, -5.5, -4.5, 6, 5, 1], [32, 16, -3, -5.5, 3.5, 6, 5, 1], [32, 30, -2, -8, -2, 4, 2, 4]] },
+    { name: 'head', pivot: [0, -13, 0], step: 4, turn: pose.head, boxes: [[0, 0, -6, -7, -4, 12, 7, 8], [56, 48, -7, -5, -1.5, 1, 3, 3], [56, 48, 6, -5, -1.5, 1, 3, 3]], face: pose.face ?? 'happy' },
+    { name: 'right_arm', pivot: [-4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? pose.armSpread : 0 }, boxes: [[40, 0, -2, 0, -1, 2, 6, 2], [48, 0, -2.5, 6, -1.5, 3, 2, 3]] },
+    { name: 'left_arm', pivot: [4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? -pose.armSpread : 0 }, boxes: [[40, 0, 0, 0, -1, 2, 6, 2], [48, 0, -0.5, 6, -1.5, 3, 2, 3]] },
   ].filter((part) => (part.step || 1) <= (pose.built ?? 4)); // being put together: tracks, body, arms, head
 }
-/** What it wears, from client/AccessoryModel.java: [texture u, v, x, y, z, w, h, d], in the head's or the body's pixels. */
+/**
+ * What it wears, from client/AccessoryModel.java: pieces on its head, body or an arm, each with boxes [texture u, v, x, y,
+ * z, w, h, d, grow] in that part's pixels (grow: a CubeDeformation), and an offset and turn of its own (the cape).
+ */
+const head = (boxes) => [{ on: 'head', boxes }], onBody = (boxes) => [{ on: 'body', boxes }];
 const ACCESSORIES = {
-  party_hat: [[0, 0, -3, -8, -3, 6, 1, 6], [24, 0, -2, -10, -2, 4, 2, 4], [40, 0, -1, -12, -1, 2, 2, 2]],
-  top_hat: [[0, 8, -4, -8, -4, 8, 1, 8], [32, 8, -3, -13, -3, 6, 5, 6]],
-  antenna: [[0, 20, -0.5, -13, -0.5, 1, 6, 1], [4, 20, -1, -15, -1, 2, 2, 2], [12, 20, -2.5, -11, -0.5, 2, 2, 1], [12, 20, 0.5, -11, -0.5, 2, 2, 1]],
-  sticker_star: [[0, 30, 0, -4.5, -5.5, 3, 3, 1]], sticker_heart: [[8, 30, 0, -4.5, -5.5, 3, 3, 1]], sticker_bolt: [[16, 30, 0, -4.5, -5.5, 3, 3, 1]],
+  party_hat: head([[0, 0, -3, -8, -3, 6, 1, 6], [24, 0, -2, -10, -2, 4, 2, 4], [40, 0, -1, -12, -1, 2, 2, 2]]),
+  top_hat: head([[0, 8, -4, -8, -4, 8, 1, 8], [32, 8, -3, -13, -3, 6, 5, 6]]),
+  antenna: head([[0, 20, -0.5, -13, -0.5, 1, 6, 1], [4, 20, -1, -15, -1, 2, 2, 2], [12, 20, -2.5, -11, -0.5, 2, 2, 1], [12, 20, 0.5, -11, -0.5, 2, 2, 1]]),
+  crown: head([[24, 20, -3, -8, -3, 6, 1, 6], [48, 20, -3, -10, -3, 1, 2, 1], [48, 20, 2, -10, -3, 1, 2, 1], [48, 20, -3, -10, 2, 1, 2, 1], [48, 20, 2, -10, 2, 1, 2, 1], [52, 20, -0.5, -9.5, -3.2, 1, 1, 1]]),
+  sunglasses: head([[0, 36, -6, -6, -5, 12, 1, 1], [26, 36, -4, -5, -5, 3, 2, 1], [26, 36, 1, -5, -5, 3, 2, 1], [34, 36, -7, -6, -4, 1, 1, 3], [34, 36, 6, -6, -4, 1, 1, 3]]),
+  sticker_star: onBody([[0, 30, 0, -4.5, -5.5, 3, 3, 1]]), sticker_heart: onBody([[8, 30, 0, -4.5, -5.5, 3, 3, 1]]), sticker_bolt: onBody([[16, 30, 0, -4.5, -5.5, 3, 3, 1]]),
+  leather_jacket: [
+    { on: 'body', boxes: [[0, 40, -4, -6, -3.5, 8, 6, 7, 0.35], [30, 40, -3, -5.5, -4.5, 6, 5, 1, 0.35], [30, 40, -3, -5.5, 3.5, 6, 5, 1, 0.35], [44, 40, -2, -7, -2, 4, 1, 4, 0.4]] },
+    { on: 'right_arm', boxes: [[30, 47, -2, 0, -1, 2, 4, 2, 0.3]] }, { on: 'left_arm', boxes: [[30, 47, 0, 0, -1, 2, 4, 2, 0.3]] },
+  ],
+  cape: [{ on: 'body', offset: [0, -6, 4.9], turn: { x: 0.35 }, boxes: [[0, 54, -4, 0, 0, 8, 9, 1]] }],
+  bow_tie: onBody([[20, 54, -3, -6.5, -5.5, 2, 2, 1], [20, 54, 1, -6.5, -5.5, 2, 2, 1], [28, 54, -1, -6, -5.7, 2, 1, 1]]),
+  scarf: onBody([[34, 54, -4, -6.5, -3.5, 8, 1, 7, 0.5], [20, 59, -2.5, -5.5, -5.6, 1, 4, 1]]),
 };
 /** The bleep as block-model elements, so the isometric renderer can draw it. pose.color tints its shell (tintindex 0). */
 function bleepElements(pose = {}) {
@@ -293,20 +306,23 @@ function bleepElements(pose = {}) {
   const elements = [];
   const parts = bleepParts(pose);
   // what it wears hangs on its head or its body, in its own texture and not dyed
-  const head = parts.find((p) => p.face !== undefined), body = parts.find((p) => p.step === 2);
-  for (const name of [pose.hat, pose.sticker].filter(Boolean)) {
-    const on = name.startsWith('sticker') ? body : head;
-    if (on) parts.push({ pivot: on.pivot, turn: on.turn, boxes: ACCESSORIES[name], texture: 'bleep:entity/bleep/accessories' });
+  for (const name of [pose.hat, pose.sticker, pose.eyes, pose.body, pose.back, pose.neck].filter(Boolean)) {
+    for (const piece of ACCESSORIES[name]) {
+      const on = parts.find((p) => p.name === piece.on);
+      if (!on) continue;
+      const pivot = piece.offset ? on.pivot.map((c, i) => c + piece.offset[i]) : on.pivot;
+      parts.push({ pivot, turn: piece.turn || on.turn, boxes: piece.boxes, texture: 'bleep:entity/bleep/accessories' });
+    }
   }
   for (const part of parts) {
     const T = part.texture || 'bleep:entity/bleep/bleep', tint = part.texture || pose.color === undefined ? undefined : 0;
     const [px, py, pz] = part.pivot;
     const rotation = part.turn ? { origin: [px + 8, -py, 8 - pz], x: deg(part.turn.x), y: -deg(part.turn.y), z: -deg(part.turn.z) } : null;
-    for (const [u, v, x, y, z, w, h, d] of part.boxes) {
-      const x0 = px + x, y0 = py + y, z0 = pz + z;
+    for (const [u, v, x, y, z, w, h, d, g = 0] of part.boxes) {
+      const x0 = px + x - g, y0 = py + y - g, z0 = pz + z - g; // grown on every side, the texture stays the same
       const r = (a, b, c, e) => [a / 4, b / 4, c / 4, e / 4]; // 64 px texture in a 16 wide uv space
       elements.push({
-        from: [x0 + 8, -(y0 + h), 8 - (z0 + d)], to: [x0 + w + 8, -y0, 8 - z0], rotation,
+        from: [x0 + 8, -(y0 + h + 2 * g), 8 - (z0 + d + 2 * g)], to: [x0 + w + 2 * g + 8, -y0, 8 - z0], rotation,
         faces: {
           south: { uv: r(u + d, v + d, u + d + w, v + d + h), texture: T, tintindex: tint },          // its front
           north: { uv: r(u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h), texture: T, tintindex: tint },
@@ -375,6 +391,10 @@ const DRESSED = [
   ['bleep_yellow', { color: 'yellow', sticker: 'sticker_star', face: 'stubborn' }],
   ['bleep_magenta', { color: 'magenta', hat: 'party_hat', sticker: 'sticker_bolt' }],
   ['bleep_cyan', { color: 'cyan', hat: 'antenna' }],
+  ['bleep_cool', { color: 'red', eyes: 'sunglasses', body: 'leather_jacket' }],
+  ['bleep_hero', { color: 'blue', hat: 'crown', back: 'cape', face: 'excited', arms: -0.2, armSpread: 2.5 }],
+  ['bleep_dapper', { color: 'magenta', hat: 'top_hat', neck: 'bow_tie' }],
+  ['bleep_cosy', { color: 'lime', neck: 'scarf', sticker: 'sticker_heart' }],
 ];
 for (const [name, pose] of DRESSED) {
   MODELS.set(name, bleepElements(pose));
@@ -391,7 +411,7 @@ render('bleep_dancing', [{ model: 'bleep_dancing', xf: big(), tints: [DYES.orang
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['star_shard', 'speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+for (const part of ['star_shard', 'speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);

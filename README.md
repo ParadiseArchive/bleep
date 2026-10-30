@@ -129,6 +129,10 @@ Very rarely, something strange.
 ### Show the way
 Lost? The compass on its info screen: it drives ahead to its homebase (or your bed), leaving a glowing trail.
 
+### Cool clothes
+Sunglasses over its screen, a leather jacket, a cape that swings out as it drives, a bow tie, a scarf and a crown:
+one thing in each place, on top of its hat and sticker.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

@@ -575,8 +575,14 @@ public final class BleepGameTests {
         helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.PARTY_HAT).get())), "and the old one comes back");
         bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(Accessory.STICKER_HEART).get()));
         helper.assertTrue(bleep.sticker() == Accessory.STICKER_HEART && bleep.hat() == Accessory.TOP_HAT, "a sticker goes on next to the hat");
+        for (Accessory a : new Accessory[]{Accessory.SUNGLASSES, Accessory.LEATHER_JACKET, Accessory.CAPE, Accessory.BOW_TIE}) bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(a).get()));
+        helper.assertTrue(bleep.worn(Accessory.Slot.EYES) == Accessory.SUNGLASSES && bleep.worn(Accessory.Slot.BODY) == Accessory.LEATHER_JACKET
+                && bleep.worn(Accessory.Slot.BACK) == Accessory.CAPE && bleep.worn(Accessory.Slot.NECK) == Accessory.BOW_TIE && bleep.hat() == Accessory.TOP_HAT, "sunglasses, a jacket, a cape and a bow tie, all at once");
+        bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(Accessory.SCARF).get()));
+        helper.assertTrue(bleep.worn(Accessory.Slot.NECK) == Accessory.SCARF && owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.BOW_TIE).get())), "a scarf takes the bow tie's place");
         helper.assertTrue(bleep.takeOff(owner), "shears take them off");
-        helper.assertTrue(bleep.hat() == null && bleep.sticker() == null, "both");
+        helper.assertTrue(bleep.hat() == null && bleep.sticker() == null && bleep.worn(Accessory.Slot.BACK) == null && bleep.worn(Accessory.Slot.EYES) == null, "all of them");
+        helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.CAPE).get())), "the cape comes back too");
         helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.STICKER_HEART).get())), "and give them back");
         helper.succeed();
     }

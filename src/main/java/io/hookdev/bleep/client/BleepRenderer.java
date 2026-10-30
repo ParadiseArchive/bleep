@@ -69,6 +69,11 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         state.color = bleep.color() == -1 ? -1 : 0xFF000000 | bleep.color();
         state.hat = bleep.hat() != null ? bleep.hat() : bleep.party() ? io.hookdev.bleep.entity.Accessory.PARTY_HAT : null; // its birthday
         state.sticker = bleep.sticker();
+        for (var slot : io.hookdev.bleep.entity.Accessory.Slot.values()) {
+            var worn = slot == io.hookdev.bleep.entity.Accessory.Slot.HAT ? state.hat : bleep.worn(slot);
+            if (worn == null) state.worn.remove(slot);
+            else state.worn.put(slot, worn);
+        }
         state.display = bleep.display();
         state.dancing = bleep.activity() == io.hookdev.bleep.entity.Activity.DANCING;
         state.abandoned = bleep.activity() == io.hookdev.bleep.entity.Activity.ABANDONED;

@@ -1,19 +1,33 @@
 package io.hookdev.bleep.entity;
 
 /**
- * What a bleep can wear (design doc: hats, stickers, an antenna with a bow): one hat on its head and one sticker on its
- * front. Each is an item of the same name (bleep:<name>). The order is saved and sent to clients: only add at the end.
+ * What a bleep can wear (design doc: hats, stickers, an antenna with a bow; owner, 30 Oct 2026: cool sunglasses, a
+ * leather jacket, a cape and more): one thing in each slot. Each is an item of the same name (bleep:<name>). The order
+ * is saved and sent to clients: only add at the end.
  */
 public enum Accessory {
-    PARTY_HAT(true), TOP_HAT(true), ANTENNA(true), STICKER_STAR(false), STICKER_HEART(false), STICKER_BOLT(false);
+    PARTY_HAT(Slot.HAT), TOP_HAT(Slot.HAT), ANTENNA(Slot.HAT), STICKER_STAR(Slot.STICKER), STICKER_HEART(Slot.STICKER), STICKER_BOLT(Slot.STICKER),
+    SUNGLASSES(Slot.EYES), LEATHER_JACKET(Slot.BODY), CAPE(Slot.BACK), BOW_TIE(Slot.NECK), SCARF(Slot.NECK), CROWN(Slot.HAT);
 
     private static final Accessory[] VALUES = values();
 
-    /** A hat goes on its head; the rest are stickers on its front. */
+    /** Where it goes: on its head (a hat), its front (a sticker), over its screen (glasses), round its body, on its back, round its neck. */
+    public enum Slot {
+        HAT, STICKER, EYES, BODY, BACK, NECK;
+
+        /** Worn on its head (it moves with the head), or else on its body. */
+        public boolean onHead() {
+            return this == HAT || this == EYES;
+        }
+    }
+
+    public final Slot slot;
+    /** A hat goes on its head. */
     public final boolean hat;
 
-    Accessory(boolean hat) {
-        this.hat = hat;
+    Accessory(Slot slot) {
+        this.slot = slot;
+        this.hat = slot == Slot.HAT;
     }
 
     public static Accessory byId(int id) {

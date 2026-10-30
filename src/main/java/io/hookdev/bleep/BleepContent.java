@@ -56,11 +56,11 @@ public final class BleepContent {
     public static final DeferredItem<Item> BLEEP_TRACKS = ITEMS.registerSimpleItem("bleep_tracks", p -> p.stacksTo(16).rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> BLEEP_ARMS = ITEMS.registerSimpleItem("bleep_arms", p -> p.stacksTo(16).rarity(Rarity.RARE));
 
-    /** What a bleep can wear: three hats and three stickers, each an item of its own. */
+    /** What a bleep can wear: hats, stickers, glasses, a jacket, a cape and things for its neck, each an item of its own. */
     public static final Map<Accessory, DeferredItem<Item>> ACCESSORIES = new EnumMap<>(Accessory.class);
     static {
         for (Accessory accessory : Accessory.values()) {
-            ACCESSORIES.put(accessory, ITEMS.registerSimpleItem(accessory.id(), p -> p.stacksTo(accessory.hat ? 1 : 64)));
+            ACCESSORIES.put(accessory, ITEMS.registerSimpleItem(accessory.id(), p -> p.stacksTo(accessory.slot == Accessory.Slot.STICKER ? 64 : 1)));
         }
     }
 

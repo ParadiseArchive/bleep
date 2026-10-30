@@ -137,6 +137,28 @@ texture('entity/bleep/accessories', 64, 64, g => {
   sticker(0, [[WHITE, YEL, WHITE], [YEL, YEL, YEL], [YEL, WHITE, YEL]]);   // a star
   sticker(8, [[MAG, WHITE, MAG], [MAG, MAG, MAG], [WHITE, MAG, WHITE]]);   // a heart
   sticker(16, [[WHITE, YEL, YEL], [WHITE, YEL, WHITE], [YEL, YEL, WHITE]]); // a lightning bolt
+  // a crown: gold, darker on the band's edges, a red gem
+  const GOLD = '#ffd23f', GOLD2 = '#d9a93a';
+  box(g, 24, 20, 6, 1, 6, (face, x, y, w) => (face === 'top' || face === 'bottom' ? GOLD2 : x % 2 ? GOLD : GOLD2));
+  box(g, 48, 20, 1, 2, 1, (face, x, y) => (y === 0 ? GOLD : GOLD2));
+  box(g, 52, 20, 1, 1, 1, () => '#ff4f8b');
+  // sunglasses: black frame, dark lenses with a shine
+  box(g, 0, 36, 12, 1, 1, () => BLK);
+  box(g, 26, 36, 3, 2, 1, (face, x, y) => (face === 'front' && x === 0 && y === 0 ? '#6a7d90' : '#121419'));
+  box(g, 34, 36, 1, 1, 3, () => BLK2);
+  // a leather jacket: brown, seams, a silver zip down the front, a darker collar and cuffs
+  const LEA = '#5a3825', LEA2 = '#47291b', LEA3 = '#2e1a10', ZIP = '#c9ced6';
+  box(g, 0, 40, 8, 6, 7, (face, x, y, w, h) => (y === h - 1 ? LEA3 : (x + y) % 5 === 0 ? LEA2 : LEA));
+  box(g, 30, 40, 6, 5, 1, (face, x, y, w, h) => (face === 'front' && x === 3 ? ZIP : face === 'front' && x === 2 ? LEA3 : y === h - 1 ? LEA3 : LEA));
+  box(g, 44, 40, 4, 1, 4, () => LEA3);
+  box(g, 30, 47, 2, 4, 2, (face, x, y, w, h) => (y === h - 1 ? LEA3 : LEA));
+  // a cape: red outside, darker inside, a gold edge along the top
+  box(g, 0, 54, 8, 9, 1, (face, x, y) => (face === 'back' ? (y === 0 ? GOLD : '#c0202f') : face === 'front' ? '#7a121c' : '#9a1724'));
+  // a black bow tie with a grey edge, and a striped red and white scarf
+  box(g, 20, 54, 2, 2, 1, (face, x, y) => ((x + y) % 3 === 0 ? BLK2 : BLK));
+  box(g, 28, 54, 2, 1, 1, () => BLK2);
+  box(g, 34, 54, 8, 1, 7, (face, x, y) => ((x >> 1) % 2 ? RED : WHITE));
+  box(g, 20, 59, 1, 4, 1, (face, x, y) => (y % 2 ? WHITE : RED));
 });
 
 // ---------- faces on the display (20 x 10, at (18, 18) in a 128 x 128 texture) ----------
@@ -270,6 +292,36 @@ texture('item/party_hat', 16, 16, g => {
   g.rect(7, 1, 2, 2, WHITE);
 });
 texture('item/top_hat', 16, 16, g => { g.rect(4, 3, 8, 9, '#2c2f36'); g.rect(4, 9, 8, 1, GREY); g.rect(1, 12, 14, 2, '#1b1d22'); });
+texture('item/crown', 16, 16, g => {
+  g.rect(3, 9, 10, 4, '#ffd23f'); g.rect(3, 12, 10, 1, '#d9a93a');
+  for (const x of [3, 7, 11]) { g.rect(x, 5, 2, 4, '#ffd23f'); g.set(x, 4, '#ffd23f'); }
+  g.set(5, 10, '#ff4f8b'); g.set(8, 10, '#2de2e6'); g.set(10, 10, '#ff4f8b');
+});
+texture('item/sunglasses', 16, 16, g => {
+  g.rect(1, 6, 14, 1, '#1b1d22');
+  g.rect(2, 7, 5, 3, '#121419'); g.rect(9, 7, 5, 3, '#121419'); g.set(3, 7, '#6a7d90'); g.set(10, 7, '#6a7d90');
+  g.set(0, 6, '#2c2f36'); g.set(15, 6, '#2c2f36');
+});
+texture('item/leather_jacket', 16, 16, g => {
+  g.rect(4, 3, 8, 11, '#5a3825'); g.rect(1, 4, 3, 7, '#5a3825'); g.rect(12, 4, 3, 7, '#5a3825');
+  g.rect(1, 10, 3, 1, '#2e1a10'); g.rect(12, 10, 3, 1, '#2e1a10'); g.rect(4, 13, 8, 1, '#2e1a10');
+  g.rect(5, 2, 2, 3, '#2e1a10'); g.rect(9, 2, 2, 3, '#2e1a10'); // the collar
+  g.rect(8, 4, 1, 9, '#c9ced6'); g.rect(7, 5, 1, 8, '#47291b');
+});
+texture('item/cape', 16, 16, g => {
+  for (let y = 2; y < 15; y++) { const half = 3 + Math.floor((y - 2) / 3); g.rect(8 - half, y, half * 2, 1, y === 2 ? '#ffd23f' : '#c0202f'); }
+  g.rect(7, 2, 2, 2, '#ffd23f'); g.rect(4, 6, 1, 8, '#9a1724'); g.rect(11, 6, 1, 8, '#9a1724');
+});
+texture('item/bow_tie', 16, 16, g => {
+  const rows = ['##.....##', '###...###', '####.####', '#########', '####.####', '###...###', '##.....##'];
+  rows.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') g.set(3 + x, 4 + y, (x + y) % 4 ? '#1b1d22' : '#2c2f36'); }));
+  g.rect(6, 6, 3, 3, '#2c2f36');
+});
+texture('item/scarf', 16, 16, g => {
+  for (let x = 2; x < 14; x++) g.rect(x, 4, 1, 3, x % 2 ? '#d6283b' : WHITE);
+  for (let y = 7; y < 14; y++) g.rect(10, y, 3, 1, y % 2 ? WHITE : '#d6283b');
+  g.rect(10, 14, 1, 1, '#d6283b'); g.rect(12, 14, 1, 1, '#d6283b');
+});
 texture('item/antenna', 16, 16, g => { g.rect(7, 4, 2, 11, GREY); g.rect(6, 1, 4, 3, '#d6283b'); g.rect(3, 7, 4, 3, '#d6283b'); g.rect(9, 7, 4, 3, '#a01a2a'); });
 for (const [name, colour, pic] of [['sticker_star', '#ffd23f', ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##']],
   ['sticker_heart', '#ff4f8b', ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...', '.......']],
@@ -297,7 +349,7 @@ for (const [name, led, mark] of [['speed_chip', '#ffb547', ['..#', '.#.', '###',
     g.rect(4, 4, 2, 2, '#0e3a1e');
   });
 }
-for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -321,6 +373,13 @@ const shaped = (name, pattern, key) => json(join(DATA, 'recipe/' + name + '.json
 shaped('party_hat', [' W ', ' P ', 'PPP'], { W: 'minecraft:white_wool', P: 'minecraft:paper' });
 shaped('top_hat', [' W ', ' W ', 'WWW'], { W: 'minecraft:black_wool' });
 shaped('antenna', ['RSR', ' N ', ' N '], { R: 'minecraft:red_dye', S: 'minecraft:string', N: 'minecraft:iron_nugget' });
+// and the cool things (owner, 30 Oct 2026): sunglasses, a leather jacket, a cape, a bow tie, a scarf, a crown
+shaped('sunglasses', ['N N', 'GNG'], { N: 'minecraft:iron_nugget', G: 'minecraft:black_stained_glass_pane' });
+shaped('leather_jacket', ['L L', 'LNL', 'LLL'], { L: 'minecraft:leather', N: 'minecraft:iron_nugget' });
+shaped('cape', [' G ', 'WWW', 'WWW'], { G: 'minecraft:gold_nugget', W: 'minecraft:red_wool' });
+shaped('bow_tie', ['WSW'], { W: 'minecraft:black_wool', S: 'minecraft:string' });
+shaped('scarf', ['RWR', 'W  '], { R: 'minecraft:red_wool', W: 'minecraft:white_wool' });
+shaped('crown', ['GDG', 'GGG'], { G: 'minecraft:gold_ingot', D: 'minecraft:diamond' });
 for (const [name, dye] of [['sticker_star', 'yellow_dye'], ['sticker_heart', 'pink_dye'], ['sticker_bolt', 'light_blue_dye']]) {
   json(join(DATA, 'recipe/' + name + '.json'), { type: 'minecraft:crafting_shapeless', category: 'misc',
     ingredients: ['minecraft:paper', 'minecraft:slime_ball', 'minecraft:' + dye], result: { count: 4, id: 'bleep:' + name } });
@@ -995,6 +1054,18 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'thought.bleep.show.2': 'Treasure! In my storage! Well, in my hand now.',
   'item.bleep.power_bank': 'Power Bank',
   'item.bleep.party_hat': 'Party Hat', 'item.bleep.top_hat': 'Top Hat', 'item.bleep.antenna': 'Antenna with a Bow',
+  'item.bleep.crown': 'Crown', 'item.bleep.sunglasses': 'Sunglasses', 'item.bleep.leather_jacket': 'Leather Jacket',
+  'item.bleep.cape': 'Cape', 'item.bleep.bow_tie': 'Bow Tie', 'item.bleep.scarf': 'Scarf',
+  'tooltip.bleep.crown': 'Right-click your bleep: it wears it.\nShears take it off again.',
+  'tooltip.bleep.sunglasses': 'Right-click your bleep: it wears them over its screen.\nShears take them off again.',
+  'tooltip.bleep.leather_jacket': 'Right-click your bleep: it wears it.\nShears take it off again.',
+  'tooltip.bleep.cape': 'Right-click your bleep: it wears it, and it swings out as it drives.\nShears take it off again.',
+  'tooltip.bleep.bow_tie': 'Right-click your bleep: round its neck.\nShears take it off again.',
+  'tooltip.bleep.scarf': 'Right-click your bleep: round its neck.\nShears take it off again.',
+  'thought.bleep.dress.sunglasses': 'Deal with it.',
+  'thought.bleep.dress.jacket': 'I am the coolest robot in this world. Possibly the only one. Still counts.',
+  'thought.bleep.dress.cape': 'A cape! I can fly now. I cannot fly now. But I look like I could.',
+  'thought.bleep.dress.crown': 'You may bow. No? Fine.',
   'item.bleep.sticker_star': 'Star Sticker', 'item.bleep.sticker_heart': 'Heart Sticker', 'item.bleep.sticker_bolt': 'Lightning Sticker',
   'tooltip.bleep.party_hat': 'Right-click your bleep: it wears it.\nShears take it off again.',
   'tooltip.bleep.top_hat': 'Right-click your bleep: it wears it.\nShears take it off again.',

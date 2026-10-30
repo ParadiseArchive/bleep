@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:gold_ingot",
+    "D": "minecraft:diamond"
+  },
+  "pattern": [
+    "GDG",
+    "GGG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:crown"
+  }
+}

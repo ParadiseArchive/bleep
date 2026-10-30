@@ -126,6 +126,9 @@ about until it finds it.
 At night on its homebase it dreams, and its screen shows bits of its day: a mob, a little scene, a falling star.
 Very rarely, something strange.
 
+### Show the way
+Lost? The compass on its info screen: it drives ahead to its homebase (or your bed), leaving a glowing trail.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

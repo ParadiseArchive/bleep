@@ -709,6 +709,17 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'diary.bleep.nurse': 'Brought you something to eat when you needed it. I am a nurse now.',
   'diary.bleep.creeper_warning': 'Warned you about a creeper. You are welcome. Again.',
   'activity.bleep.guarding': 'Keeping your things safe',
+  // show the way
+  'screen.bleep.show_way': 'Show the way: it drives ahead to its homebase (or your bed) and leaves a glowing trail',
+  'activity.bleep.guiding': 'Showing you the way',
+  'thought.bleep.way.start': 'Follow me! And keep up.',
+  'thought.bleep.way.wait': 'Come on! Keep up! I am not getting any younger. Well. I am not getting older either.',
+  'thought.bleep.way.home': 'Home! Told you I know the way.',
+  'thought.bleep.way.bed': 'Your bed. Sleep tight. I will not watch. Much.',
+  'thought.bleep.way.here': 'We are already here. Look around.',
+  'thought.bleep.way.nowhere': 'Where to? I have no homebase in this world and you have no bed. We are lost. Together.',
+  'thought.bleep.way.lost': 'You wandered off. Fine. I give up.',
+  'diary.bleep.way': 'Showed you the way home. You would be lost without me. Literally.',
   // dreams
   'activity.bleep.dreaming': 'Dreaming',
   'diary.bleep.dream.first': 'I dreamt for the first time. Do robots dream? Apparently this one does.',

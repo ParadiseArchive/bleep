@@ -18,7 +18,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
  * follows the bleep live and closes when the bleep is gone or too far away.
  */
 public class BleepScreen extends Screen {
-    private static final int W = 260, H = 192;
+    private static final int W = 260, H = 204;
     private static final int SHELL = 0xFFEEF1F4, SHELL_EDGE = 0xFFB7C0C9, PANEL = 0xFF15181E, SCREEN = 0xFF08090C;
     private static final int TEXT = 0xFFEEF1F4, DIM = 0xFF8A93A0, GLOW = 0xFF8FF7FF, AMBER = 0xFFFFB547, PINK = 0xFFFF4F8B;
     /** Where the display sits in the face textures (128 x 128), and how big it is drawn here. */
@@ -28,7 +28,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet, play, work, chips;
+    private Button goHome, torch, book, chest, magnet, play, work, chips, way;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -55,6 +55,8 @@ public class BleepScreen extends Screen {
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.play"))).build());
         work = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new WorkScreen(bleep))).bounds(left + W - 32, top + 104, 22, 22).build());
         chips = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new ChipScreen(bleep))).bounds(left + W - 32, top + 128, 22, 22).build());
+        way = addRenderableWidget(Button.builder(Component.empty(), b -> { send(BleepCommand.SHOW_WAY); onClose(); }).bounds(left + W - 32, top + 152, 22, 22)
+                .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.show_way"))).build());
         // its name: click it and type a new one (Enter, or closing the screen, saves it)
         name = addRenderableWidget(new net.minecraft.client.gui.components.EditBox(font, left + 100, top + 11, 120, 10, Component.translatable("screen.bleep.name")));
         name.setBordered(false);
@@ -169,6 +171,7 @@ public class BleepScreen extends Screen {
         g.blit(MAGNET, magnet.getX() + 3, magnet.getY() + 3, magnet.getX() + 19, magnet.getY() + 19, 0, 1, 0, 1);
         g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.BALL.get()), play.getX() + 3, play.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_HOE), work.getX() + 3, work.getY() + 3);
+        g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS), way.getX() + 3, way.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SPEED).get()), chips.getX() + 3, chips.getY() + 3);
         if (bleep.chips() != 0) g.text(font, Integer.bitCount(bleep.chips()) + "", chips.getX() + 15, chips.getY() + 13, GLOW, true); // how many are in
         if (bleep.magnet()) g.fill(magnet.getX() + 3, magnet.getY() + 19, magnet.getX() + 19, magnet.getY() + 20, GLOW); // on: a glowing line under it

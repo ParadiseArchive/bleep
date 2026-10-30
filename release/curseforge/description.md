@@ -105,6 +105,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Shopping.** Give it emeralds: it buys something from the nearest villager and brings you the change.
 - **Treasure hunt.** It buries something and tells you warmer or colder while you dig, or it sniffs out what you hid.
 - **Dreams.** At night on its homebase its screen shows what it dreams of: bits of its day.
+- **Show the way.** Lost? It drives ahead to its homebase or your bed, leaving a glowing trail.
 
 ## The Bleepedia
 

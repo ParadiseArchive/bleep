@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A button on a bleep's info screen: Follow, Stay, Go Home, take the torch, its Bleepedia, its storage, its magnet. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, HIDE = 10, SEEK = 11, BURY = 12, FIND = 13;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, SHOW_WAY = 7, HIDE = 10, SEEK = 11, BURY = 12, FIND = 13;
     /** Plus a trick (Trick ordinal), a stay radius, or a job (its JOB_ bit). */
     public static final int TRICK = 20, RADIUS = 100, JOB = 200, REMOVE_CHIP = 300;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
@@ -52,6 +52,7 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
         }
         if (command == HIDE) return bleep.startHiding();
         if (command == SEEK) return bleep.startSeeking();
+        if (command == SHOW_WAY) return bleep.showTheWay();
         if (command == BURY) return bleep.startBurying();
         if (command == FIND) return bleep.startFinding();
         if (command >= TRICK && command < TRICK + io.hookdev.bleep.entity.Trick.values().length) return bleep.doTrick(io.hookdev.bleep.entity.Trick.byId(command - TRICK));

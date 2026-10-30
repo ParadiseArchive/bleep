@@ -136,6 +136,7 @@ public final class BleepGameTests {
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_shows_the_way", BleepGameTests::itShowsTheWay, 300);
         test("it_dreams", BleepGameTests::itDreams, 20);
         test("it_buries_a_treasure", BleepGameTests::itBuriesATreasure, 400);
         test("it_finds_what_you_hid", BleepGameTests::itFindsWhatYouHid, 1200);
@@ -1182,6 +1183,19 @@ public final class BleepGameTests {
     @SuppressWarnings("unchecked")
     private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
         return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static void itShowsTheWay(GameTestHelper helper) {
+        Player owner = owner(helper, 5.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        BlockPos home = homebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        helper.runAfterDelay(10, () -> helper.assertTrue(bleep.showTheWay(), "it knows the way home"));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.wayTo() != null, "it leads the way");
+            helper.assertTrue(bleep.distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(home)) < 2.5 * 2.5, "and drives ahead to its homebase");
+        });
     }
 
     private static void itDreams(GameTestHelper helper) {

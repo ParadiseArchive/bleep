@@ -249,6 +249,10 @@ public class BleepEntity extends TamableAnimal {
     /** Dreams: what it saw today (mob name keys, kinds of place; not saved: after a reload it dreams of older things), when it dreams next, the last night it wrote one down. */
     private final java.util.ArrayDeque<String> dayMobs = new java.util.ArrayDeque<>(), dayScenes = new java.util.ArrayDeque<>();
     private int dreamIn = 400;
+    /** Show the way: where it leads its owner (its homebase, or their bed), and whether that is their bed. */
+    private @Nullable BlockPos wayTo;
+    private boolean wayToBed;
+    private long wayUntil;
     private long dreamtOn = -1;
     private long treasureStart, treasureUntil, lidCloses;
     private ItemStack treasureItem = ItemStack.EMPTY;
@@ -304,6 +308,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(4, new ShopGoal());
         this.goalSelector.addGoal(4, new HideAndSeekGoal());
         this.goalSelector.addGoal(4, new TreasureGoal());
+        this.goalSelector.addGoal(4, new WayGoal());
         this.goalSelector.addGoal(6, new WorkGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
@@ -997,7 +1002,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return hunting() || shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return wayTo != null || hunting() || shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -2376,6 +2381,47 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- show the way ----------
+
+    /** Off it goes, ahead of its owner: to its homebase, or (none in this world) to their bed. */
+    public boolean showTheWay() {
+        if (!(getOwner() instanceof net.minecraft.server.level.ServerPlayer owner) || slept || abandoned() || wayTo != null) return false;
+        BlockPos to = null;
+        boolean bed = false;
+        if (home() != null && home().dimension().equals(level().dimension())) {
+            to = home().pos();
+        } else if (owner.getRespawnConfig() != null && owner.getRespawnConfig().respawnData().dimension().equals(level().dimension())) {
+            to = owner.getRespawnConfig().respawnData().pos();
+            bed = true;
+        }
+        if (to == null) {
+            say("thought.bleep.way.nowhere");
+            return false;
+        }
+        if (owner.distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(to)) < 3 * 3) {
+            say("thought.bleep.way.here");
+            return false;
+        }
+        stopOtherThings();
+        hideMode = 0;
+        if (isOrderedToSit()) follow();
+        wayTo = to;
+        wayToBed = bed;
+        wayUntil = level().getGameTime() + 6000;
+        say("thought.bleep.way.start");
+        return true;
+    }
+
+    public @Nullable BlockPos wayTo() {
+        return wayTo;
+    }
+
+    private void endWay(String thought) {
+        wayTo = null;
+        getNavigation().stop();
+        say(thought);
+    }
+
     // ---------- dreams ----------
 
     /** On its homebase at night (in the Overworld): eyes shut, and now and then a dream. */
@@ -3038,6 +3084,7 @@ public class BleepEntity extends TamableAnimal {
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
         if (treasureMode != 0) return Activity.TREASURE_HUNT;
+        if (wayTo != null) return Activity.GUIDING;
         if (gazeTicks > 0) return Activity.STARGAZING;
         if (trickTicks > 0) return Activity.TRICK;
         if (workAt != null) return Activity.WORKING;
@@ -3354,7 +3401,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0 && !hunting();
+        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0 && !hunting() && wayTo == null;
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -3532,6 +3579,48 @@ public class BleepEntity extends TamableAnimal {
                 }
                 default -> {}
             }
+        }
+    }
+
+    /** Show the way: it drives ahead (a glowing trail behind it), waits when its owner falls behind, and says so when they are there. */
+    private class WayGoal extends Goal {
+        private int ticks, waited;
+
+        WayGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return wayTo != null && !slept && getOwner() instanceof Player;
+        }
+
+        @Override
+        public void tick() {
+            if (wayTo == null || !(getOwner() instanceof Player owner) || !(level() instanceof ServerLevel server)) return;
+            ticks++;
+            var target = net.minecraft.world.phys.Vec3.atBottomCenterOf(wayTo);
+            if (owner.distanceToSqr(target) < 3 * 3) {
+                endWay(wayToBed ? "thought.bleep.way.bed" : "thought.bleep.way.home");
+                feel(Emotion.EXCITED, 40);
+                rememberFirst("way", "diary.bleep.way", "");
+                return;
+            }
+            if (level().getGameTime() >= wayUntil || distanceToSqr(owner) > 48 * 48 || !owner.level().dimension().equals(level().dimension())) {
+                endWay("thought.bleep.way.lost");
+                return;
+            }
+            boolean there = distanceToSqr(target) < 2.5 * 2.5;
+            if (distanceToSqr(owner) > 10 * 10 || there) { // waiting: for its owner to catch up, or at the door
+                getNavigation().stop();
+                getLookControl().setLookAt(owner);
+                if (++waited % 200 == 40 && !there) say("thought.bleep.way.wait");
+            } else {
+                waited = 0;
+                if (ticks % 10 == 0) getNavigation().moveTo(target.x, target.y, target.z, 1.2);
+            }
+            if (ticks % 3 == 0 && getDeltaMovement().horizontalDistanceSqr() > 1.0e-4) // the glowing trail
+                server.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, getX(), getY() + 0.15, getZ(), 1, 0.05, 0, 0.05, 0.002);
         }
     }
 

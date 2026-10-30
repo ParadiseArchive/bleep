@@ -28,7 +28,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet, play, work;
+    private Button goHome, torch, book, chest, magnet, play, work, chips;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -54,6 +54,7 @@ public class BleepScreen extends Screen {
         play = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new PlayScreen(bleep))).bounds(left + W - 32, top + 80, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.play"))).build());
         work = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new WorkScreen(bleep))).bounds(left + W - 32, top + 104, 22, 22).build());
+        chips = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new ChipScreen(bleep))).bounds(left + W - 32, top + 128, 22, 22).build());
         // its name: click it and type a new one (Enter, or closing the screen, saves it)
         name = addRenderableWidget(new net.minecraft.client.gui.components.EditBox(font, left + 100, top + 11, 120, 10, Component.translatable("screen.bleep.name")));
         name.setBordered(false);
@@ -103,6 +104,11 @@ public class BleepScreen extends Screen {
         if (bleep.isRemoved() || player == null || bleep.distanceToSqr(player) > 16 * 16) onClose();
         goHome.active = bleep.home() != null;
         torch.visible = bleep.getOffhandItem().is(net.minecraft.world.item.Items.TORCH);
+        net.minecraft.network.chat.MutableComponent installed = Component.translatable("screen.bleep.chips");
+        for (io.hookdev.bleep.entity.Chip chip : io.hookdev.bleep.entity.Chip.values()) {
+            if (bleep.has(chip)) installed.append("\n- ").append(Component.translatable("item.bleep." + chip.id()));
+        }
+        chips.setTooltip(net.minecraft.client.gui.components.Tooltip.create(bleep.chips() == 0 ? Component.translatable("screen.bleep.chips.none") : installed));
         work.active = bleep.isOrderedToSit() && !bleep.onHome();
         work.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(work.active ? "screen.bleep.work" : "screen.bleep.work.stay_first")));
         magnet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(bleep.magnet() ? "screen.bleep.magnet.on" : "screen.bleep.magnet.off")));
@@ -163,6 +169,8 @@ public class BleepScreen extends Screen {
         g.blit(MAGNET, magnet.getX() + 3, magnet.getY() + 3, magnet.getX() + 19, magnet.getY() + 19, 0, 1, 0, 1);
         g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.BALL.get()), play.getX() + 3, play.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_HOE), work.getX() + 3, work.getY() + 3);
+        g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SPEED).get()), chips.getX() + 3, chips.getY() + 3);
+        if (bleep.chips() != 0) g.text(font, Integer.bitCount(bleep.chips()) + "", chips.getX() + 15, chips.getY() + 13, GLOW, true); // how many are in
         if (bleep.magnet()) g.fill(magnet.getX() + 3, magnet.getY() + 19, magnet.getX() + 19, magnet.getY() + 20, GLOW); // on: a glowing line under it
         if (bleep.news() && (bleep.tickCount / 10) % 2 == 0) g.text(font, "!", book.getX() + 16, book.getY() + 1, AMBER, true);
     }

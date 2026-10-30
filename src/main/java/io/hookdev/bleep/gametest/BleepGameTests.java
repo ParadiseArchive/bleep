@@ -1023,6 +1023,9 @@ public final class BleepGameTests {
         helper.assertFalse(bleep.give(owner, chip), "one of each kind");
         bleep.give(owner, new ItemStack(BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SHIELD).get()));
         helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).chips() == 3, "its chips are in its Bleepedia");
+        helper.assertTrue(bleep.uninstall(io.hookdev.bleep.entity.Chip.SPEED, owner) && !bleep.has(io.hookdev.bleep.entity.Chip.SPEED), "a chip can come out again");
+        helper.assertTrue(Math.abs(bleep.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) - speed) < 1e-6, "and it is back to its own speed");
+        helper.assertTrue(owner.getInventory().contains(s -> s.is(BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SPEED).get())), "its owner gets the chip back");
         helper.succeed();
     }
 

@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
     public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, HIDE = 10, SEEK = 11;
     /** Plus a trick (Trick ordinal), a stay radius, or a job (its JOB_ bit). */
-    public static final int TRICK = 20, RADIUS = 100, JOB = 200;
+    public static final int TRICK = 20, RADIUS = 100, JOB = 200, REMOVE_CHIP = 300;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -46,6 +46,9 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
         if (command == OPEN_STORAGE) {
             if (player instanceof net.minecraft.server.level.ServerPlayer server) bleep.openStorage(server);
             return true;
+        }
+        if (command >= REMOVE_CHIP && command < REMOVE_CHIP + io.hookdev.bleep.entity.Chip.values().length) {
+            return bleep.uninstall(io.hookdev.bleep.entity.Chip.values()[command - REMOVE_CHIP], player);
         }
         if (command == HIDE) return bleep.startHiding();
         if (command == SEEK) return bleep.startSeeking();

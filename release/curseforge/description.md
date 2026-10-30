@@ -78,7 +78,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## Chips and letters
 
-- **Upgrade chips.** A speed chip, a shield chip (hits cost half) and a battery chip (lasts half as long again), installed for good.
+- **Upgrade chips.** A speed chip, a shield chip (hits cost half) and a battery chip (lasts half as long again). The chip on its info screen shows which are in, and takes one out again.
 - **Letters.** A bleep that is your Friend now and then writes you a letter from its diary, signed, and brings it over.
 
 ## The Bleepedia

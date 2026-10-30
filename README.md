@@ -95,7 +95,8 @@ The ball on its info screen opens Play: hide and seek (it hides, or you do) and 
 opens Work while it stays: how far it goes from its spot, and its jobs: farmer, guard at night, tidy up into a chest.
 
 ### Chips and letters
-Three upgrade chips, installed for good: speed, shield and a bigger battery. And a bleep that likes you writes you a
+Three upgrade chips: speed, shield and a bigger battery. The chip on its info screen shows which are in, and takes one
+out again. And a bleep that likes you writes you a
 letter now and then, from its diary, and brings it over.
 
 ### Parts and home

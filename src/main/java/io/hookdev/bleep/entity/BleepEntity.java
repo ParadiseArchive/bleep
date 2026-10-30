@@ -1836,6 +1836,18 @@ public class BleepEntity extends TamableAnimal {
         remember("diary.bleep.chip", "item.bleep." + chip.id());
     }
 
+    /** Takes a chip out again: its owner gets it back. */
+    public boolean uninstall(Chip chip, Player player) {
+        if (!has(chip)) return false;
+        this.entityData.set(CHIPS, chips() & ~chip.bit());
+        applyChips();
+        ItemStack item = new ItemStack(BleepContent.CHIPS.get(chip).get());
+        if (!player.getInventory().add(item)) spawnAtLocation((ServerLevel) level(), item);
+        feel(Emotion.SURPRISED, 30);
+        say("thought.bleep.chip.removed");
+        return true;
+    }
+
     private static final Identifier SPEED_CHIP = Identifier.fromNamespaceAndPath("bleep", "speed_chip");
 
     /** The speed chip drives a third faster. */

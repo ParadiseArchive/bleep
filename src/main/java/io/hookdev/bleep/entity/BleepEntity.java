@@ -1,6 +1,7 @@
 package io.hookdev.bleep.entity;
 
 import com.mojang.serialization.Codec;
+import io.hookdev.bleep.BleepContent;
 import io.hookdev.bleep.block.HomebaseBlock;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -73,6 +74,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Optional<GlobalPos>> HOME = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.OPTIONAL_GLOBAL_POS);
     private static final EntityDataAccessor<Integer> OBSESSION = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> REVEALED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> ASSEMBLY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -92,6 +94,11 @@ public class BleepEntity extends TamableAnimal {
     public static final int GOES_HOME_AFTER = 40;
     /** Further from home than this (blocks), it does not drive but beams home. */
     public static final double BEAM_HOME_FROM = 32;
+    /** Ticks it takes to be put together: tracks, body, arms, head, a quarter each. */
+    public static final int ASSEMBLE_TICKS = 60, ASSEMBLE_STEP = 15;
+    /** How loud it talks, and how often it says something by itself (ticks, on average). */
+    public static final float VOLUME = 0.6f;
+    public static final int CHATTER_EVERY = 300;
     /** Ticks between new thoughts. */
     public static final int THINK_EVERY = 600;
     /** How far it notices a new kind of mob, and how long it looks at it (ticks). */
@@ -114,6 +121,8 @@ public class BleepEntity extends TamableAnimal {
 
     /** A short feeling (petted, hit, booting) that shows for a while over the usual face. */
     private Emotion mood = Emotion.HAPPY;
+    /** The face it showed last tick: a new one gets its blip. */
+    private Emotion shown = Emotion.HAPPY;
     private int moodTicks, idleTicks, sleptTicks, llamaTicks, thinkTicks, pinTicks;
     private String thoughtKind = "";
     /** Switched off: it sleeps until it is full again, and wakes up with a sad face. */
@@ -170,6 +179,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(HOME, Optional.empty());
         builder.define(OBSESSION, -1);
         builder.define(REVEALED, false);
+        builder.define(ASSEMBLY, 0);
     }
 
     // ---------- what the info screen shows ----------
@@ -253,7 +263,32 @@ public class BleepEntity extends TamableAnimal {
     /** The screen comes on for the first time: a start-up screen, then a very happy face. It picks its favourite item. */
     public void boot() {
         feel(Emotion.BOOT, 50);
+        shown = Emotion.BOOT;
+        talk(Emotion.BOOT);
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size()));
+    }
+
+    /** Put together from its parts: tracks first, then its body, arms and head, then the screen comes on. */
+    public void assemble() {
+        this.entityData.set(ASSEMBLY, ASSEMBLE_TICKS);
+        if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size()));
+    }
+
+    /** Ticks left until it is put together, or 0. */
+    public int assembly() {
+        return this.entityData.get(ASSEMBLY);
+    }
+
+    /** A blip in its own voice. */
+    public void talk(Emotion emotion) {
+        var sound = BleepContent.VOICE.get(emotion);
+        if (sound != null) playSound(sound.get(), VOLUME, getVoicePitch());
+    }
+
+    /** Every bleep has a voice of its own: a little higher or lower. */
+    @Override
+    public float getVoicePitch() {
+        return 0.9f + Math.floorMod(getUUID().hashCode(), 25) / 100f;
     }
 
     // ---------- the bond ----------
@@ -450,6 +485,10 @@ public class BleepEntity extends TamableAnimal {
         super.aiStep();
         if (level().isClientSide()) return;
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size())); // a bleep from before favourites
+        if (assembly() > 0) {
+            assembleTick();
+            return;
+        }
         boolean moving = getDeltaMovement().horizontalDistanceSqr() > 1.0e-4;
         // a homebase that was broken: homeless, and sad about it
         if (tickCount % 20 == 0 && homeHere() && level().isLoaded(home().pos()) && !HomebaseBlock.is(level().getBlockState(home().pos()))) {
@@ -493,9 +532,24 @@ public class BleepEntity extends TamableAnimal {
         if (tickCount % 100 == 0) countDaysTogether();
         Emotion emotion = currentEmotion();
         Activity activity = currentActivity(home);
+        // a new face says so; the everyday ones (happy, bored, tired) chatter now and then instead (getAmbientSound)
+        if (emotion != shown && emotion != Emotion.HAPPY && emotion != Emotion.BORED && emotion != Emotion.TIRED) talk(emotion);
+        shown = emotion;
         this.entityData.set(EMOTION, emotion.ordinal());
         this.entityData.set(ACTIVITY, activity.ordinal());
         think(emotion, activity);
+    }
+
+    /** One step of being put together: a clunk and sparks for each part, then it starts up. */
+    private void assembleTick() {
+        int left = assembly() - 1;
+        this.entityData.set(ASSEMBLY, left);
+        this.entityData.set(ACTIVITY, Activity.STARTING.ordinal());
+        if (left % ASSEMBLE_STEP == 0 && level() instanceof ServerLevel level) {
+            playSound(BleepContent.ASSEMBLE.get(), VOLUME, 0.8f + 0.1f * (ASSEMBLE_TICKS - left) / ASSEMBLE_STEP);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.3 + 0.25 * (ASSEMBLE_TICKS - left) / ASSEMBLE_STEP, getZ(), 8, 0.3, 0.1, 0.3, 0.05);
+        }
+        if (left == 0) boot();
     }
 
     /** A stubborn turn on the spot, then it does what it was told. */
@@ -511,7 +565,7 @@ public class BleepEntity extends TamableAnimal {
     /** It is standing still while it dawdles. */
     @Override
     protected boolean isImmobile() {
-        return super.isImmobile() || asleep() || dawdleTicks > 0;
+        return super.isImmobile() || asleep() || dawdleTicks > 0 || assembly() > 0;
     }
 
     /** A new kind of mob in sight: it goes to have a look (ScanGoal), then thinks something about it. */
@@ -726,7 +780,25 @@ public class BleepEntity extends TamableAnimal {
 
     @Override
     protected @Nullable SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.COPPER_GOLEM_HURT;
+        return BleepContent.HURT.get();
+    }
+
+    /** Now and then it chatters, in the voice of how it feels; not while it is switched off or being built. */
+    @Override
+    protected @Nullable SoundEvent getAmbientSound() {
+        if (asleep() || assembly() > 0) return null;
+        var sound = BleepContent.VOICE.get(emotion());
+        return sound == null ? null : sound.get();
+    }
+
+    @Override
+    public int getAmbientSoundInterval() {
+        return CHATTER_EVERY;
+    }
+
+    @Override
+    protected float getSoundVolume() {
+        return VOLUME;
     }
 
     /** Bleeps are built, not bred. */
@@ -751,6 +823,7 @@ public class BleepEntity extends TamableAnimal {
         if (home() != null) output.store("home", GlobalPos.CODEC, home());
         output.putInt("obsession", this.entityData.get(OBSESSION));
         output.putBoolean("revealed", revealed());
+        output.putInt("assembly", assembly());
         output.putLong("bond_day", bondDay);
         output.putInt("pets_today", petsToday);
         output.putInt("gifts_today", giftsToday);
@@ -772,6 +845,7 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(HOME, input.read("home", GlobalPos.CODEC));
         setObsession(input.getIntOr("obsession", -1));
         this.entityData.set(REVEALED, input.getBooleanOr("revealed", false));
+        this.entityData.set(ASSEMBLY, input.getIntOr("assembly", 0));
         bondDay = input.getLongOr("bond_day", -1);
         petsToday = input.getIntOr("pets_today", 0);
         giftsToday = input.getIntOr("gifts_today", 0);

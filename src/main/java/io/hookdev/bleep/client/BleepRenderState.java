@@ -10,4 +10,6 @@ public class BleepRenderState extends ArmedEntityRenderState {
     public int id;
     /** Something in its hand: it holds both arms out to carry it. */
     public boolean carrying;
+    /** Ticks left until it is put together (0: it is whole). */
+    public int assembly;
 }

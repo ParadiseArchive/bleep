@@ -1,6 +1,7 @@
 package io.hookdev.bleep.client;
 
 import io.hookdev.bleep.Bleep;
+import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Emotion;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.ArmedModel;
@@ -25,7 +26,7 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
     public static final ModelLayerLocation LAYER = new ModelLayerLocation(Bleep.id("bleep"), "main");
     private static final float ARMS_FORWARD = -0.9f;
 
-    private final ModelPart body, head, rightArm, leftArm;
+    private final ModelPart body, head, rightArm, leftArm, chassis, rightTrack, leftTrack;
     private final ModelPart[] wheels = new ModelPart[6];
 
     public BleepModel(ModelPart root) {
@@ -34,6 +35,9 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
         this.head = body.getChild("head");
         this.rightArm = body.getChild("right_arm");
         this.leftArm = body.getChild("left_arm");
+        this.chassis = root.getChild("chassis");
+        this.rightTrack = root.getChild("right_track");
+        this.leftTrack = root.getChild("left_track");
         for (int i = 0; i < 3; i++) {
             wheels[i] = root.getChild("right_wheel_" + i);
             wheels[3 + i] = root.getChild("left_wheel_" + i);
@@ -76,6 +80,12 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
     @Override
     public void setupAnim(BleepRenderState state) {
         super.setupAnim(state);
+        // being put together: the tracks first, then its body, its arms and its head, a quarter of the time each
+        int built = state.assembly > 0 ? BleepEntity.ASSEMBLE_TICKS - state.assembly : BleepEntity.ASSEMBLE_TICKS;
+        body.visible = built >= BleepEntity.ASSEMBLE_STEP;
+        rightArm.visible = leftArm.visible = built >= 2 * BleepEntity.ASSEMBLE_STEP;
+        head.visible = built >= 3 * BleepEntity.ASSEMBLE_STEP;
+        chassis.visible = rightTrack.visible = leftTrack.visible = true;
         float walk = state.walkAnimationPos, speed = Math.min(state.walkAnimationSpeed, 1), age = state.ageInTicks;
         head.yRot = state.yRot * Mth.DEG_TO_RAD;
         head.xRot = state.xRot * Mth.DEG_TO_RAD;

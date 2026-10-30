@@ -19,10 +19,12 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
     private static final Identifier TEXTURE = Bleep.id("textures/entity/bleep/bleep.png");
     /** Ticks between blinks, and how long a blink lasts. */
     private static final int BLINK_EVERY = 90, BLINK = 3;
+    /** A screen that is still off, while it is being put together. */
+    private static final Identifier OFF = Bleep.id("textures/entity/bleep/face/off.png");
 
     public BleepRenderer(EntityRendererProvider.Context context) {
         super(context, new BleepModel(context.bakeLayer(BleepModel.LAYER)), 0.45f);
-        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
+        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> state.assembly > 0 ? OFF : face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
                 new BleepModel(context.bakeLayer(BleepModel.LAYER)), RenderTypes::eyes, false));
         this.addLayer(new ItemInHandLayer<>(this));
     }
@@ -56,5 +58,6 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         state.id = bleep.getId();
         ArmedEntityRenderState.extractArmedEntityRenderState(bleep, state, this.itemModelResolver, partialTicks);
         state.carrying = !bleep.getMainHandItem().isEmpty();
+        state.assembly = bleep.assembly();
     }
 }

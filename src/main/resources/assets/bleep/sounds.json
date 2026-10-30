@@ -1,0 +1,80 @@
+{
+  "entity.bleep.happy": {
+    "subtitle": "subtitles.bleep.happy",
+    "sounds": [
+      "bleep:entity/bleep/happy"
+    ]
+  },
+  "entity.bleep.excited": {
+    "subtitle": "subtitles.bleep.excited",
+    "sounds": [
+      "bleep:entity/bleep/excited"
+    ]
+  },
+  "entity.bleep.sad": {
+    "subtitle": "subtitles.bleep.sad",
+    "sounds": [
+      "bleep:entity/bleep/sad"
+    ]
+  },
+  "entity.bleep.angry": {
+    "subtitle": "subtitles.bleep.angry",
+    "sounds": [
+      "bleep:entity/bleep/angry"
+    ]
+  },
+  "entity.bleep.bored": {
+    "subtitle": "subtitles.bleep.bored",
+    "sounds": [
+      "bleep:entity/bleep/bored"
+    ]
+  },
+  "entity.bleep.surprised": {
+    "subtitle": "subtitles.bleep.surprised",
+    "sounds": [
+      "bleep:entity/bleep/surprised"
+    ]
+  },
+  "entity.bleep.tired": {
+    "subtitle": "subtitles.bleep.tired",
+    "sounds": [
+      "bleep:entity/bleep/tired"
+    ]
+  },
+  "entity.bleep.asleep": {
+    "subtitle": "subtitles.bleep.asleep",
+    "sounds": [
+      "bleep:entity/bleep/asleep"
+    ]
+  },
+  "entity.bleep.boot": {
+    "subtitle": "subtitles.bleep.boot",
+    "sounds": [
+      "bleep:entity/bleep/boot"
+    ]
+  },
+  "entity.bleep.stubborn": {
+    "subtitle": "subtitles.bleep.stubborn",
+    "sounds": [
+      "bleep:entity/bleep/stubborn"
+    ]
+  },
+  "entity.bleep.glitch": {
+    "subtitle": "subtitles.bleep.glitch",
+    "sounds": [
+      "bleep:entity/bleep/glitch"
+    ]
+  },
+  "entity.bleep.hurt": {
+    "subtitle": "subtitles.bleep.hurt",
+    "sounds": [
+      "bleep:entity/bleep/hurt"
+    ]
+  },
+  "entity.bleep.assemble": {
+    "subtitle": "subtitles.bleep.assemble",
+    "sounds": [
+      "bleep:entity/bleep/assemble"
+    ]
+  }
+}

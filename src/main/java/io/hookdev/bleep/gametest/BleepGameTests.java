@@ -8,6 +8,7 @@ import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Bond;
 import io.hookdev.bleep.entity.Emotion;
 import io.hookdev.bleep.entity.Obsession;
+import io.hookdev.bleep.item.BleepCoreItem;
 import io.hookdev.bleep.network.BleepCommand;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -68,7 +69,9 @@ public final class BleepGameTests {
         test("it_brings_its_favourite_to_its_owner", BleepGameTests::itBringsItsFavouriteToItsOwner, 300);
         test("it_fetches_a_thrown_music_disc", BleepGameTests::itFetchesAThrownMusicDisc, 400);
         test("a_name_always_shows", BleepGameTests::aNameAlwaysShows, 20);
-        test("the_core_boots_a_bleep", BleepGameTests::theCoreBootsABleep, 100);
+        test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
+        test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
+        test("parts_turn_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
     }
 
     private static final BlockPos SPOT = new BlockPos(3, 0, 1), HOME = new BlockPos(0, 0, 1), FAR = new BlockPos(6, 0, 1);
@@ -351,16 +354,61 @@ public final class BleepGameTests {
         helper.succeed();
     }
 
-    private static void theCoreBootsABleep(GameTestHelper helper) {
+    /** A test player with a core in their hand. */
+    private static Player withCore(GameTestHelper helper) {
         Player player = player(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(BleepContent.BLEEP_CORE.get()));
+        return player;
+    }
+
+    /** Uses the core in the player's hand on the ground in the middle of the bench. */
+    private static void useCore(GameTestHelper helper, Player player) {
         BlockPos floor = helper.absolutePos(SPOT.below());
         BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(floor).add(0, 0.5, 0), Direction.UP, floor, false);
         BleepContent.BLEEP_CORE.get().useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+    }
+
+    private static void theCoreNeedsItsParts(GameTestHelper helper) {
+        Player player = withCore(helper);
+        player.getInventory().add(new ItemStack(BleepContent.BLEEP_TRACKS.get()));
+        useCore(helper, player);
+        helper.assertTrue(player.getMainHandItem().is(BleepContent.BLEEP_CORE.get()), "without a display and arms the core stays in your hand");
+        helper.assertTrue(helper.getLevel().getEntitiesOfClass(BleepEntity.class, new net.minecraft.world.phys.AABB(helper.absolutePos(SPOT)).inflate(8)).isEmpty(), "no bleep without all its parts");
+        helper.assertTrue(player.getInventory().contains(new ItemStack(BleepContent.BLEEP_TRACKS.get())), "the parts you have stay yours");
+        helper.succeed();
+    }
+
+    private static void theCorePutsABleepTogether(GameTestHelper helper) {
+        Player player = withCore(helper);
+        for (var part : BleepCoreItem.parts()) player.getInventory().add(new ItemStack(part));
+        useCore(helper, player);
         helper.assertTrue(player.getMainHandItem().isEmpty(), "the core should go into the bleep");
+        for (var part : BleepCoreItem.parts()) helper.assertFalse(player.getInventory().contains(new ItemStack(part)), "the " + part + " should go into the bleep");
         BleepEntity bleep = helper.findOneEntity(BleepContent.BLEEP.get());
         helper.assertTrue(bleep.isOwnedBy(player), "the bleep should belong to whoever built it");
-        helper.assertTrue(bleep.emotion() == Emotion.BOOT || bleep.tickCount == 0, "its screen should start up");
-        helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.EXCITED, "after starting up it should be excited, it shows " + bleep.emotion()));
+        helper.assertTrue(bleep.assembly() > 0, "it should be put together part by part");
+        helper.runAfterDelay(BleepEntity.ASSEMBLE_TICKS + 5, () -> helper.assertTrue(bleep.emotion() == Emotion.BOOT, "once together its screen starts up, it shows " + bleep.emotion()));
+        helper.runAfterDelay(BleepEntity.ASSEMBLE_TICKS + 10, () -> helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.EXCITED, "after starting up it should be excited, it shows " + bleep.emotion())));
+    }
+
+    /** Opens a chest of this loot table many times over and counts a part. */
+    private static int rolls(GameTestHelper helper, String table, net.minecraft.world.item.Item part, int times) {
+        var level = helper.getLevel();
+        var loot = level.getServer().reloadableRegistries().getLootTable(ResourceKey.create(Registries.LOOT_TABLE, net.minecraft.resources.Identifier.withDefaultNamespace(table)));
+        var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, helper.absoluteVec(Vec3.ZERO))
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+        int found = 0;
+        for (int i = 0; i < times; i++) for (ItemStack stack : loot.getRandomItems(params)) if (stack.is(part)) found++;
+        return found;
+    }
+
+    private static void partsTurnUpInChests(GameTestHelper helper) {
+        helper.assertTrue(rolls(helper, "chests/ancient_city", BleepContent.BLEEP_DISPLAY.get(), 100) > 0, "an Ancient City chest should sometimes hold a display");
+        helper.assertTrue(rolls(helper, "chests/village/village_weaponsmith", BleepContent.BLEEP_TRACKS.get(), 100) > 0, "a weaponsmith should sometimes have tracks");
+        helper.assertTrue(rolls(helper, "chests/bastion_treasure", BleepContent.BLEEP_ARMS.get(), 100) > 0, "a bastion should sometimes hold arms");
+        helper.assertTrue(rolls(helper, "chests/trial_chambers/reward_ominous", BleepContent.BLEEP_CORE.get(), 200) > 0, "an ominous vault should sometimes give a core");
+        helper.assertTrue(rolls(helper, "chests/village/village_plains_house", BleepContent.BLEEP_TRACKS.get(), 100) == 0, "a plain house has no bleep parts");
+        helper.succeed();
     }
 }

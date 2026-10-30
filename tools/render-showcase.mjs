@@ -274,11 +274,11 @@ function bleepParts(pose = {}) {
   return [
     { pivot: [0, 0, 0], boxes: [[0, 30, -4, -5, -4, 8, 2, 8], [0, 41, -7, -4, -5.5, 3, 4, 11], [28, 41, 4, -4, -5.5, 3, 4, 11]] },
     ...wheels,
-    { pivot: body, boxes: [[0, 16, -4, -6, -3.5, 8, 6, 7], [32, 16, -3, -5.5, -4.5, 6, 5, 1], [32, 16, -3, -5.5, 3.5, 6, 5, 1], [32, 30, -2, -8, -2, 4, 2, 4]] },
-    { pivot: [0, -13, 0], turn: pose.head, boxes: [[0, 0, -6, -7, -4, 12, 7, 8], [56, 48, -7, -5, -1.5, 1, 3, 3], [56, 48, 6, -5, -1.5, 1, 3, 3]], face: pose.face ?? 'happy' },
-    { pivot: [-4, -10, 0], turn: { x: arm, z: pose.armSpread ? pose.armSpread : 0 }, boxes: [[40, 0, -2, 0, -1, 2, 6, 2], [48, 0, -2.5, 6, -1.5, 3, 2, 3]] },
-    { pivot: [4, -10, 0], turn: { x: arm, z: pose.armSpread ? -pose.armSpread : 0 }, boxes: [[40, 0, 0, 0, -1, 2, 6, 2], [48, 0, -0.5, 6, -1.5, 3, 2, 3]] },
-  ];
+    { pivot: body, step: 2, boxes: [[0, 16, -4, -6, -3.5, 8, 6, 7], [32, 16, -3, -5.5, -4.5, 6, 5, 1], [32, 16, -3, -5.5, 3.5, 6, 5, 1], [32, 30, -2, -8, -2, 4, 2, 4]] },
+    { pivot: [0, -13, 0], step: 4, turn: pose.head, boxes: [[0, 0, -6, -7, -4, 12, 7, 8], [56, 48, -7, -5, -1.5, 1, 3, 3], [56, 48, 6, -5, -1.5, 1, 3, 3]], face: pose.face ?? 'happy' },
+    { pivot: [-4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? pose.armSpread : 0 }, boxes: [[40, 0, -2, 0, -1, 2, 6, 2], [48, 0, -2.5, 6, -1.5, 3, 2, 3]] },
+    { pivot: [4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? -pose.armSpread : 0 }, boxes: [[40, 0, 0, 0, -1, 2, 6, 2], [48, 0, -0.5, 6, -1.5, 3, 2, 3]] },
+  ].filter((part) => (part.step || 1) <= (pose.built ?? 4)); // being put together: tracks, body, arms, head
 }
 /** The bleep as block-model elements, so the isometric renderer can draw it. */
 function bleepElements(pose) {
@@ -334,6 +334,16 @@ render('bleep_home', [{ model: 'homebase_charging', y: S, xf: big() }, { model: 
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
   save('bleep_core', W, H, px, 8);
 }
+// being put together: its tracks and body are on, the arms and head still to come
+MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
+render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
+// the other parts are flat items too
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms']) {
+  const t = texture('bleep:item/' + part);
+  const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
+  for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
+  save(part, W, H, px, 8);
+}
 // every face on the display, on its black screen
 for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort()) {
   const t = texture('bleep:entity/bleep/face/' + file.replace('.png', ''));
@@ -348,7 +358,7 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 
 // ---------- item icons and recipes for the docs ----------
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
-const SCREEN_ITEMS = ['bleep:bleep_core', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
+const SCREEN_ITEMS = ['bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
   'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb'];
 

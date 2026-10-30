@@ -188,6 +188,8 @@ face('glitch_1', f => {
   f.rect(3, 3, 2, 3); f.rect(12, 2, 2, 3); f.rect(8, 4, 12, 1, DIM); f.rect(0, 7, 8, 1); f.rect(6, 8, 6, 1);
   for (const [x, y] of [[16, 0], [1, 6], [10, 9], [5, 1], [19, 3]]) f.set(x, y, '#ff4f8b');
 });
+// a screen that is still off, while the bleep is being put together
+face('off', () => {});
 // the start-up screen: a line flicks on, then a loading bar fills
 face('boot_0', f => { f.rect(0, 4, W, 2, DIM); f.rect(6, 4, 8, 2); });
 face('boot_1', f => { f.rect(3, 3, 14, 1, DIM); f.rect(3, 7, 14, 1, DIM); f.rect(3, 3, 1, 5, DIM); f.rect(16, 3, 1, 5, DIM); f.rect(5, 5, 4, 1); });
@@ -208,6 +210,42 @@ texture('item/bleep_core', 16, 16, g => {
 });
 json(join(ASSETS, 'models/item/bleep_core.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/bleep_core' } });
 item('bleep_core', 'bleep:item/bleep_core');
+// the other parts: its display (a black screen in a white rim, a face glowing on it), its tracks, its arms
+texture('item/bleep_display', 16, 16, g => {
+  g.rect(1, 3, 14, 10, WHITE_EDGE); g.rect(2, 4, 12, 8, SCREEN);
+  g.rect(1, 3, 14, 1, WHITE); g.rect(1, 3, 1, 10, WHITE);
+  g.rect(5, 6, 2, 2, GLOW); g.rect(9, 6, 2, 2, GLOW); g.rect(6, 9, 4, 1, GLOW);
+});
+texture('item/bleep_tracks', 16, 16, g => {
+  for (const y of [2, 9]) { // two tracks, one above the other
+    g.rect(1, y, 14, 5, DARK2);
+    for (let x = 1; x < 15; x += 2) { g.set(x, y, TREAD); g.set(x, y + 4, TREAD); }
+    for (const x of [3, 7, 11]) { g.rect(x, y + 1, 3, 3, HUB); g.set(x + 1, y + 2, GREY); g.set(x + 1, y + 1, DARK_EDGE); }
+  }
+});
+texture('item/bleep_arms', 16, 16, g => {
+  for (const [x, flip] of [[3, 0], [10, 1]]) { // two arms with their hands
+    g.rect(x, 1, 3, 9, DARK); g.rect(x, 1, 1, 9, DARK_EDGE);
+    g.rect(x - 1, 10, 5, 2, DARK2); g.rect(x - 1, 12, 2, 3, DARK2); g.rect(x + 2, 12, 2, 3, DARK2);
+    g.set(x + 1 + (flip ? 1 : 0), 2, GREY);
+  }
+});
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms']) {
+  json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
+  item(part, 'bleep:item/' + part);
+}
+
+// ---------- sounds (tools/make-sounds.mjs makes the ogg files) ----------
+const VOICES = { happy: 'Bleep bloops', excited: 'Bleep cheers', sad: 'Bleep sighs', angry: 'Bleep grumbles', bored: 'Bleep hums',
+  surprised: 'Bleep gasps', tired: 'Bleep yawns', asleep: 'Bleep powers down', boot: 'Bleep starts up', stubborn: 'Bleep huffs',
+  glitch: 'Bleep glitches', hurt: 'Bleep buzzes', assemble: 'Bleep parts clunk' };
+json(join(ASSETS, 'sounds.json'), Object.fromEntries(Object.keys(VOICES).map((name) =>
+  ['entity.bleep.' + name, { subtitle: 'subtitles.bleep.' + name, sounds: ['bleep:entity/bleep/' + name] }])));
+const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text]) => ['subtitles.bleep.' + name, text]));
+
+// ---------- the parts in chests round the world (BleepPartsModifier has the places and chances) ----------
+json(join(DATA, 'loot_modifiers/parts.json'), { type: 'bleep:parts' });
+json(join(ROOT, 'data/neoforge/loot_modifiers/global_loot_modifiers.json'), { replace: false, entries: ['bleep:parts'] });
 
 // ---------- the homebase ----------
 // a charging pad (1..15 across, 2 high) with a post at the back (5..11 across, 12..15 deep, up to 14): the front faces north
@@ -384,6 +422,16 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'itemGroup.bleep': 'Bleep',
   'entity.bleep.bleep': 'Bleep',
   'item.bleep.bleep_core': 'Bleep Core',
+  'item.bleep.bleep_display': 'Bleep Display',
+  'item.bleep.bleep_tracks': 'Bleep Tracks',
+  'item.bleep.bleep_arms': 'Bleep Arms',
+  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in ominous vaults (Trial Chambers).',
+  'tooltip.bleep.bleep_display': 'A bleep\'s face.\nFound in Ancient City chests.',
+  'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nFound at a village weaponsmith or toolsmith.',
+  'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nFound in bastion chests.',
+  'tooltip.bleep.homebase': 'Place it near your bleep: it moves in\nand charges here.',
+  'message.bleep.missing_parts': 'Still missing: %s',
+  ...subtitleLines,
   'message.bleep.stay': '%s: Stay',
   'message.bleep.follow': '%s: Follow',
   'message.bleep.asleep': '%s is out of battery. Zzz...',

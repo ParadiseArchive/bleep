@@ -860,6 +860,12 @@ public class BleepEntity extends TamableAnimal {
 
     /** Its favourite item lying about: it drives over, picks it up, and brings it to its owner. */
     private class FetchGoal extends Goal {
+        /**
+         * Its own count: Minecraft runs a mob's goals every other tick, on odd or even ticks depending on its id, so
+         * tickCount % 10 might never come round.
+         */
+        private int ticks;
+
         FetchGoal() {
             setFlags(EnumSet.of(Goal.Flag.MOVE));
         }
@@ -878,13 +884,13 @@ public class BleepEntity extends TamableAnimal {
                     fetching = null;
                 } else if (distanceToSqr(fetching) < 1.5 * 1.5) {
                     pickUp(fetching);
-                } else if (tickCount % 10 == 0) {
+                } else if (ticks++ % 5 == 0) {
                     getNavigation().moveTo(fetching, 1.1);
                 }
             } else if (getOwner() instanceof Player owner) {
                 if (distanceToSqr(owner) < 2.0 * 2.0) {
                     handOver(owner);
-                } else if (tickCount % 10 == 0) {
+                } else if (ticks++ % 5 == 0) {
                     getNavigation().moveTo(owner, 1.1);
                 }
             }
@@ -893,6 +899,8 @@ public class BleepEntity extends TamableAnimal {
 
     /** A new kind of mob: it drives closer to have a look, unless it was told to stay. */
     private class ScanGoal extends Goal {
+        private int ticks;
+
         ScanGoal() {
             setFlags(EnumSet.of(Goal.Flag.MOVE));
         }
@@ -904,7 +912,7 @@ public class BleepEntity extends TamableAnimal {
 
         @Override
         public void tick() {
-            if (scanning != null && tickCount % 10 == 0) getNavigation().moveTo(scanning, 1.0);
+            if (scanning != null && ticks++ % 5 == 0) getNavigation().moveTo(scanning, 1.0);
         }
     }
 }

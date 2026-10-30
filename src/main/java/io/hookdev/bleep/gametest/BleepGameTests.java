@@ -66,6 +66,7 @@ public final class BleepGameTests {
         test("in_danger_it_always_listens", BleepGameTests::inDangerItAlwaysListens, 20);
         test("a_new_mob_gets_a_thought", BleepGameTests::aNewMobGetsAThought, 120);
         test("it_brings_its_favourite_to_its_owner", BleepGameTests::itBringsItsFavouriteToItsOwner, 300);
+        test("it_fetches_a_thrown_music_disc", BleepGameTests::itFetchesAThrownMusicDisc, 400);
         test("a_name_always_shows", BleepGameTests::aNameAlwaysShows, 20);
         test("the_core_boots_a_bleep", BleepGameTests::theCoreBootsABleep, 100);
     }
@@ -321,6 +322,26 @@ public final class BleepGameTests {
             helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.COMPASS)), "it should bring the compass to its owner, it holds " + bleep.getMainHandItem());
             helper.assertTrue(bleep.revealed(), "finding it shows you what its favourite is");
         });
+    }
+
+    /** As in a real game: its owner holds its favourite (a music disc), it circles, then the owner throws it away. */
+    private static void itFetchesAThrownMusicDisc(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(0.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.MUSIC_DISC_CAT));
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        bleep.setObsession(Obsession.ALL.indexOf(Obsession.ALL.stream().filter(o -> o.id().equals("music_disc")).findFirst().orElseThrow()));
+        helper.runAfterDelay(40, () -> {
+            helper.assertTrue(bleep.revealed(), "holding its favourite should make it circle and show what it is");
+            owner.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            var thrown = helper.spawnItem(Items.MUSIC_DISC_CAT, new Vec3(5.5, 0.2, 1.5));
+            thrown.setPickUpDelay(40);
+            thrown.setThrower(owner);
+        });
+        helper.runAfterDelay(41, () -> helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.MUSIC_DISC_CAT)),
+                "it should fetch the thrown disc and bring it back; it holds " + bleep.getMainHandItem() + ", doing " + bleep.activity() + ", at " + helper.relativeVec(bleep.position()))));
     }
 
     private static void aNameAlwaysShows(GameTestHelper helper) {

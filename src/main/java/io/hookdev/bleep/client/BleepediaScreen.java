@@ -40,6 +40,8 @@ public class BleepediaScreen extends Screen {
 
     private final BleepediaData data;
     private final Map<EntityType<?>, LivingEntity> faces = new HashMap<>();
+    /** Mobs that would not be drawn: a ? for them. */
+    private final java.util.Set<EntityType<?>> broken = new java.util.HashSet<>();
     private final List<List<Row>> pages = new ArrayList<>();
     private final String[] counts = new String[TABS.length];
     private int tab, first;
@@ -81,7 +83,9 @@ public class BleepediaScreen extends Screen {
             Component text = Language.getInstance().has(key) ? Component.translatable(key) : Component.translatable("thought.bleep.unknown_mob");
             mobs.add(new Row(type, null, 0, known ? type.getDescription() : Component.literal("???"), known ? quote(text) : Component.empty(), known, fresh(found)));
         }
-        sort(mobs, r -> r.mob().getDescription().getString());
+        // the ones it met first, in the order it met them; then the ones still to meet, A to Z
+        Comparator<Row> met = Comparator.comparing((Row r) -> data.mobs().getOrDefault(BuiltInRegistries.ENTITY_TYPE.getKey(r.mob()).toString(), Long.MAX_VALUE));
+        mobs.sort(met.thenComparing(r -> r.mob().getDescription().getString()));
         pages.add(mobs);
         counts[0] = data.mobs().size() + " / " + mobs.size();
 
@@ -149,10 +153,6 @@ public class BleepediaScreen extends Screen {
 
     private static Component quote(Component text) {
         return Component.literal("“").append(text).append("”");
-    }
-
-    private static void sort(List<Row> rows, java.util.function.Function<Row, String> by) {
-        rows.sort(Comparator.comparing(by));
     }
 
     /** A colour of its own for each biome, from its name. */
@@ -223,21 +223,27 @@ public class BleepediaScreen extends Screen {
 
     /** The mob itself, drawn so its head fills the box. */
     private void face(GuiGraphicsExtractor g, EntityType<?> type, int x0, int y0, int x1, int y1) {
-        LivingEntity mob = faces.computeIfAbsent(type, t -> {
+        LivingEntity mob = broken.contains(type) ? null : faces.computeIfAbsent(type, t -> {
             try {
-                return minecraft.level != null && t.create(minecraft.level, EntitySpawnReason.LOAD) instanceof LivingEntity living ? living : null;
+                if (minecraft.level == null || !(t.create(minecraft.level, EntitySpawnReason.LOAD) instanceof LivingEntity living)) return null;
+                living.setId(-1000 - faces.size()); // never in the world, but renderers ask for its id: one no real entity has
+                return living;
             } catch (RuntimeException e) {
                 return null;
             }
         });
-        if (mob == null) {
-            g.text(font, "?", x0 + 8, y0 + 6, DIM, false);
-            return;
+        if (mob != null) {
+            try {
+                float head = Math.max(0.45f, Math.min(mob.getBbWidth(), mob.getBbHeight()) * 0.8f);
+                int size = Math.max(4, (int) ((x1 - x0) / head));
+                float offsetY = mob.getEyeHeight() - mob.getBbHeight() / 2;
+                InventoryScreen.renderEntityInInventoryFollowsAngle(g, x0, y0, x1, y1, size, offsetY, -0.35f, 0, mob);
+                return;
+            } catch (RuntimeException e) { // a mob (maybe another mod's) that will not be drawn like this: a ? from now on
+                broken.add(type);
+            }
         }
-        float head = Math.max(0.45f, Math.min(mob.getBbWidth(), mob.getBbHeight()) * 0.8f);
-        int size = Math.max(4, (int) ((x1 - x0) / head));
-        float offsetY = mob.getEyeHeight() - mob.getBbHeight() / 2;
-        InventoryScreen.renderEntityInInventoryFollowsAngle(g, x0, y0, x1, y1, size, offsetY, -0.35f, 0, mob);
+        g.text(font, "?", x0 + 8, y0 + 6, DIM, false);
     }
 
     @Override

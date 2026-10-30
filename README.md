@@ -94,6 +94,10 @@ birthday (a cake makes its day). Ten bleeps per player.
 The ball on its info screen opens Play: hide and seek (it hides, or you do) and tricks, more as the bond grows. The hoe
 opens Work while it stays: how far it goes from its spot, and its jobs: farmer, guard at night, tidy up into a chest.
 
+### Chips and letters
+Three upgrade chips, installed for good: speed, shield and a bigger battery. And a bleep that likes you writes you a
+letter now and then, from its diary, and brings it over.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

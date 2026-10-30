@@ -137,6 +137,13 @@ public class BleepediaScreen extends Screen {
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.bond"), Component.translatable(data.bond()), true, false));
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.favourite"),
                 data.favourite().isEmpty() ? Component.literal("???") : Component.translatable(data.favourite()), true, false));
+        net.minecraft.network.chat.MutableComponent chips = Component.empty();
+        for (io.hookdev.bleep.entity.Chip chip : io.hookdev.bleep.entity.Chip.values()) {
+            if ((data.chips() & chip.bit()) == 0) continue;
+            if (!chips.getSiblings().isEmpty()) chips.append(", ");
+            chips.append(Component.translatable("chip.bleep." + chip.name().toLowerCase(java.util.Locale.ROOT)));
+        }
+        about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.chips"), chips.getSiblings().isEmpty() ? Component.translatable("screen.bleep.about.no_chips") : chips, true, false));
         if (data.friends().isEmpty()) {
             about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.friends"), Component.translatable("screen.bleep.about.no_friends"), true, false));
         }

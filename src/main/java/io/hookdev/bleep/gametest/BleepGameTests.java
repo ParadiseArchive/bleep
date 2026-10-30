@@ -123,6 +123,8 @@ public final class BleepGameTests {
         test("a_farmer_harvests_and_replants", BleepGameTests::aFarmerHarvestsAndReplants, 200);
         test("tidy_up_puts_its_storage_in_a_chest", BleepGameTests::tidyUpPutsItsStorageInAChest, 200);
         test("the_stay_radius_can_change", BleepGameTests::theStayRadiusCanChange, 20);
+        test("chips_are_installed_for_good", BleepGameTests::chipsAreInstalledForGood, 20);
+        test("it_writes_a_letter", BleepGameTests::itWritesALetter, 300);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -1009,6 +1011,31 @@ public final class BleepGameTests {
         bleep.setStayRadius(1);
         helper.assertTrue(bleep.stayRadius() == BleepEntity.MIN_RADIUS, "two at least");
         helper.succeed();
+    }
+
+    private static void chipsAreInstalledForGood(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        double speed = bleep.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        ItemStack chip = new ItemStack(BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SPEED).get());
+        helper.assertTrue(bleep.give(owner, chip), "a chip is installed");
+        helper.assertTrue(bleep.has(io.hookdev.bleep.entity.Chip.SPEED) && bleep.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) > speed, "and it is faster");
+        helper.assertFalse(bleep.give(owner, chip), "one of each kind");
+        bleep.give(owner, new ItemStack(BleepContent.CHIPS.get(io.hookdev.bleep.entity.Chip.SHIELD).get()));
+        helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).chips() == 3, "its chips are in its Bleepedia");
+        helper.succeed();
+    }
+
+    private static void itWritesALetter(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        bleep.boot();
+        bleep.memory().write(helper.getLevel().getGameTime(), "diary.bleep.llama", "");
+        helper.assertTrue(bleep.writeLetter(), "it writes a letter");
+        var book = bleep.getMainHandItem().get(net.minecraft.core.component.DataComponents.WRITTEN_BOOK_CONTENT);
+        helper.assertTrue(book != null && book.author().equals(bleep.getName().getString()), "a written book, signed by it");
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(s -> s.is(Items.WRITTEN_BOOK)), "and it brings it over"));
     }
 
     private static Player withCore(GameTestHelper helper) {

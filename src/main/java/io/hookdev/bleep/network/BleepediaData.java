@@ -17,7 +17,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record BleepediaData(int entityId, String name, Map<String, Long> mobs, Map<String, Long> biomes, Map<String, Long> finds,
                             List<Memory.Entry> diary, long born, long now, long lastOpened, int daysTogether, int fightsWon, int timesEmpty,
-                            int distance, String favourite, String bond, List<String> friends) implements CustomPacketPayload {
+                            int distance, String favourite, String bond, List<String> friends, int chips) implements CustomPacketPayload {
     public static final Type<BleepediaData> TYPE = new Type<>(Bleep.id("bleepedia"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepediaData> CODEC = CustomPacketPayload.codec(BleepediaData::write, BleepediaData::read);
 
@@ -27,7 +27,7 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         var favourite = bleep.obsession();
         return new BleepediaData(bleep.getId(), bleep.getDisplayName().getString(), m.mobs, m.biomes, m.finds, m.diary, m.born,
                 bleep.level().getGameTime(), m.lastOpened, m.daysTogether, m.fightsWon, m.timesEmpty, (int) m.distance,
-                favourite != null && bleep.revealed() ? favourite.nameKey() : "", io.hookdev.bleep.entity.Bond.key(bleep.bond()), friends(m));
+                favourite != null && bleep.revealed() ? favourite.nameKey() : "", io.hookdev.bleep.entity.Bond.key(bleep.bond()), friends(m), bleep.chips());
     }
 
     /** Its friends, best first, as "level\tname" (friend.bleep.<level>): the ones it knows well, and its rivals. */
@@ -66,6 +66,7 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         buf.writeUtf(bond);
         buf.writeVarInt(friends.size());
         friends.forEach(buf::writeUtf);
+        buf.writeVarInt(chips);
     }
 
     private static BleepediaData read(RegistryFriendlyByteBuf buf) {
@@ -81,7 +82,7 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         String favourite = buf.readUtf(), bond = buf.readUtf();
         List<String> friends = new ArrayList<>();
         for (int i = buf.readVarInt(); i > 0; i--) friends.add(buf.readUtf());
-        return new BleepediaData(id, name, mobs, biomes, finds, diary, born, now, lastOpened, days, fights, empty, distance, favourite, bond, friends);
+        return new BleepediaData(id, name, mobs, biomes, finds, diary, born, now, lastOpened, days, fights, empty, distance, favourite, bond, friends, buf.readVarInt());
     }
 
     @Override

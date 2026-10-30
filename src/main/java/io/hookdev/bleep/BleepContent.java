@@ -76,6 +76,20 @@ public final class BleepContent {
             id -> EntityType.Builder.<io.hookdev.bleep.entity.BallEntity>of(io.hookdev.bleep.entity.BallEntity::new, MobCategory.MISC).sized(0.25f, 0.25f)
                     .clientTrackingRange(4).updateInterval(5).build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
+    /** Upgrade chips, installed for good: speed, shield, a bigger battery. */
+    public static final Map<io.hookdev.bleep.entity.Chip, DeferredItem<Item>> CHIPS = new EnumMap<>(io.hookdev.bleep.entity.Chip.class);
+    static {
+        for (io.hookdev.bleep.entity.Chip chip : io.hookdev.bleep.entity.Chip.values()) {
+            CHIPS.put(chip, ITEMS.registerSimpleItem(chip.id(), p -> p.stacksTo(16).rarity(Rarity.UNCOMMON)));
+        }
+    }
+
+    /** The chip this item is, or null. */
+    public static io.hookdev.bleep.entity.@org.jspecify.annotations.Nullable Chip chip(net.minecraft.world.item.ItemStack stack) {
+        for (var entry : CHIPS.entrySet()) if (stack.is(entry.getValue().get())) return entry.getKey();
+        return null;
+    }
+
     /** One full charge for a bleep, carried along: its bar shows what is left. It fills up again on a homebase. */
     public static final DeferredItem<Item> POWER_BANK = ITEMS.registerSimpleItem("power_bank", p -> p.durability(100).rarity(Rarity.UNCOMMON));
 
@@ -110,6 +124,7 @@ public final class BleepContent {
                 output.accept(HOMEBASE_ITEM.get());
                 output.accept(POWER_BANK.get());
                 output.accept(BALL.get());
+                CHIPS.values().forEach(item -> output.accept(item.get()));
                 ACCESSORIES.values().forEach(item -> output.accept(item.get()));
             })
             .build());

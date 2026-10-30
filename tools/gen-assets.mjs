@@ -287,7 +287,17 @@ texture('item/ball', 16, 16, g => {
   rows.forEach((row, y) => [...row].forEach((ch, x) => { if (C[ch]) g.set(1 + x, 1 + y, C[ch]); }));
   g.set(13, 1 + 4, '#c93a6c'); g.set(13, 1 + 5, '#c93a6c');
 });
-for (const part of ['ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+// upgrade chips: a green circuit board with gold pins and a light in its colour
+for (const [name, led, mark] of [['speed_chip', '#ffb547', ['..#', '.#.', '###', '.#.', '#..']], ['shield_chip', '#2de2e6', ['###', '###', '###', '.#.', '...']], ['battery_chip', '#ff4f8b', ['.#.', '###', '###', '###', '###']]]) {
+  texture('item/' + name, 16, 16, g => {
+    for (let x = 4; x <= 11; x += 2) { g.set(x, 2, '#d9a93a'); g.set(x, 13, '#d9a93a'); } // the pins
+    g.rect(3, 3, 10, 10, '#1f6b3a'); g.rect(3, 3, 10, 1, '#2e8a4c'); g.rect(3, 12, 10, 1, '#154d29');
+    g.rect(4, 7, 3, 1, '#d9a93a'); g.rect(9, 5, 1, 3, '#d9a93a'); // traces
+    mark.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') g.set(8 + x, 6 + y, led); }));
+    g.rect(4, 4, 2, 2, '#0e3a1e');
+  });
+}
+for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -319,6 +329,10 @@ for (const [name, dye] of [['sticker_star', 'yellow_dye'], ['sticker_heart', 'pi
 shaped('power_bank', [' C ', 'IRI', 'IRI'], { C: 'minecraft:copper_ingot', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block' });
 // a bouncy ball: wool round a slimeball
 shaped('ball', [' W ', 'WSW', ' W '], { W: 'minecraft:white_wool', S: 'minecraft:slime_ball' });
+// upgrade chips: gold and redstone on a board, and what makes each one special
+for (const [name, special] of [['speed_chip', 'minecraft:sugar'], ['shield_chip', 'minecraft:shield'], ['battery_chip', 'minecraft:redstone_block']]) {
+  shaped(name, [' N ', 'RXR', ' G '], { N: 'minecraft:iron_nugget', R: 'minecraft:redstone', X: special, G: 'minecraft:gold_ingot' });
+}
 // the core, the expensive way: obsidian (the nearest thing to bedrock) round diamonds and a block of diamond, 13 in all
 shaped('bleep_core', ['ODO', 'DBD', 'ODO'], { O: 'minecraft:obsidian', D: 'minecraft:diamond', B: 'minecraft:diamond_block' });
 // a black screen in an iron frame, redstone to light it
@@ -646,6 +660,25 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'thought.bleep.home.sign': 'That is my name on that sign! My own home!',
   'activity.bleep.playing': 'Playing',
   'item.bleep.ball': 'Ball', 'entity.bleep.ball': 'Ball',
+  'item.bleep.speed_chip': 'Speed Chip', 'item.bleep.shield_chip': 'Shield Chip', 'item.bleep.battery_chip': 'Battery Chip',
+  'chip.bleep.speed': 'Speed', 'chip.bleep.shield': 'Shield', 'chip.bleep.battery': 'Battery',
+  'tooltip.bleep.speed_chip': 'Right-click your bleep: installed for good.\nIt drives a third faster.',
+  'tooltip.bleep.shield_chip': 'Right-click your bleep: installed for good.\nHits cost it half the battery.',
+  'tooltip.bleep.battery_chip': 'Right-click your bleep: installed for good.\nIts battery lasts half as long again.',
+  'jei.bleep.speed_chip': 'An upgrade chip: right-click your bleep with it and it is installed for good (one of each kind). It drives a third faster.',
+  'jei.bleep.shield_chip': 'An upgrade chip: right-click your bleep with it and it is installed for good (one of each kind). Hits cost it half the battery.',
+  'jei.bleep.battery_chip': 'An upgrade chip: right-click your bleep with it and it is installed for good (one of each kind). Its battery lasts half as long again: driving, fighting and hits all cost less.',
+  'thought.bleep.chip.speed': 'Installing... done! I feel FAST. Zoom zoom.',
+  'thought.bleep.chip.shield': 'Installing... done! Try hitting me now. Actually, please do not.',
+  'thought.bleep.chip.battery': 'Installing... done! So much power. I could drive to the moon.',
+  'diary.bleep.chip': 'Got a new chip: %s. I am better than ever.',
+  'message.bleep.has_chip': '%s already has a %s.',
+  'screen.bleep.about.chips': 'Chips', 'screen.bleep.about.no_chips': 'None yet',
+  'letter.bleep.title': 'A letter', 'letter.bleep.dear': 'Dear %s,',
+  'letter.bleep.end.0': 'That is all. You are my favourite human.', 'letter.bleep.end.1': 'More news soon. Do not read my diary.', 'letter.bleep.end.2': 'I am writing this with my arms. It was hard.',
+  'letter.bleep.from': 'Love, %s',
+  'thought.bleep.letter': 'I wrote you something! Read it! Read it now!',
+  'diary.bleep.letter': 'Wrote my human a letter. I hope they read it.',
   'tooltip.bleep.ball': 'Right-click to throw it.\nYour bleep brings it back.\nNear its homebase it is a toy.',
   'message.bleep.too_many': 'You already have %s bleeps. Any more and it really turns into a fight.',
   'diary.bleep.golem': 'Met a big iron friend. He does not know he is my big brother yet.',

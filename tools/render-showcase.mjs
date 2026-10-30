@@ -389,7 +389,7 @@ render('bleep_dancing', [{ model: 'bleep_dancing', xf: big(), tints: [DYES.orang
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -473,6 +473,15 @@ const SCREEN_ITEMS = ['minecraft:shears', 'minecraft:red_dye', 'bleep:bleep_core
 /** Writes items/<namespace>/<name>.png: a flat item at 16x16, a block item rendered like in the inventory. */
 function icon(id) {
   const [ns, name] = split(id);
+  if (id === 'minecraft:shield') { // a special item model too: the front of the shield, cut from its texture (12 x 22 at 1, 1), fitted in 16 x 16
+    const t = texture('minecraft:entity/shield/shield_base_nopattern'), k = t.w / 64, px = Buffer.alloc(16 * 16 * 4);
+    for (let y = 0; y < 16; y++) for (let x = 3; x < 12; x++) {
+      const u = 1 + Math.floor((x - 3) * 12 / 9), v = 1 + Math.floor(y * 22 / 16), from = ((v * k | 0) * t.w + (u * k | 0)) * 4;
+      t.px.copy(px, (y * 16 + x) * 4, from, from + 4);
+    }
+    save('items/minecraft/shield', 16, 16, px, 1, false);
+    return { name: LANG['item.minecraft.shield'], icon: 'items/minecraft/shield.png' };
+  }
   if (id === 'minecraft:chest') { // a special item model: the chest built above
     render('items/minecraft/chest', [{ model: 'chest', y: 0 }], 1, 0, false);
     return { name: LANG['block.minecraft.chest'], icon: 'items/minecraft/chest.png' };

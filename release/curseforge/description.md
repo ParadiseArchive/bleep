@@ -76,6 +76,11 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Tricks.** Spin, jump and wave from day one, dance as a Friend, play dead as a Buddy.
 - **Work while it stays.** Set how far it goes from its spot, and switch on its jobs: farmer (harvests and replants), guard (an alarm at night), tidy up (its storage into a chest).
 
+## Chips and letters
+
+- **Upgrade chips.** A speed chip, a shield chip (hits cost half) and a battery chip (lasts half as long again), installed for good.
+- **Letters.** A bleep that is your Friend now and then writes you a letter from its diary, signed, and brings it over.
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "N": "minecraft:iron_nugget",
+    "R": "minecraft:redstone",
+    "X": "minecraft:sugar",
+    "G": "minecraft:gold_ingot"
+  },
+  "pattern": [
+    " N ",
+    "RXR",
+    " G "
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:speed_chip"
+  }
+}

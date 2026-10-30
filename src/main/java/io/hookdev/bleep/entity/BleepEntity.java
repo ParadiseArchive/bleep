@@ -90,6 +90,8 @@ public class BleepEntity extends TamableAnimal {
     /** Its work while it stays: the jobs that are on (JOB_*), and how far it goes from its spot. */
     private static final EntityDataAccessor<Integer> JOBS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> RADIUS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    /** Its upgrade chips (Chip bits). */
+    private static final EntityDataAccessor<Integer> CHIPS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -306,6 +308,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(PARTY, false);
         builder.define(JOBS, 0);
         builder.define(RADIUS, STAY_RADIUS);
+        builder.define(CHIPS, 0);
     }
 
     // ---------- what the info screen shows ----------
@@ -632,6 +635,15 @@ public class BleepEntity extends TamableAnimal {
      * day). Returns whether it took it.
      */
     public boolean give(Player player, ItemStack stack) {
+        Chip chip = BleepContent.chip(stack);
+        if (chip != null) {
+            if (has(chip)) {
+                player.sendOverlayMessage(Component.translatable("message.bleep.has_chip", getDisplayName(), stack.getHoverName()));
+                return false;
+            }
+            install(chip);
+            return true;
+        }
         if (stack.is(Items.CAKE) && party()) { // a birthday cake!
             feel(Emotion.GLITCH, 40);
             say("thought.bleep.birthday.cake");
@@ -842,7 +854,7 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public boolean doHurtTarget(ServerLevel level, net.minecraft.world.entity.Entity target) {
         boolean hit = super.doHurtTarget(level, target);
-        if (hit) setBattery(battery() - FIGHT_COST);
+        if (hit) drain(FIGHT_COST);
         return hit;
     }
 
@@ -1035,7 +1047,7 @@ public class BleepEntity extends TamableAnimal {
         } else if (home) {
             setBattery(battery() + homeCharge());
         } else if (moving) {
-            setBattery(battery() - DRIVE_COST * (home() == null ? HOMELESS_COST : 1));
+            drain(DRIVE_COST * (home() == null ? HOMELESS_COST : 1));
         }
         setCharging(home && battery() < FULL);
         if (dawdleTicks > 0) dawdle();
@@ -1412,6 +1424,7 @@ public class BleepEntity extends TamableAnimal {
         long apart = Math.min(day - lastTogetherDay - 1, Bond.DAYS_APART_COUNTED);
         memory.daysTogether++;
         changeBond((int) apart * Bond.DAY_APART + Bond.DAY_TOGETHER);
+        if (Bond.level(bond()) >= 1 && getRandom().nextFloat() < 0.35f) writeLetter();
         lastTogetherDay = day;
     }
 
@@ -1802,6 +1815,66 @@ public class BleepEntity extends TamableAnimal {
             fightingWith.setBattery(fightingWith.battery() - 0.5f);
             talk(Emotion.ANGRY);
         }
+    }
+
+    // ---------- chips ----------
+
+    public boolean has(Chip chip) {
+        return (this.entityData.get(CHIPS) & chip.bit()) != 0;
+    }
+
+    public int chips() {
+        return this.entityData.get(CHIPS);
+    }
+
+    /** Installs a chip for good: its start-up screen for a moment, and then it feels the difference. */
+    public void install(Chip chip) {
+        this.entityData.set(CHIPS, chips() | chip.bit());
+        applyChips();
+        feel(Emotion.BOOT, 40);
+        say("thought.bleep.chip." + chip.name().toLowerCase(java.util.Locale.ROOT));
+        remember("diary.bleep.chip", "item.bleep." + chip.id());
+    }
+
+    private static final Identifier SPEED_CHIP = Identifier.fromNamespaceAndPath("bleep", "speed_chip");
+
+    /** The speed chip drives a third faster. */
+    private void applyChips() {
+        var speed = getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (has(Chip.SPEED)) speed.addOrReplacePermanentModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(SPEED_CHIP, 0.33,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+        else speed.removeModifier(SPEED_CHIP);
+    }
+
+    /** Battery used up: with the battery chip it lasts half as long again. */
+    private void drain(float amount) {
+        setBattery(battery() - amount * (has(Chip.BATTERY) ? 2 / 3f : 1));
+    }
+
+    // ---------- letters ----------
+
+    /** A letter for its owner: a book, written from its diary, that it brings over. */
+    public boolean writeLetter() {
+        if (!(getOwner() instanceof Player owner) || !getMainHandItem().isEmpty() || ownHand || memory.diary.size() < 2 || slept) return false;
+        List<Component> lines = new java.util.ArrayList<>();
+        lines.add(Component.translatable("letter.bleep.dear", owner.getName()));
+        int from = Math.max(0, memory.diary.size() - 3);
+        for (Memory.Entry e : memory.diary.subList(from, memory.diary.size())) {
+            lines.add(e.arg().isEmpty() ? Component.translatable(e.key()) : Component.translatable(e.key(), Component.translatable(e.arg())));
+        }
+        lines.add(Component.translatable("letter.bleep.end." + getRandom().nextInt(3)));
+        lines.add(Component.translatable("letter.bleep.from", getName()));
+        net.minecraft.network.chat.MutableComponent page = Component.empty();
+        for (int i = 0; i < lines.size(); i++) page.append(i == 0 ? Component.empty() : Component.literal("\n\n")).append(lines.get(i));
+        ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
+        book.set(net.minecraft.core.component.DataComponents.WRITTEN_BOOK_CONTENT, new net.minecraft.world.item.component.WrittenBookContent(
+                net.minecraft.server.network.Filterable.passThrough(Component.translatable("letter.bleep.title").getString()), getName().getString(), 0,
+                List.of(net.minecraft.server.network.Filterable.passThrough((Component) page)), true));
+        setItemSlot(EquipmentSlot.MAINHAND, book);
+        say("thought.bleep.letter");
+        rememberFirst("letter", "diary.bleep.letter", "");
+        return true;
     }
 
     // ---------- work, while it stays ----------
@@ -2230,7 +2303,7 @@ public class BleepEntity extends TamableAnimal {
         boolean hurt = super.hurtServer(level, source, Math.min(damage, getHealth() - 1));
         setHealth(getMaxHealth());
         if (!hurt) return false;
-        setBattery(battery() - damage * DAMAGE_COST);
+        drain(damage * DAMAGE_COST * (has(Chip.SHIELD) ? 0.5f : 1));
         if (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.LlamaSpit) { // spit in its circuits
             feel(Emotion.GLITCH, 50);
             pinThought("thought.bleep.spit");
@@ -2397,6 +2470,7 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("party", partyTicks);
         output.putInt("jobs", jobs());
         output.putInt("stay_radius", stayRadius());
+        output.putInt("chips", chips());
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2440,6 +2514,7 @@ public class BleepEntity extends TamableAnimal {
         partyTicks = input.getIntOr("party", 0);
         this.entityData.set(JOBS, input.getIntOr("jobs", 0));
         this.entityData.set(RADIUS, Mth.clamp(input.getIntOr("stay_radius", STAY_RADIUS), MIN_RADIUS, MAX_RADIUS));
+        this.entityData.set(CHIPS, input.getIntOr("chips", 0));
         this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);

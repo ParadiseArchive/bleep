@@ -35,6 +35,14 @@ public class Bleep {
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
         NeoForge.EVENT_BUS.addListener(Bleep::guardTheGrave);
+        // treasure hunt: digging where it buried something; tossing a thing or opening a container while it counts
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.level.block.BreakBlockEvent event) -> {
+            if (event.getLevel() instanceof ServerLevel level) for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, new net.minecraft.world.phys.AABB(event.getPos()).inflate(64), b -> b.treasure() != null)) bleep.dugUp(event.getPlayer(), event.getPos());
+        });
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.item.ItemTossEvent event) -> hid(event.getPlayer(), event.getEntity()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) -> {
+            if (event.getLevel().getBlockEntity(event.getPos()) instanceof net.minecraft.world.Container) hid(event.getEntity(), event.getPos().immutable());
+        });
         // little reactions on its screen to what its owner does
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent.Finish event) -> {
             if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player && event.getItem().has(net.minecraft.core.component.DataComponents.FOOD)) react(player, io.hookdev.bleep.entity.Display.YUM);
@@ -82,6 +90,12 @@ public class Bleep {
         for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(64), b -> b.isOwnedBy(player))) {
             bleep.guardGrave(player.blockPosition());
         }
+    }
+
+    /** Its owner hid something while their bleep counted (an ItemEntity or a container's position). */
+    private static void hid(net.minecraft.world.entity.player.Player player, Object what) {
+        if (!(player.level() instanceof ServerLevel level)) return;
+        for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(32), b -> b.isOwnedBy(player) && b.treasureMode() == BleepEntity.FIND_COUNTING)) bleep.sawHidden(what);
     }
 
     /** Its owner did something: their bleeps within 16 blocks react on their screens. */

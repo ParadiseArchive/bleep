@@ -67,6 +67,7 @@ public final class DisplayTextures {
             case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
             case YUM, CURIOUS, SWEAT, TEAR, SPARKLE, ORE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
+            case TREASURE -> state.treasureDistance > FAR_OFF ? "treasure_arrow" + arrow(state.treasureAngle) : "treasure" + warmth(state.treasureDistance) + ((int) (state.ageInTicks / 6) % 2);
             default -> "face";
         };
     }
@@ -84,6 +85,10 @@ public final class DisplayTextures {
             case TEAR -> tear(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case ORE -> ore(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case TREASURE -> {
+                if (state.treasureDistance > FAR_OFF) arrow(image, arrow(state.treasureAngle));
+                else warmth(image, warmth(state.treasureDistance), (int) (state.ageInTicks / 6) % 2 == 0);
+            }
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
@@ -321,6 +326,25 @@ public final class DisplayTextures {
         String[] gem = {"..###..", ".#####.", "#######", ".#####.", "..###..", "...#..."};
         for (int y = 0; y < gem.length; y++) for (int x = 0; x < 7; x++) if (gem[y].charAt(x) == '#') set(image, 7 + x, 2 + y, (x + y) % 3 == 0 ? WHITE : GLOW);
         if (glint) { set(image, 15, 1, WHITE); set(image, 16, 2, AMBER); set(image, 4, 6, AMBER); }
+    }
+
+    // ---------- treasure hunt: warmer, colder ----------
+
+    /** Further than this (blocks) from the treasure: an arrow instead of the bars. */
+    private static final float FAR_OFF = 16;
+    private static final int[] WARMTH = {0xFF5AB4FF, 0xFF8FF7FF, 0xFFFFB547, 0xFFFF8A3D, 0xFFFF4F4F};
+
+    /** One to five bars: cold far off, hot right on top of it. */
+    private static int warmth(float distance) {
+        return Warmth.of(distance);
+    }
+
+    private static void warmth(NativeImage image, int bars, boolean blink) {
+        for (int i = 0; i < 5; i++) {
+            int x = 1 + i * 4, top = 6 - i; // the bars grow taller, like a signal
+            boolean lit = i < bars && !(bars == 5 && blink);
+            for (int y = top; y <= 8; y++) for (int dx = 0; dx < 3; dx++) set(image, x + dx, y, lit ? WARMTH[i] : (y == 8 ? DIM : OFF));
+        }
     }
 
     // ---------- news in the Bleepedia ----------

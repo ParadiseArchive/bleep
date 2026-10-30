@@ -136,6 +136,8 @@ public final class BleepGameTests {
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_buries_a_treasure", BleepGameTests::itBuriesATreasure, 400);
+        test("it_finds_what_you_hid", BleepGameTests::itFindsWhatYouHid, 1200);
         test("it_goes_shopping", BleepGameTests::itGoesShopping, 400);
         test("it_brings_the_emeralds_back", BleepGameTests::itBringsTheEmeraldsBack, 400);
         test("it_rides_along", BleepGameTests::itRidesAlong, 200);
@@ -1179,6 +1181,35 @@ public final class BleepGameTests {
     @SuppressWarnings("unchecked")
     private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
         return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static void itBuriesATreasure(GameTestHelper helper) {
+        for (int x = 0; x < 7; x++) for (int z = 0; z < 3; z++) helper.setBlock(new BlockPos(x, -1, z), Blocks.DIRT);
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        helper.assertFalse(bleep.startBurying(), "an empty storage: nothing to bury");
+        bleep.storage().addItem(new ItemStack(Items.DIAMOND, 3));
+        boolean[] dug = {false};
+        helper.runAfterDelay(20, () -> helper.assertTrue(bleep.startBurying(), "it goes off to bury something (on the ground: it plans a route)"));
+        helper.succeedWhen(() -> {
+            if (!dug[0] && bleep.treasureMode() == BleepEntity.BURIED) {
+                helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 2, "one diamond, buried");
+                dug[0] = bleep.dugUp(owner, bleep.treasure());
+            }
+            helper.assertTrue(dug[0], "buried: its owner digs right there, it is " + bleep.treasureMode());
+            helper.assertItemEntityPresent(Items.DIAMOND);
+            helper.assertTrue(bleep.treasure() == null && bleep.treasureMode() == 0, "and the hunt is over");
+        });
+    }
+
+    private static void itFindsWhatYouHid(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        helper.assertTrue(bleep.startFinding(), "it shuts its eyes");
+        bleep.sawHidden(helper.spawnItem(Items.APPLE, new Vec3(6.5, 0.2, 1.5))); // its owner tossed an apple over there
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.APPLE)), "it finds the apple and brings it back"));
     }
 
     private static net.minecraft.world.entity.npc.villager.Villager shop(GameTestHelper helper, boolean stocked) {

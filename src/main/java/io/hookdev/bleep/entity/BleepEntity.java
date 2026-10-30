@@ -92,6 +92,8 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> RADIUS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     /** Its upgrade chips (Chip bits). */
     private static final EntityDataAccessor<Integer> CHIPS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    /** Treasure hunt: where it buried something (the client draws warmer and colder from it). */
+    private static final EntityDataAccessor<Optional<BlockPos>> TREASURE = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -239,6 +241,13 @@ public class BleepEntity extends TamableAnimal {
     private long hideStart, hideUntil;
     private @Nullable BlockPos hideSpot;
     public static final int HIDE_GOING = 1, HIDE_HIDDEN = 2, SEEK_COUNTING = 3, SEEK_LOOKING = 4, COUNT_TICKS = 200;
+    /** Treasure hunt: it buries something and you dig for it (5 minutes), or you hide something (20 seconds to do it) and it looks for it. */
+    public static final int BURYING = 1, BURIED = 2, UNBURYING = 3, FIND_COUNTING = 4, FINDING = 5, HUNT_TICKS = 6000, HIDE_TICKS = 400;
+    private int treasureMode, treasureTicks, decoys, lastWarmth;
+    private long treasureStart, treasureUntil, lidCloses;
+    private ItemStack treasureItem = ItemStack.EMPTY;
+    private @Nullable Object hidden; // what its owner hid: an ItemEntity they tossed, or the BlockPos of a container they opened
+    private @Nullable BlockPos lidAt, searchSpot;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -288,6 +297,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(4, new WelcomeGoal());
         this.goalSelector.addGoal(4, new ShopGoal());
         this.goalSelector.addGoal(4, new HideAndSeekGoal());
+        this.goalSelector.addGoal(4, new TreasureGoal());
         this.goalSelector.addGoal(6, new WorkGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
@@ -319,6 +329,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(BOND, 0);
         builder.define(THOUGHT, "");
         builder.define(HOME, Optional.empty());
+        builder.define(TREASURE, Optional.empty());
         builder.define(OBSESSION, -1);
         builder.define(REVEALED, false);
         builder.define(ASSEMBLY, 0);
@@ -864,6 +875,7 @@ public class BleepEntity extends TamableAnimal {
             net.minecraft.world.Containers.dropContents(level(), this, storage);
             if (level() instanceof ServerLevel server) kept.forEach(stack -> spawnAtLocation(server, stack));
             if (level() instanceof ServerLevel server && !purse.isEmpty()) spawnAtLocation(server, purse);
+            if (level() instanceof ServerLevel server && !treasureItem.isEmpty()) spawnAtLocation(server, treasureItem);
         }
         super.remove(reason);
     }
@@ -978,7 +990,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return hunting() || shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1105,6 +1117,7 @@ public class BleepEntity extends TamableAnimal {
         tickStars();
         tickCare();
         tickAdventure();
+        tickTreasure();
         if (tickCount % 100 == 70 && isTame()) checkMilestones();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
@@ -1160,6 +1173,8 @@ public class BleepEntity extends TamableAnimal {
         if (displayTicks > 0 && --displayTicks == 0) display = Display.FACE;
         if (goingHome) display = Display.HOME;
         else if (display == Display.HOME) display = Display.FACE;
+        if (!goingHome && treasureMode == BURIED && displayTicks == 0) display = Display.TREASURE; // warmer, colder
+        else if (display == Display.TREASURE && treasureMode != BURIED) display = Display.FACE;
         if (display == Display.FACE && !slept && news() && tickCount % 600 == 300) { // news: a ! now and then, not all the time
             showDisplay(Display.NEWS, 40);
             return;
@@ -2324,12 +2339,16 @@ public class BleepEntity extends TamableAnimal {
 
     /** A spot 8 to 18 blocks from its owner that they cannot see, and that it can drive to. */
     private @Nullable BlockPos hidingSpot(Player owner) {
+        return hidingSpot(owner, at -> true);
+    }
+
+    private @Nullable BlockPos hidingSpot(Player owner, java.util.function.Predicate<BlockPos> fits) {
         BlockPos fallback = null;
         for (int i = 0; i < 40; i++) {
             double angle = getRandom().nextDouble() * Math.PI * 2, distance = 6 + getRandom().nextDouble() * 8; // it plans routes up to 16 blocks
             int x = (int) Math.floor(owner.getX() + Math.cos(angle) * distance), z = (int) Math.floor(owner.getZ() + Math.sin(angle) * distance);
             BlockPos spot = new BlockPos(x, level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
-            if (Math.abs(spot.getY() - owner.getY()) > 6) continue;
+            if (Math.abs(spot.getY() - owner.getY()) > 6 || !fits.test(spot)) continue;
             var path = getNavigation().createPath(spot, 1);
             if (path == null || !path.canReach()) continue;
             if (fallback == null) fallback = spot;
@@ -2347,6 +2366,140 @@ public class BleepEntity extends TamableAnimal {
         feel(Emotion.EXCITED, 40);
         rememberFirst("hide_and_seek", "diary.bleep.hide_and_seek", "");
         if (fun) played();
+    }
+
+    // ---------- treasure hunt ----------
+
+    public @Nullable BlockPos treasure() {
+        return entityData.get(TREASURE).orElse(null);
+    }
+
+    /** Busy with the hunt (burying, digging it up again, counting or looking): when it is buried, it just follows and gives hints. */
+    public boolean hunting() {
+        return treasureMode != 0 && treasureMode != BURIED;
+    }
+
+    public int treasureMode() {
+        return treasureMode;
+    }
+
+    /** It buries something: one thing from its storage, in soft ground somewhere its owner cannot see. */
+    public boolean startBurying() {
+        if (!(getOwner() instanceof Player owner) || slept || abandoned() || treasureMode != 0 || hideMode != 0 || distanceToSqr(owner) > 24 * 24) return false;
+        List<Integer> slots = new java.util.ArrayList<>();
+        for (int i = 0; i < storage.getContainerSize(); i++) if (!storage.getItem(i).isEmpty()) slots.add(i);
+        if (slots.isEmpty()) {
+            say("thought.bleep.treasure.nothing");
+            return false;
+        }
+        BlockPos spot = hidingSpot(owner, at -> softGround(level().getBlockState(at.below())));
+        if (spot == null || !softGround(level().getBlockState(spot.below()))) spot = softSpotNearby(); // no hidden spot: close by will do
+        if (spot == null) {
+            say("thought.bleep.treasure.no_spot");
+            return false;
+        }
+        treasureItem = storage.getItem(slots.get(getRandom().nextInt(slots.size()))).split(1);
+        entityData.set(TREASURE, Optional.of(spot.below()));
+        treasureMode = BURYING;
+        treasureTicks = 0;
+        treasureStart = level().getGameTime();
+        treasureUntil = treasureStart + 600; // to get there
+        stopOtherThings();
+        say("thought.bleep.treasure.start");
+        return true;
+    }
+
+    /** Soft ground within five blocks of it that it can get to (the spot above it). */
+    private @Nullable BlockPos softSpotNearby() {
+        List<BlockPos> spots = new java.util.ArrayList<>();
+        for (BlockPos at : BlockPos.betweenClosed(blockPosition().offset(-5, -2, -5), blockPosition().offset(5, 1, 5))) {
+            if (at.distSqr(blockPosition().below()) < 2 * 2 || !softGround(level().getBlockState(at)) || !level().getBlockState(at.above()).isAir()) continue;
+            var path = getNavigation().createPath(at.above(), 1);
+            if (path != null && path.canReach()) spots.add(at.above().immutable());
+        }
+        return spots.isEmpty() ? null : spots.get(getRandom().nextInt(spots.size()));
+    }
+
+    /** Ground you can dig with a shovel: dirt, grass, sand, gravel, snow. */
+    private static boolean softGround(BlockState state) {
+        return state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL) && !state.hasBlockEntity();
+    }
+
+    /** You hide something: it shuts its eyes for twenty seconds. Toss it somewhere, or put it in a chest. */
+    public boolean startFinding() {
+        if (!(getOwner() instanceof Player owner) || slept || abandoned() || treasureMode != 0 || hideMode != 0 || distanceToSqr(owner) > 24 * 24) return false;
+        treasureMode = FIND_COUNTING;
+        treasureStart = level().getGameTime();
+        hidden = null;
+        stopOtherThings();
+        say("thought.bleep.treasure.count");
+        return true;
+    }
+
+    /** Its owner tossed something or opened a container while it counted: that is the treasure (the last one counts). */
+    public void sawHidden(Object what) {
+        if (treasureMode == FIND_COUNTING) hidden = what;
+    }
+
+    /** Its owner dug where it buried something: found! The thing pops out of the ground. */
+    public boolean dugUp(Player player, BlockPos pos) {
+        BlockPos at = treasure();
+        if (treasureMode != BURIED || at == null || !player.equals(getOwner()) || !(pos.equals(at) || pos.equals(at.below()))) return false;
+        net.minecraft.world.level.block.Block.popResource(level(), pos, treasureItem);
+        treasureItem = ItemStack.EMPTY;
+        endTreasure("thought.bleep.treasure.found", true);
+        showDisplay(Display.SPARKLE, 50);
+        return true;
+    }
+
+    private void endTreasure(String thought, boolean fun) {
+        treasureMode = 0;
+        entityData.set(TREASURE, Optional.empty());
+        hidden = null;
+        searchSpot = null;
+        if (!treasureItem.isEmpty()) { // whatever is left goes back in its storage
+            ItemStack rest = storage.addItem(treasureItem);
+            if (!rest.isEmpty()) spawnAtLocation((ServerLevel) level(), rest);
+            treasureItem = ItemStack.EMPTY;
+        }
+        say(thought);
+        feel(Emotion.EXCITED, 40);
+        rememberFirst("treasure", "diary.bleep.treasure", "");
+        if (fun) played();
+    }
+
+    /** Buried: hints when its owner gets warmer or colder; after five minutes it digs the thing up itself. A chest lid it opened shuts again. */
+    private void tickTreasure() {
+        long now = level().getGameTime();
+        if (lidAt != null && now >= lidCloses) {
+            var state = level().getBlockState(lidAt);
+            if (state.getBlock() instanceof net.minecraft.world.level.block.ChestBlock) level().blockEvent(lidAt, state.getBlock(), 1, 0);
+            lidAt = null;
+        }
+        if (treasureMode != BURIED) return;
+        if (treasureUntil == Long.MIN_VALUE) treasureUntil = now + HUNT_TICKS; // loaded from a save
+        if (now >= treasureUntil) {
+            treasureMode = UNBURYING;
+            treasureTicks = 0;
+            say("thought.bleep.treasure.give_up");
+            return;
+        }
+        BlockPos at = treasure();
+        if (at == null || !(getOwner() instanceof Player owner) || tickCount % 20 != 0) return;
+        int warmth = io.hookdev.bleep.client.Warmth.of((float) Math.sqrt(owner.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(at))));
+        if (lastWarmth != 0 && warmth != lastWarmth) say(warmth == 5 ? "thought.bleep.treasure.hot" : warmth > lastWarmth ? "thought.bleep.treasure.warmer" : "thought.bleep.treasure.colder");
+        lastWarmth = warmth;
+    }
+
+    /** A spot a few blocks off what it is looking for: it sniffs about there first. */
+    private @Nullable BlockPos decoy(BlockPos near) {
+        for (int i = 0; i < 12; i++) {
+            double angle = getRandom().nextDouble() * Math.PI * 2, distance = 4 + getRandom().nextDouble() * 5;
+            BlockPos spot = BlockPos.containing(near.getX() + Math.cos(angle) * distance, near.getY(), near.getZ() + Math.sin(angle) * distance);
+            var path = getNavigation().createPath(spot, 1);
+            if (path != null && path.canReach()) return spot;
+        }
+        return null;
     }
 
     // ---------- adventures ----------
@@ -2779,7 +2932,7 @@ public class BleepEntity extends TamableAnimal {
     }
 
     private Emotion currentEmotion() {
-        if (slept || bedside || hideMode == SEEK_COUNTING || trick() == Trick.PLAY_DEAD) return Emotion.ASLEEP; // eyes shut: counting, or playing dead
+        if (slept || bedside || hideMode == SEEK_COUNTING || treasureMode == FIND_COUNTING || trick() == Trick.PLAY_DEAD) return Emotion.ASLEEP; // eyes shut: counting, or playing dead
         if (moodTicks > 0) return mood;
         if (fightingWith != null) return Emotion.ANGRY;
         if (danceTicks > 0 || playing() || greetTicks > 0 || welcomeTicks > 0) return Emotion.EXCITED;
@@ -2801,6 +2954,7 @@ public class BleepEntity extends TamableAnimal {
         if (getVehicle() instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart) return Activity.RIDING;
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
+        if (treasureMode != 0) return Activity.TREASURE_HUNT;
         if (gazeTicks > 0) return Activity.STARGAZING;
         if (trickTicks > 0) return Activity.TRICK;
         if (workAt != null) return Activity.WORKING;
@@ -3044,6 +3198,10 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("guard_ticks", guardTicks);
         if (!kept.isEmpty()) output.store("kept", ItemStack.CODEC.listOf(), kept);
         if (!purse.isEmpty()) output.store("purse", ItemStack.CODEC, purse);
+        if (!treasureItem.isEmpty() && treasure() != null && treasureMode >= BURIED && treasureMode <= UNBURYING) { // buried: the hunt goes on
+            output.store("treasure", ItemStack.CODEC, treasureItem);
+            output.store("treasure_at", BlockPos.CODEC, treasure());
+        }
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -3095,6 +3253,12 @@ public class BleepEntity extends TamableAnimal {
         kept.clear();
         input.read("kept", ItemStack.CODEC.listOf()).ifPresent(kept::addAll);
         purse = input.read("purse", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        treasureItem = input.read("treasure", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        input.read("treasure_at", BlockPos.CODEC).filter(at -> !treasureItem.isEmpty()).ifPresentOrElse(at -> {
+            entityData.set(TREASURE, Optional.of(at));
+            treasureMode = BURIED;
+            treasureUntil = Long.MIN_VALUE; // set again on its first tick (the game time is not known yet)
+        }, () -> treasureItem = ItemStack.EMPTY);
         if (!purse.isEmpty() && getMainHandItem().isEmpty()) { // saved while shopping: it brings the emeralds back
             setItemSlot(EquipmentSlot.MAINHAND, purse);
             purse = ItemStack.EMPTY;
@@ -3107,7 +3271,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0;
+        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0 && !hunting();
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -3285,6 +3449,117 @@ public class BleepEntity extends TamableAnimal {
                 }
                 default -> {}
             }
+        }
+    }
+
+    /** Treasure hunt: off to bury it, digging it up again, or counting and then looking for what its owner hid. */
+    private class TreasureGoal extends Goal {
+        private int ticks;
+
+        TreasureGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return hunting() && getOwner() instanceof Player && !slept;
+        }
+
+        @Override
+        public void tick() {
+            if (!(getOwner() instanceof Player owner) || !(level() instanceof ServerLevel server)) return;
+            ticks++;
+            long now = level().getGameTime();
+            BlockPos at = treasure();
+            switch (treasureMode) {
+                case BURYING, UNBURYING -> {
+                    if (at == null) { endTreasure("thought.bleep.treasure.lost", false); return; }
+                    boolean there = distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(at.above())) < 1.8 * 1.8;
+                    if (!there && treasureMode == BURYING && now >= treasureUntil) { // could not get there: right here will do
+                        BlockPos here = blockPosition().below();
+                        if (!softGround(level().getBlockState(here))) { endTreasure("thought.bleep.treasure.no_spot", false); return; }
+                        entityData.set(TREASURE, Optional.of(here));
+                        at = here;
+                        there = true;
+                    }
+                    if (!there) {
+                        if (ticks % 10 == 0) getNavigation().moveTo(at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5, 1.3);
+                        return;
+                    }
+                    getNavigation().stop();
+                    getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5);
+                    var ground = level().getBlockState(at);
+                    if (treasureTicks % 5 == 0) {
+                        server.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, ground), at.getX() + 0.5, at.getY() + 1.05, at.getZ() + 0.5, 6, 0.25, 0.05, 0.25, 0.1);
+                        playSound(ground.getSoundType().getHitSound(), 0.6f, 1);
+                    }
+                    if (++treasureTicks < 40) return;
+                    if (treasureMode == BURYING) {
+                        treasureMode = BURIED;
+                        treasureUntil = now + HUNT_TICKS;
+                        lastWarmth = 0;
+                        say("thought.bleep.treasure.buried");
+                    } else { // dug up again: it brings it over (FetchGoal)
+                        ItemStack found = treasureItem;
+                        treasureItem = ItemStack.EMPTY;
+                        endTreasure("thought.bleep.treasure.here", false);
+                        if (getMainHandItem().isEmpty()) setItemSlot(EquipmentSlot.MAINHAND, found);
+                        else storage.addItem(found);
+                    }
+                }
+                case FIND_COUNTING -> {
+                    getNavigation().stop();
+                    long counted = now - treasureStart;
+                    if (counted == HIDE_TICKS / 2) pinThought("thought.bleep.treasure.count.half");
+                    if (counted < HIDE_TICKS) return;
+                    if (hidden == null) { endTreasure("thought.bleep.treasure.nothing_hidden", false); return; }
+                    treasureMode = FINDING;
+                    treasureUntil = now + 2400;
+                    decoys = 1 + getRandom().nextInt(3);
+                    searchSpot = decoy(target());
+                    treasureTicks = 0;
+                    say("thought.bleep.treasure.search");
+                }
+                case FINDING -> {
+                    if (hidden instanceof ItemEntity item && !item.isAlive()) { endTreasure("thought.bleep.treasure.taken", false); return; }
+                    if (now >= treasureUntil) { endTreasure("thought.bleep.treasure.lost", false); return; }
+                    BlockPos goal = decoys > 0 && searchSpot != null ? searchSpot : target();
+                    double reach = hidden instanceof BlockPos ? 2.2 : 1.6;
+                    if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(goal)) > reach * reach) {
+                        if (ticks % 10 == 0) getNavigation().moveTo(goal.getX() + 0.5, goal.getY(), goal.getZ() + 0.5, 1.1);
+                        if (++treasureTicks > 200) { decoys = 0; treasureTicks = 0; } // that spot is no good: straight to it
+                        return;
+                    }
+                    getNavigation().stop();
+                    if (decoys > 0 && searchSpot != null) { // sniffing about
+                        if (treasureTicks < 1000) { treasureTicks = 1000; showDisplay(Display.CURIOUS, 30); }
+                        if (++treasureTicks < 1030) return;
+                        treasureTicks = 0;
+                        if (--decoys > 0) searchSpot = decoy(target());
+                        pinThought(decoys > 0 ? "thought.bleep.treasure.not_here" : "thought.bleep.treasure.sniff");
+                        return;
+                    }
+                    if (hidden instanceof ItemEntity item) {
+                        pickUp(item); // and FetchGoal brings it back
+                    } else if (hidden instanceof BlockPos chest) {
+                        var state = level().getBlockState(chest);
+                        if (state.getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                            level().blockEvent(chest, state.getBlock(), 1, 1); // the lid opens: there it is!
+                            lidAt = chest;
+                            lidCloses = now + 40;
+                        }
+                        getLookControl().setLookAt(chest.getX() + 0.5, chest.getY() + 0.5, chest.getZ() + 0.5);
+                    }
+                    String found = hidden instanceof BlockPos ? "thought.bleep.treasure.found_chest" : "thought.bleep.treasure.found_it";
+                    endTreasure(found, true);
+                    showDisplay(Display.SPARKLE, 50);
+                }
+                default -> {}
+            }
+        }
+
+        private BlockPos target() {
+            return hidden instanceof ItemEntity item ? item.blockPosition() : hidden instanceof BlockPos pos ? pos : blockPosition();
         }
     }
 

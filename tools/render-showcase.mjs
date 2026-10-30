@@ -499,6 +499,10 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     ['..###..', '.#####.', '#######', '.#####.', '..###..', '...#...'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(7 + x, 2 + y, (x + y) % 3 === 0 ? WHITE2 : GLOW); }));
     set(15, 1, WHITE2); set(16, 2, AMBER); set(4, 6, AMBER);
   });
+  screen('trick_treasure', (set) => { // treasure hunt: warmer, colder (client/DisplayTextures.warmth), three bars lit
+    const WARM = [[0x5a, 0xb4, 0xff], [0x8f, 0xf7, 0xff], [0xff, 0xb5, 0x47], [0xff, 0x8a, 0x3d], [0xff, 0x4f, 0x4f]];
+    for (let i = 0; i < 5; i++) for (let y = 6 - i; y <= 8; y++) for (let dx = 0; dx < 3; dx++) { if (i < 3) set(1 + i * 4 + dx, y, WARM[i]); else if (y === 8) set(1 + i * 4 + dx, y, DIM); }
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

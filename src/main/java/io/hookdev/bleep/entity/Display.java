@@ -34,7 +34,9 @@ public enum Display {
     /** Reactions to what its owner does: they eat (a little heart), open a chest (?), fall (sweat), kill an animal (a tear), level up or earn an advancement (sparkles). */
     YUM, CURIOUS, SWEAT, TEAR, SPARKLE,
     /** Ore close by (its owner holds a pickaxe): a gem. */
-    ORE;
+    ORE,
+    /** Treasure hunt: warm and cold bars (how close its owner is to what it buried), an arrow when they are far off. */
+    TREASURE;
 
     private static final Display[] VALUES = values();
 

@@ -103,6 +103,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Cave guide.** It warns you for lava and deep drops, and beeps warmer the closer you get to ore (with a pickaxe in your hand).
 - **Minecart fan.** It hops in a minecart behind yours and follows like a little train.
 - **Shopping.** Give it emeralds: it buys something from the nearest villager and brings you the change.
+- **Treasure hunt.** It buries something and tells you warmer or colder while you dig, or it sniffs out what you hid.
 
 ## The Bleepedia
 

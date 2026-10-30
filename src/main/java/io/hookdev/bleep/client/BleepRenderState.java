@@ -6,6 +6,8 @@ import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 /** What the renderer needs to draw a bleep this frame, with what it holds. */
 public class BleepRenderState extends ArmedEntityRenderState {
     public Emotion emotion = Emotion.HAPPY;
+    /** Treasure hunt: which way the treasure is from the bleep, and how far the player is from it. */
+    public float treasureAngle = Float.NaN, treasureDistance = 99;
     /** Its entity id: each bleep blinks at its own moment. */
     public int id;
     /** Something in its hand: it holds both arms out to carry it. */

@@ -37,7 +37,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## A bond you build
 
-- **The info screen.** Right-click your bleep: its face, mood and what it is doing, its battery, your bond, its favourite item, what it is thinking, and Follow, Stay and Go Home.
+- **The info screen.** Right-click your bleep: its face, mood and what it is doing, its battery, your bond, its favourite item, what it is thinking, Follow, Stay and Go Home, and a book that opens its Bleepedia.
 - **The bond.** From New to Friend, Buddy and Best friend. Petting, treats, its favourite item, days together and fights won together raise it; hitting it, leaving it alone or breaking its home lower it.
 - **It learns.** A Friend carries a torch that lights the way where it drives. A Buddy fights the monsters that go for you, and brings you what lies about after a fight.
 - **It does not always listen.** It never refuses: it dawdles. A stubborn face, a turn on the spot, and then it does it anyway. In danger it always listens.
@@ -51,6 +51,22 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Tricks on its display.** A new name scrolls across like a ticker, a bored bleep plays tic-tac-toe against itself, an arrow points the way home, and now and then it asks for a cookie.
 
 ![Six bleeps in six colours, in hats, with stickers](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-dress.png)
+
+## The Bleepedia
+
+- **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.
+- **About me and a diary.** Its age, days together, how far it drove, fights won, and a diary of what happened, in its own words.
+- **A ! for news.** When it has seen something new since you last looked, a ! blinks on the book now and then.
+
+![The Bleepedia](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/bleepedia.png)
+
+## Out in the world
+
+- **Abandoned bleeps.** Now and then an old bleep stands somewhere, faded and switched off. A block of redstone wakes it up, and it is yours, with a bit of its past in its diary.
+- **Music, bedtime, digging.** It dances when a record plays (a dance-off with an allay), sleeps next to your bed, and digs up bits and bobs, now and then an emerald.
+- **Big brother.** Bleeps think iron golems are their big brothers.
+
+![An abandoned bleep, a dancing bleep, a sleeping bleep](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-world.png)
 
 ## Character
 

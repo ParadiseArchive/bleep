@@ -49,7 +49,7 @@ your bond, its favourite item (??? until you find out what it is), what it is th
 Home buttons. Sneak-right-click to pet it. It talks back in blips, a sound for every mood.
 
 <p align="center">
-  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt, mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought and the Follow, Stay and Go Home buttons.">
+  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt, mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and a book with a ! for its Bleepedia.">
 </p>
 
 ## What is in it
@@ -69,6 +69,16 @@ Any dye colours its shell. It wears a hat (a party hat, a top hat or an antenna 
 and its display has tricks: its name as a ticker, tic-tac-toe when it is bored, an arrow home.
 
 <img src=".github/readme/shelf-dress.png" width="100%" alt="Six bleeps in six colours, in party hats, a top hat and antennas, with stickers.">
+
+### The Bleepedia and the world
+Every bleep keeps a book: the Bleepedia, behind the book on its info screen. Every mob it met (with its face and its
+opinion), every biome it drove through, the special blocks it spotted, its stats and a diary in its own words; a ! on
+the book when there is something new. Out in the world it dances when a record plays, sleeps next to your bed, digs up
+bits and bobs and adores iron golems. Now and then you find an old, abandoned bleep: a block of redstone wakes it up.
+
+<img src=".github/readme/bleepedia.png" width="420" alt="The Bleepedia: tabs for mobs, biomes, finds, about me and its diary, with a creeper it has met between the ones it has not.">
+
+<img src=".github/readme/shelf-world.png" width="100%" alt="An abandoned bleep in faded paint, an orange bleep dancing in a party hat, and a bleep asleep.">
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

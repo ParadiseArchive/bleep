@@ -79,6 +79,7 @@ const SHELVES = {
   bleep: shelf('bleep.render', [['bleep_assembling', 'Being put together', M - 30], ['bleep', 'Happy', L], ['bleep_excited', 'Excited', L], ['bleep_asleep', 'Switched off', L], ['bleep_home', 'Charging at home', L + 20]]),
   faces: faceShelf(),
   dress: shelf('dress-up.render', [['bleep_red', 'Party hat', L], ['bleep_blue', 'Top hat', L + 10], ['bleep_lime', 'Antenna, heart', L + 10], ['bleep_yellow', 'Star sticker', L - 30], ['bleep_magenta', 'Party hat, bolt', L], ['bleep_cyan', 'Antenna', L + 10]]),
+  world: shelf('world.render', [['bleep_abandoned', 'Abandoned, long ago', L], ['bleep_dancing', 'A record playing', L], ['bleep_asleep', 'Asleep by your bed', L]]),
   parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['power_bank', 'Power Bank', 96], ['homebase_charging', 'Homebase', M]]),
 };
 
@@ -127,5 +128,6 @@ async function shoot(url, selector, name, prep = '') {
 for (const name of Object.keys(PAGES)) await shoot(`/__readme/${name}`, '#art', name === 'banner' ? 'banner' : 'shelf-' + name);
 const DOCS = '/projects/minecraft-mods/bleep/';
 await shoot(DOCS, '#info', 'info-screen');
+await shoot(DOCS, '#bpedia', 'bleepedia');
 
 chrome.kill(); server.close(); process.exit(0);

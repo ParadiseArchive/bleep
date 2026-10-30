@@ -144,6 +144,15 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
             }
             default -> {}
         }
+        if (state.dancing) { // swaying to the music, arms up in turn
+            float beat = age * 0.4f;
+            body.yRot = Mth.sin(beat) * 0.35f;
+            head.zRot = Mth.sin(beat) * 0.2f;
+            rightArm.xRot = -2.2f + Mth.sin(beat * 1.25f) * 0.6f;
+            leftArm.xRot = -2.2f - Mth.sin(beat * 1.25f) * 0.6f;
+            rightArm.zRot = 0.3f;
+            leftArm.zRot = -0.3f;
+        }
         if (state.carrying && emotion != Emotion.GLITCH) { // holding its find out in front
             rightArm.xRot = leftArm.xRot = -1.1f;
             rightArm.zRot = leftArm.zRot = 0;

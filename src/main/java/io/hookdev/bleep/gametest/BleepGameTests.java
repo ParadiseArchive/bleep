@@ -90,6 +90,11 @@ public final class BleepGameTests {
         test("a_new_mob_goes_in_the_bleepedia", BleepGameTests::aNewMobGoesInTheBleepedia, 120);
         test("a_special_block_is_a_find", BleepGameTests::aSpecialBlockIsAFind, 100);
         test("opening_the_bleepedia_reads_the_news", BleepGameTests::openingTheBleepediaReadsTheNews, 20);
+        test("it_dances_to_music", BleepGameTests::itDancesToMusic, 60);
+        test("it_sleeps_by_its_owners_bed", BleepGameTests::itSleepsByItsOwnersBed, 100);
+        test("it_digs_something_up", BleepGameTests::itDigsSomethingUp, 100);
+        test("an_iron_golem_is_its_big_brother", BleepGameTests::anIronGolemIsItsBigBrother, 100);
+        test("an_abandoned_bleep_wakes_with_redstone", BleepGameTests::anAbandonedBleepWakesWithRedstone, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -598,6 +603,58 @@ public final class BleepGameTests {
     }
 
     /** A test player with a core in their hand. */
+    private static void itDancesToMusic(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.setBlock(new BlockPos(6, 0, 1), Blocks.JUKEBOX.defaultBlockState().setValue(net.minecraft.world.level.block.JukeboxBlock.HAS_RECORD, true));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.dancing() && bleep.activity() == Activity.DANCING, "with a record playing close by it should dance");
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.dance")), "its first dance goes in its diary");
+        });
+    }
+
+    private static void itSleepsByItsOwnersBed(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(1.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        BlockPos bed = new BlockPos(1, 0, 1);
+        owner.setSleepingPos(helper.absolutePos(bed)); // in bed (a real bed needs a real night)
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.activity() == Activity.BEDSIDE && bleep.emotion() == Emotion.ASLEEP, "its owner asleep: it sleeps by the bed, it is " + bleep.activity());
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.bedside")), "written in its diary");
+        });
+    }
+
+    private static void itDigsSomethingUp(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.assertTrue(bleep.dig(), "a free bleep may dig");
+        helper.succeedWhen(() -> helper.assertFalse(bleep.getMainHandItem().isEmpty(), "and it should come up with something"));
+    }
+
+    private static void anIronGolemIsItsBigBrother(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> golem = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("iron_golem"));
+        helper.spawnWithNoFreeWill(golem, FAR);
+        helper.succeedWhen(() -> helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.golem")), "meeting a golem goes in its diary"));
+    }
+
+    private static void anAbandonedBleepWakesWithRedstone(GameTestHelper helper) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        io.hookdev.bleep.entity.Abandoned.setUp(bleep, helper.getLevel().getRandom());
+        helper.assertTrue(bleep.abandoned() && bleep.getOwner() == null && bleep.hasCustomName(), "an abandoned bleep is nobody's and has an old name");
+        Player player = player(helper);
+        bleep.mobInteract(player, InteractionHand.MAIN_HAND);
+        helper.assertTrue(bleep.abandoned(), "an empty hand does not wake it");
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.REDSTONE_BLOCK));
+        bleep.mobInteract(player, InteractionHand.MAIN_HAND);
+        helper.assertFalse(bleep.abandoned(), "a block of redstone wakes it");
+        helper.assertTrue(bleep.isOwnedBy(player) && bleep.battery() == BleepEntity.FULL, "it is the player's now, fully charged");
+        helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().startsWith("diary.bleep.past.")), "with its past in its diary");
+        helper.succeed();
+    }
+
     private static Player withCore(GameTestHelper helper) {
         Player player = player(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(BleepContent.BLEEP_CORE.get()));

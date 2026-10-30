@@ -33,6 +33,12 @@ public class Bleep {
                 .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC));
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
+        // now and then an abandoned bleep somewhere out of sight of a player
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) -> {
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.Abandoned.EVERY == 0 && player.tickCount > 0) {
+                io.hookdev.bleep.entity.Abandoned.maybeSpawn(player);
+            }
+        });
         LOGGER.info("Bleep loaded. Bleep bloop.");
     }
 

@@ -24,7 +24,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
 
     public BleepRenderer(EntityRendererProvider.Context context) {
         super(context, new BleepModel(context.bakeLayer(BleepModel.LAYER)), 0.45f);
-        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> state.assembly > 0 ? OFF : DisplayTextures.shows(state.display) ? DisplayTextures.texture(state) : face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
+        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> state.assembly > 0 || state.abandoned ? OFF : DisplayTextures.shows(state.display) ? DisplayTextures.texture(state) : face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
                 new BleepModel(context.bakeLayer(BleepModel.LAYER)), RenderTypes::eyes, false));
         this.addLayer(new ItemInHandLayer<>(this));
         this.addLayer(new AccessoryLayer(this, new AccessoryModel(context.bakeLayer(AccessoryModel.LAYER))));
@@ -70,6 +70,8 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         state.hat = bleep.hat();
         state.sticker = bleep.sticker();
         state.display = bleep.display();
+        state.dancing = bleep.activity() == io.hookdev.bleep.entity.Activity.DANCING;
+        state.abandoned = bleep.activity() == io.hookdev.bleep.entity.Activity.ABANDONED;
         state.name = bleep.hasCustomName() ? bleep.getCustomName().getString() : "BLEEP";
         var home = bleep.home();
         state.homeAngle = home != null && home.dimension().equals(bleep.level().dimension())

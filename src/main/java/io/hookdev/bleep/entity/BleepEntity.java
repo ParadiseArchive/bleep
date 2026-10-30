@@ -85,6 +85,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> STICKER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -137,7 +138,7 @@ public class BleepEntity extends TamableAnimal {
     public static final Map<String, Integer> THOUGHTS = Map.ofEntries(
             Map.entry("happy", 5), Map.entry("excited", 3), Map.entry("sad", 3), Map.entry("angry", 3), Map.entry("bored", 4),
             Map.entry("surprised", 2), Map.entry("tired", 3), Map.entry("asleep", 3), Map.entry("charging", 3), Map.entry("llama", 2),
-            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2));
+            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2), Map.entry("dream", 4), Map.entry("dance", 3));
     /** What it says about a kind of mob it has no line for (another mod's). */
     public static final String UNKNOWN_MOB = "Never seen one of those. Filing it under weird.";
     /** Mobs worth a line in its diary. */
@@ -177,6 +178,10 @@ public class BleepEntity extends TamableAnimal {
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
     private int displayTicks;
+    /** Ticks left of dancing (music close by), of digging something up, and before it gets excited about a golem again. */
+    private int danceTicks, digTicks, golemTicks;
+    /** Asleep next to its owner's bed, while they sleep. */
+    private boolean bedside;
     /** Made in registerGoals, which Minecraft calls from the constructor, before field initialisers run: no initialiser here. */
     private NaughtyGoal naughty;
 
@@ -192,6 +197,7 @@ public class BleepEntity extends TamableAnimal {
     protected void registerGoals() {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new GoHomeGoal());
+        this.goalSelector.addGoal(2, new BedsideGoal());
         this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
         // bleeps are afraid of llamas, for reasons nobody knows
         this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Llama.class, 10, 1.0, 1.3));
@@ -227,6 +233,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(STICKER, -1);
         builder.define(DISPLAY, 0);
         builder.define(NEWS, false);
+        builder.define(ABANDONED, false);
     }
 
     // ---------- what the info screen shows ----------
@@ -300,6 +307,41 @@ public class BleepEntity extends TamableAnimal {
 
     public Memory memory() {
         return memory;
+    }
+
+    public boolean abandoned() {
+        return this.entityData.get(ABANDONED);
+    }
+
+    public void setAbandoned(boolean abandoned) {
+        this.entityData.set(ABANDONED, abandoned);
+        if (abandoned) {
+            setBattery(0);
+            slept = true;
+        }
+    }
+
+    /** A block of redstone wakes an abandoned bleep: it starts up again, and it is the player's, with its past in its diary. */
+    public void repair(Player player) {
+        this.entityData.set(ABANDONED, false);
+        slept = false;
+        setBattery(FULL);
+        tame(player);
+        if (memory.born < 0) memory.born = level().getGameTime();
+        boot();
+        remember("diary.bleep.abandoned", "");
+        remember("diary.bleep.past." + getRandom().nextInt(Abandoned.PASTS), "");
+    }
+
+    /** Starts digging now, if it is free to (tests). */
+    public boolean dig() {
+        if (!mayBeNaughty() || !getMainHandItem().isEmpty()) return false;
+        digTicks = 40;
+        return true;
+    }
+
+    public boolean dancing() {
+        return danceTicks > 0;
     }
 
     /** Something new for its Bleepedia: its owner gets a ! until they have looked. */
@@ -813,6 +855,11 @@ public class BleepEntity extends TamableAnimal {
     public void aiStep() {
         super.aiStep();
         if (level().isClientSide()) return;
+        if (abandoned()) { // switched off, long ago: it waits
+            this.entityData.set(ACTIVITY, Activity.ABANDONED.ordinal());
+            this.entityData.set(EMOTION, Emotion.ASLEEP.ordinal());
+            return;
+        }
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size())); // a bleep from before favourites
         if (assembly() > 0) {
             assembleTick();
@@ -859,6 +906,7 @@ public class BleepEntity extends TamableAnimal {
         }
         lightTheWay();
         tickDisplay(moving);
+        tickWorld(moving);
         if (overchargeTicks > 0 && --overchargeTicks % 10 == 0 && level() instanceof ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.8, getZ(), 2, 0.3, 0.3, 0.3, 0.05);
         }
@@ -926,6 +974,78 @@ public class BleepEntity extends TamableAnimal {
         if (display.ordinal() != this.entityData.get(DISPLAY)) this.entityData.set(DISPLAY, display.ordinal());
     }
 
+    /** Music, a golem, something to dig up. */
+    private void tickWorld(boolean moving) {
+        if (danceTicks > 0) danceTicks--;
+        if (golemTicks > 0) golemTicks--;
+        if (slept || bedside) return;
+        if (tickCount % 20 == 0 && jukeboxPlaying()) { // music: dance
+            if (danceTicks == 0) {
+                rememberFirst("dance", "diary.bleep.dance", "");
+                if (!level().getEntitiesOfClass(net.minecraft.world.entity.animal.allay.Allay.class, getBoundingBox().inflate(8)).isEmpty()) {
+                    pinThought("thought.bleep.dance.allay");
+                }
+            }
+            danceTicks = 60;
+        }
+        if (golemTicks == 0 && tickCount % 40 == 10) { // big brother
+            var golem = level().getEntitiesOfClass(net.minecraft.world.entity.animal.golem.IronGolem.class, getBoundingBox().inflate(10)).stream().findFirst();
+            if (golem.isPresent()) {
+                getLookControl().setLookAt(golem.get());
+                feel(Emotion.EXCITED, 40);
+                pinThought("thought.bleep.golem." + getRandom().nextInt(2));
+                rememberFirst("golem", "diary.bleep.golem", "");
+                golemTicks = 2400;
+            }
+        }
+        if (digTicks > 0) { // digging: bits of the ground fly, then it has found something
+            if (level() instanceof ServerLevel server && tickCount % 5 == 0) {
+                server.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, level().getBlockState(blockPosition().below())),
+                        getX(), getY() + 0.1, getZ(), 6, 0.3, 0.1, 0.3, 0.1);
+            }
+            if (--digTicks == 0) {
+                setItemSlot(EquipmentSlot.MAINHAND, dugUp());
+                pinThought("thought.bleep.dig");
+                feel(Emotion.EXCITED, 40);
+            }
+            return;
+        }
+        if (tickCount % 600 == 300 && !moving && quietTicks > 200 && getMainHandItem().isEmpty() && mayBeNaughty() && soft(level().getBlockState(blockPosition().below()))
+                && getRandom().nextFloat() < 0.15f) {
+            digTicks = 40;
+        }
+    }
+
+    /** What it digs up: mostly bits and bobs, now and then something nice. */
+    private ItemStack dugUp() {
+        float roll = getRandom().nextFloat();
+        if (roll < 0.03f) return new ItemStack(Items.EMERALD);
+        if (roll < 0.15f) return new ItemStack(Items.GOLD_NUGGET, 1 + getRandom().nextInt(3));
+        if (roll < 0.35f) return new ItemStack(Items.FLINT);
+        if (roll < 0.55f) return new ItemStack(Items.BONE);
+        if (roll < 0.75f) return new ItemStack(Items.CLAY_BALL, 2);
+        return new ItemStack(Items.STICK);
+    }
+
+    private static boolean soft(BlockState state) {
+        return state.is(net.minecraft.tags.BlockTags.DIRT) || state.is(net.minecraft.tags.BlockTags.SAND) || state.is(Blocks.GRAVEL);
+    }
+
+    /** A jukebox close by with a record in it. */
+    private boolean jukeboxPlaying() {
+        for (BlockPos pos : BlockPos.betweenClosed(blockPosition().offset(-6, -2, -6), blockPosition().offset(6, 3, 6))) {
+            BlockState state = level().getBlockState(pos);
+            if (state.getBlock() instanceof net.minecraft.world.level.block.JukeboxBlock && state.getValue(net.minecraft.world.level.block.JukeboxBlock.HAS_RECORD)) return true;
+        }
+        return false;
+    }
+
+    /** Its owner asleep in bed, in this world and not too far: it goes to sleep next to them. */
+    private @Nullable BlockPos ownersBed() {
+        if (!(getOwner() instanceof Player owner) || !owner.isSleeping() || distanceToSqr(owner) > 32 * 32) return null;
+        return owner.getSleepingPos().orElse(null);
+    }
+
     /** A stubborn turn on the spot, then it does what it was told. */
     private void dawdle() {
         getNavigation().stop();
@@ -939,7 +1059,7 @@ public class BleepEntity extends TamableAnimal {
     /** It is standing still while it dawdles. */
     @Override
     protected boolean isImmobile() {
-        return super.isImmobile() || asleep() || dawdleTicks > 0 || assembly() > 0;
+        return super.isImmobile() || asleep() || dawdleTicks > 0 || assembly() > 0 || bedside || digTicks > 0 || abandoned();
     }
 
     /** A new kind of mob in sight: it goes to have a look (ScanGoal), then thinks something about it. */
@@ -1067,8 +1187,9 @@ public class BleepEntity extends TamableAnimal {
     }
 
     private Emotion currentEmotion() {
-        if (slept) return Emotion.ASLEEP;
+        if (slept || bedside) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
+        if (danceTicks > 0) return Emotion.EXCITED;
         if (overchargeTicks > 0) return (overchargeTicks / 10) % 2 == 0 ? Emotion.GLITCH : Emotion.EXCITED;
         if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
@@ -1080,7 +1201,10 @@ public class BleepEntity extends TamableAnimal {
         if (moodTicks > 0 && mood == Emotion.BOOT) return Activity.STARTING;
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
+        if (bedside) return Activity.BEDSIDE;
         if (dawdleTicks > 0) return Activity.DAWDLING;
+        if (digTicks > 0) return Activity.DIGGING;
+        if (danceTicks > 0) return Activity.DANCING;
         if (getTarget() != null) return Activity.FIGHTING;
         if (overchargeTicks > 0) return Activity.OVERCHARGED;
         if (naughty.busy()) return Activity.NAUGHTY;
@@ -1106,7 +1230,7 @@ public class BleepEntity extends TamableAnimal {
             pinTicks--;
             return;
         }
-        String kind = emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
+        String kind = activity == Activity.BEDSIDE ? "dream" : activity == Activity.DANCING ? "dance" : emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
                 : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : activity == Activity.OVERCHARGED ? "overcharged"
                 : emotion == Emotion.BOOT ? "excited" : emotion.texture();
         // in a thunderstorm it hopes for lightning
@@ -1158,6 +1282,16 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+        if (abandoned()) {
+            if (level().isClientSide()) return InteractionResult.SUCCESS;
+            if (stack.is(Items.REDSTONE_BLOCK)) {
+                stack.consume(1, player);
+                repair(player);
+            } else {
+                player.sendOverlayMessage(Component.translatable("message.bleep.abandoned", getDisplayName()));
+            }
+            return InteractionResult.SUCCESS;
+        }
         if (!isOwnedBy(player)) return super.mobInteract(player, hand);
         if (!stack.isEmpty()) {
             if (level().isClientSide()) return super.mobInteract(player, hand);
@@ -1209,7 +1343,7 @@ public class BleepEntity extends TamableAnimal {
     /** Now and then it chatters, in the voice of how it feels; not while it is switched off or being built. */
     @Override
     protected @Nullable SoundEvent getAmbientSound() {
-        if (asleep() || assembly() > 0) return null;
+        if (asleep() || assembly() > 0 || abandoned()) return null;
         var sound = BleepContent.VOICE.get(emotion());
         return sound == null ? null : sound.get();
     }
@@ -1260,6 +1394,7 @@ public class BleepEntity extends TamableAnimal {
         output.putLong("last_together_day", lastTogetherDay);
         memory.save(output);
         output.putBoolean("news", news());
+        output.putBoolean("abandoned", abandoned());
     }
 
     @Override
@@ -1287,11 +1422,12 @@ public class BleepEntity extends TamableAnimal {
         lastTogetherDay = input.getLongOr("last_together_day", -1);
         memory.load(input);
         this.entityData.set(NEWS, input.getBooleanOr("news", false));
+        this.entityData.set(ABANDONED, input.getBooleanOr("abandoned", false));
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !isOrderedToSit() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy();
+        return !slept && !isOrderedToSit() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0;
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -1322,6 +1458,51 @@ public class BleepEntity extends TamableAnimal {
                 dock();
             } else if (ticks % 20 == 1) {
                 getNavigation().moveTo(pos.getX() + 0.5, pos.getY() + 0.125, pos.getZ() + 0.5, 1.0);
+            }
+        }
+    }
+
+    /** Its owner went to bed: it drives to the bed and sleeps beside it until morning. */
+    private class BedsideGoal extends Goal {
+        private int ticks;
+
+        BedsideGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return !slept && !goingHome && getTarget() == null && ownersBed() != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return canUse();
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+        }
+
+        @Override
+        public void stop() {
+            if (bedside) { // morning
+                bedside = false;
+                feel(Emotion.HAPPY, 20);
+            }
+        }
+
+        @Override
+        public void tick() {
+            BlockPos bed = ownersBed();
+            if (bed == null || bedside) return;
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(bed)) < 2.5 * 2.5 || ++ticks > 400) {
+                getNavigation().stop();
+                bedside = true;
+                rememberFirst("bedside", "diary.bleep.bedside", "");
+            } else if (ticks % 5 == 1) {
+                getNavigation().moveTo(bed.getX() + 0.5, bed.getY(), bed.getZ() + 0.5, 1.0);
             }
         }
     }

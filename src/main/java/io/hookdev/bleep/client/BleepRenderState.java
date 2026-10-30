@@ -18,4 +18,6 @@ public class BleepRenderState extends ArmedEntityRenderState {
     public io.hookdev.bleep.entity.Display display = io.hookdev.bleep.entity.Display.FACE;
     public String name = "";
     public float homeAngle = Float.NaN;
+    /** Dancing to music; switched off and forgotten (an abandoned bleep). */
+    public boolean dancing, abandoned;
 }

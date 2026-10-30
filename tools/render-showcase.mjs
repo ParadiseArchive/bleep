@@ -363,6 +363,11 @@ for (const [name, pose] of DRESSED) {
   MODELS.set(name, bleepElements(pose));
   render(name, [{ model: name, xf: big(), tints: [DYES[pose.color]] }], 2);
 }
+// out in the world: an abandoned one (switched off, paint faded in the sun) and one dancing to a record
+MODELS.set('bleep_abandoned', bleepElements({ color: 'faded', arms: 0.15, head: { x: -0.35, z: -0.15 }, face: 'off' }));
+render('bleep_abandoned', [{ model: 'bleep_abandoned', xf: big(), tints: [[0x8a, 0x6a, 0x4a]] }], 2);
+MODELS.set('bleep_dancing', bleepElements({ color: 'orange', arms: -0.2, armSpread: 2.1, head: { x: 0, z: 0.25 }, face: 'excited', hat: 'party_hat' }));
+render('bleep_dancing', [{ model: 'bleep_dancing', xf: big(), tints: [DYES.orange] }], 2);
 // being put together: its tracks and body are on, the arms and head still to come
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);

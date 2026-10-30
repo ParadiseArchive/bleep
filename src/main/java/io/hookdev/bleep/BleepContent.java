@@ -1,5 +1,6 @@
 package io.hookdev.bleep;
 
+import io.hookdev.bleep.block.HomebaseBlock;
 import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.item.BleepCoreItem;
 import net.minecraft.core.registries.Registries;
@@ -10,14 +11,19 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /** Everything Bleep adds to the game. */
 public final class BleepContent {
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Bleep.MODID);
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, Bleep.MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Bleep.MODID);
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Bleep.MODID);
@@ -34,16 +40,26 @@ public final class BleepContent {
     public static final DeferredItem<BleepCoreItem> BLEEP_CORE = ITEMS.registerItem("bleep_core", BleepCoreItem::new,
             p -> p.stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
+    /** A bleep's charging pad: an empty bleep goes there to charge, and the Go Home button sends it there. */
+    public static final DeferredBlock<HomebaseBlock> HOMEBASE = BLOCKS.registerBlock("homebase", HomebaseBlock::new,
+            p -> p.mapColor(MapColor.METAL).strength(2.0f, 6.0f).sound(SoundType.METAL).noOcclusion()
+                    .lightLevel(state -> state.getValue(HomebaseBlock.CHARGING) ? 7 : 0));
+    public static final DeferredItem<BlockItem> HOMEBASE_ITEM = ITEMS.registerSimpleBlockItem(HOMEBASE);
+
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.bleep"))
             .withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
             .icon(() -> BLEEP_CORE.get().getDefaultInstance())
-            .displayItems((parameters, output) -> output.accept(BLEEP_CORE.get()))
+            .displayItems((parameters, output) -> {
+                output.accept(BLEEP_CORE.get());
+                output.accept(HOMEBASE_ITEM.get());
+            })
             .build());
 
     private BleepContent() {}
 
     public static void register(IEventBus modEventBus) {
+        BLOCKS.register(modEventBus);
         ENTITIES.register(modEventBus);
         ITEMS.register(modEventBus);
         TABS.register(modEventBus);

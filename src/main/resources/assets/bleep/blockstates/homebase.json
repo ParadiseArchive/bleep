@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "charging=false,facing=north": {
+      "model": "bleep:block/homebase"
+    },
+    "charging=true,facing=north": {
+      "model": "bleep:block/homebase_charging"
+    },
+    "charging=false,facing=east": {
+      "model": "bleep:block/homebase",
+      "y": 90
+    },
+    "charging=true,facing=east": {
+      "model": "bleep:block/homebase_charging",
+      "y": 90
+    },
+    "charging=false,facing=south": {
+      "model": "bleep:block/homebase",
+      "y": 180
+    },
+    "charging=true,facing=south": {
+      "model": "bleep:block/homebase_charging",
+      "y": 180
+    },
+    "charging=false,facing=west": {
+      "model": "bleep:block/homebase",
+      "y": 270
+    },
+    "charging=true,facing=west": {
+      "model": "bleep:block/homebase_charging",
+      "y": 270
+    }
+  }
+}

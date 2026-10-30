@@ -7,6 +7,7 @@ import { deflateSync } from 'node:zlib';
 
 const ROOT = 'src/main/resources';
 const ASSETS = join(ROOT, 'assets/bleep');
+const DATA = join(ROOT, 'data/bleep');
 
 function write(path, content) {
   mkdirSync(dirname(path), { recursive: true });
@@ -195,6 +196,67 @@ texture('item/bleep_core', 16, 16, g => {
 json(join(ASSETS, 'models/item/bleep_core.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/bleep_core' } });
 item('bleep_core', 'bleep:item/bleep_core');
 
+// ---------- the homebase ----------
+// a charging pad (1..15 across, 2 high) with a post at the back (5..11 across, 12..15 deep, up to 14): the front faces north
+texture('block/homebase_pad', 16, 16, g => {
+  g.rect(0, 0, 16, 16, DARK);
+  g.rect(1, 1, 14, 14, WHITE_EDGE); g.rect(2, 2, 12, 12, DARK);
+  g.rect(3, 3, 2, 10, TREAD); g.rect(11, 3, 2, 10, TREAD);       // where the tracks stand
+  g.rect(7, 6, 2, 4, '#1f9aa0'); g.set(7, 6, '#2de2e6');           // the contact in the middle
+});
+texture('block/homebase_side', 16, 16, g => {
+  g.rect(0, 0, 16, 16, WHITE);
+  for (let x = 0; x < 16; x++) { g.set(x, 0, WHITE_SHADE); g.set(x, 15, WHITE_EDGE); g.set(x, 14, DARK); }
+  g.rect(0, 6, 16, 1, SEAM);
+});
+for (const [name, light] of [['homebase_post', '#1a3a3d'], ['homebase_post_on', GLOW]]) {
+  texture('block/' + name, 16, 16, g => {
+    g.rect(0, 0, 16, 16, WHITE);
+    g.rect(5, 0, 6, 1, WHITE_SHADE);
+    g.rect(7, 3, 2, 8, SCREEN); g.rect(7, 4, 2, 6, light);           // the charge light
+    g.set(7, 1, GREY); g.set(8, 1, GREY);
+  });
+}
+const PAD = { from: [1, 0, 1], to: [15, 2, 15], faces: {
+  up: { uv: [1, 1, 15, 15], texture: '#pad' }, down: { uv: [1, 1, 15, 15], texture: '#side' },
+  north: { uv: [1, 14, 15, 16], texture: '#side' }, south: { uv: [1, 14, 15, 16], texture: '#side' },
+  east: { uv: [1, 14, 15, 16], texture: '#side' }, west: { uv: [1, 14, 15, 16], texture: '#side' } } };
+const POST = { from: [5, 2, 12], to: [11, 14, 15], faces: {
+  north: { uv: [5, 2, 11, 14], texture: '#post' }, south: { uv: [5, 2, 11, 14], texture: '#side' },
+  east: { uv: [12, 2, 15, 14], texture: '#side' }, west: { uv: [1, 2, 4, 14], texture: '#side' },
+  up: { uv: [5, 12, 11, 15], texture: '#side' } } };
+const homebaseTextures = post => ({ particle: 'bleep:block/homebase_side', pad: 'bleep:block/homebase_pad', side: 'bleep:block/homebase_side', post: 'bleep:block/' + post });
+json(join(ASSETS, 'models/block/homebase.json'), { parent: 'minecraft:block/block', textures: homebaseTextures('homebase_post'), elements: [PAD, POST] });
+json(join(ASSETS, 'models/block/homebase_charging.json'), { parent: 'bleep:block/homebase', textures: homebaseTextures('homebase_post_on') });
+const YAW = { north: 0, east: 90, south: 180, west: 270 };
+json(join(ASSETS, 'blockstates/homebase.json'), { variants: Object.fromEntries(Object.entries(YAW).flatMap(([facing, y]) => [false, true].map(on =>
+  ['charging=' + on + ',facing=' + facing, { model: 'bleep:block/homebase' + (on ? '_charging' : ''), ...(y ? { y } : {}) }]))) });
+item('homebase', 'bleep:block/homebase');
+json(join(DATA, 'recipe/homebase.json'), {
+  type: 'minecraft:crafting_shaped', category: 'misc',
+  key: { L: 'minecraft:lightning_rod', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block', S: 'minecraft:smooth_stone_slab' },
+  pattern: [' L ', 'IRI', 'SSS'], result: { count: 1, id: 'bleep:homebase' },
+});
+json(join(DATA, 'loot_table/blocks/homebase.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/homebase',
+  pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:homebase' }] }] });
+json(join(ROOT, 'data/minecraft/tags/block/mineable/pickaxe.json'), { values: ['bleep:homebase'] });
+
+// ---------- what bleeps think (thought.bleep.<kind>.<n>; the counts are THOUGHTS in BleepEntity) ----------
+const THOUGHTS = {
+  happy: ['Beep boop. All systems happy.', 'I like it here. I like it everywhere, actually.', 'My tracks are clean. My screen is clean. Life is good.',
+    'Is that a new block? I love new blocks.', 'Following you is my favourite hobby.'],
+  excited: ['BLEEP!', 'Best. Day. Ever.', 'Again! Do that again!'],
+  sad: ['My screen feels a bit dim today.', 'I will be fine. Probably.', 'Sad bleep noises.'],
+  angry: ['Hey! I felt that.', 'Writing this down in my log. Twice.', 'Grr. That is my angry beep.'],
+  bored: ['Counting blocks. 1. 2. 3... Still 3.', 'I could be playing tic-tac-toe right now.', 'Is it adventure time yet?', 'Nothing is happening. I checked twice.'],
+  surprised: ['Whoa!', 'What was THAT?'],
+  tired: ['Need... power...', 'Battery low. Optimism also low.', 'If I stop moving, that is a feature.'],
+  asleep: ['Zzz... electric sheep... zzz', 'Zzz... a cow with wheels... zzz', 'Zzz...'],
+  charging: ['Mmm. Fresh electrons.', 'Charging. Please do not unplug.', 'Home sweet homebase.'],
+  llama: ['It is watching. It knows. Do not move.', 'Llama. LLAMA. Hiding now.'],
+};
+const thoughtLines = Object.fromEntries(Object.entries(THOUGHTS).flatMap(([kind, lines]) => lines.map((line, n) => ['thought.bleep.' + kind + '.' + n, line])));
+
 // ---------- language ----------
 json(join(ASSETS, 'lang/en_us.json'), {
   'itemGroup.bleep': 'Bleep',
@@ -203,6 +265,21 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'message.bleep.stay': '%s: Stay',
   'message.bleep.follow': '%s: Follow',
   'message.bleep.asleep': '%s is out of battery. Zzz...',
+  'block.bleep.homebase': 'Homebase',
+  'message.bleep.homebase_of': 'Homebase of %s',
+  'message.bleep.homebase_empty': 'No bleep of yours nearby: place it close to your bleep.',
+  'message.bleep.moved_in': '%s moved in!',
+  'message.bleep.no_home': '%s has no homebase yet. Place one near it.',
+  'screen.bleep.follow': 'Follow', 'screen.bleep.stay': 'Stay', 'screen.bleep.go_home': 'Go Home',
+  'screen.bleep.mood': 'Mood', 'screen.bleep.battery': 'Battery', 'screen.bleep.bond': 'Bond',
+  'emotion.bleep.happy': 'Happy', 'emotion.bleep.excited': 'Excited', 'emotion.bleep.sad': 'Sad', 'emotion.bleep.angry': 'Angry',
+  'emotion.bleep.bored': 'Bored', 'emotion.bleep.surprised': 'Surprised', 'emotion.bleep.tired': 'Tired', 'emotion.bleep.asleep': 'Asleep',
+  'emotion.bleep.boot': 'Starting up',
+  'activity.bleep.following': 'Following you', 'activity.bleep.staying': 'Staying here', 'activity.bleep.going_home': 'Driving home',
+  'activity.bleep.charging': 'Charging at home', 'activity.bleep.at_home': 'Resting at home', 'activity.bleep.sleeping': 'Switched off',
+  'activity.bleep.hiding': 'Hiding from a llama', 'activity.bleep.starting': 'Starting up',
+  'bond.bleep.new': 'New', 'bond.bleep.friend': 'Friend', 'bond.bleep.buddy': 'Buddy', 'bond.bleep.best_friend': 'Best friend',
+  ...thoughtLines,
 });
 
 console.log('Bleep assets written.');

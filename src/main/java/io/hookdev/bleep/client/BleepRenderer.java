@@ -20,16 +20,18 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
 
     public BleepRenderer(EntityRendererProvider.Context context) {
         super(context, new BleepModel(context.bakeLayer(BleepModel.LAYER)), 0.45f);
-        this.addLayer(new LivingEntityEmissiveLayer<>(this, BleepRenderer::face, (state, ageInTicks) -> 1.0f,
+        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
                 new BleepModel(context.bakeLayer(BleepModel.LAYER)), RenderTypes::eyes, false));
     }
 
-    /** The face on the display: textures/entity/bleep/face/<emotion>.png, with _blink while it blinks. */
-    private static Identifier face(BleepRenderState state) {
-        Emotion emotion = state.emotion;
-        if (emotion == Emotion.BOOT) return Bleep.id("textures/entity/bleep/face/boot_" + ((int) (state.ageInTicks / 8) % 3) + ".png");
+    /**
+     * The face on the display: textures/entity/bleep/face/<emotion>.png, with _blink while it blinks. Also drawn on
+     * the info screen.
+     */
+    public static Identifier face(Emotion emotion, float ageInTicks, int id) {
+        if (emotion == Emotion.BOOT) return Bleep.id("textures/entity/bleep/face/boot_" + ((int) (ageInTicks / 8) % 3) + ".png");
         boolean blink = emotion != Emotion.ASLEEP && emotion != Emotion.SURPRISED
-                && (int) (state.ageInTicks + state.id * 37) % BLINK_EVERY < BLINK;
+                && (int) (ageInTicks + id * 37) % BLINK_EVERY < BLINK;
         return Bleep.id("textures/entity/bleep/face/" + emotion.texture() + (blink ? "_blink" : "") + ".png");
     }
 

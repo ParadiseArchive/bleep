@@ -39,6 +39,10 @@ public class Bleep {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.Abandoned.EVERY == 0 && player.tickCount > 0) {
                 io.hookdev.bleep.entity.Abandoned.maybeSpawn(player);
             }
+            // and on a clear night, very rarely, a star falls
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.FallingStar.EVERY == 600) {
+                io.hookdev.bleep.entity.FallingStar.maybeFall(player);
+            }
         });
         LOGGER.info("Bleep loaded. Bleep bloop.");
     }

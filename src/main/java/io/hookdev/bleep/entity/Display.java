@@ -24,7 +24,9 @@ public enum Display {
     /** Meeting another bleep again: HI, and a heart. */
     HI,
     /** Its birthday: HAPPY BIRTHDAY, scrolling across. */
-    BIRTHDAY;
+    BIRTHDAY,
+    /** Stars: at full moon, at midnight, all bleeps sing together. */
+    STARS;
 
     private static final Display[] VALUES = values();
 

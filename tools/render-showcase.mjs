@@ -354,6 +354,8 @@ render('bleep_excited', [{ model: 'bleep_excited', xf: big() }], 2);
 MODELS.set('bleep_asleep', bleepElements({ arms: 0, head: { x: 0.45, z: 0.1 }, face: 'asleep' }));
 render('bleep_asleep', [{ model: 'bleep_asleep', xf: big() }], 2);
 render('homebase', [{ model: 'homebase', y: S }], 6);
+render('starstone', [{ model: 'starstone', y: S }], 6);
+render('fallen_star', [{ model: 'fallen_star', y: S }], 6);
 render('homebase_charging', [{ model: 'homebase_charging', y: S }], 6);
 // docked on its homebase: standing on the pad, facing out, charging
 render('bleep_home', [{ model: 'homebase_charging', y: S, xf: big() }, { model: 'bleep', xf: big(2) }], 2);
@@ -389,7 +391,7 @@ render('bleep_dancing', [{ model: 'bleep_dancing', xf: big(), tints: [DYES.orang
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+for (const part of ['star_shard', 'speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -456,6 +458,11 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     const F = { H: '#.##.#####.##.#', A: '####.#####.##.#', P: '####.#####..#..', Y: '#.##.#.#..#..#.' };
     [...'HAPPY'].forEach((ch, i) => [...F[ch]].forEach((p, g) => { if (p === '#') set(1 + i * 4 + g % 3, 2 + Math.floor(g / 3), GLOW); }));
     for (let x = 0; x < 20; x++) set(x, 8, DIM);
+  });
+  screen('trick_stars', (set) => { // full moon, midnight: a little constellation (client/DisplayTextures.stars)
+    const STARS = [[2, 2], [6, 1], [10, 3], [14, 2], [17, 5], [4, 6], [9, 7], [13, 6]];
+    STARS.forEach(([x, y], i) => { const bright = i % 4 === 0; set(x, y, bright ? [255, 255, 255] : GLOW); if (bright) { set(x - 1, y, DIM); set(x + 1, y, DIM); set(x, y - 1, DIM); set(x, y + 1, DIM); } });
+    for (let x = 3; x < 6; x++) set(x, 4, DIM);
   });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
@@ -569,7 +576,9 @@ for (const fileName of readdirSync(RECIPES).sort()) {
     grid.push(id);
   }
   need(r.result.id);
-  recipes[r.result.id] = { grid, count: r.result.count || 1 };
+  const recipe = { grid, count: r.result.count || 1 };
+  recipes[r.result.id] ??= recipe; // the first recipe for an item (by file name), and every recipe under its own name too
+  recipes['bleep:' + fileName.replace('.json', '')] = recipe;
 }
 SCREEN_ITEMS.forEach(need);
 for (const f of finds) { // a few blocks have a special item model (drawn by its own renderer): those show their name only

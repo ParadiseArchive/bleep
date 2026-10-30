@@ -125,6 +125,9 @@ public final class BleepGameTests {
         test("the_stay_radius_can_change", BleepGameTests::theStayRadiusCanChange, 20);
         test("chips_are_installed_for_good", BleepGameTests::chipsAreInstalledForGood, 20);
         test("it_writes_a_letter", BleepGameTests::itWritesALetter, 300);
+        test("it_saw_a_star_fall", BleepGameTests::itSawAStarFall, 20);
+        test("a_fallen_star_holds_shards", BleepGameTests::aFallenStarHoldsShards, 20);
+        test("a_homebase_drops_itself", BleepGameTests::aHomebaseDropsItself, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -864,8 +867,8 @@ public final class BleepGameTests {
         BleepEntity[] b = pair(helper);
         helper.runAfterDelay(80, () -> helper.assertTrue(b[0].startChat(b[1], 4), "two bleeps start a chat")); // after saying hi
         helper.succeedWhen(() -> {
-            helper.assertTrue(b[1].thought().equals("chat.bleep.4.3"), "the other one has the last word, it thinks " + b[1].thought());
-            helper.assertTrue(b[0].activity() == Activity.CHATTING || !b[0].talking(), "chatting while it lasts");
+            // said hi (+1) and had the whole chat (+1); what it thinks last may be a hi from a bleep next door
+            helper.assertTrue(!b[0].talking() && b[0].friendship(b[1]) >= 2 && b[1].friendship(b[0]) >= 2, "after the chat they are better friends, " + b[0].friendship(b[1]));
         });
     }
 
@@ -1039,6 +1042,36 @@ public final class BleepGameTests {
         var book = bleep.getMainHandItem().get(net.minecraft.core.component.DataComponents.WRITTEN_BOOK_CONTENT);
         helper.assertTrue(book != null && book.author().equals(bleep.getName().getString()), "a written book, signed by it");
         helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(s -> s.is(Items.WRITTEN_BOOK)), "and it brings it over"));
+    }
+
+    private static void itSawAStarFall(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.sawStarFall(helper.absolutePos(FAR));
+        helper.assertTrue(bleep.memory().signs == 3 && bleep.news(), "a star fell: three strange signs in its Bleepedia, and news");
+        helper.assertTrue(io.hookdev.bleep.network.BleepediaData.of(bleep).signs() == 3, "sent with its Bleepedia");
+        helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.star")), "and in its diary");
+        for (int i = 0; i < 40; i++) bleep.addSigns(3);
+        helper.assertTrue(bleep.memory().signs == io.hookdev.bleep.entity.Memory.SIGNS, "never more than 64");
+        helper.succeed();
+    }
+
+    private static void aFallenStarHoldsShards(GameTestHelper helper) {
+        // its loot, worked out directly (in the bench a magnet next door might take what falls)
+        int least = Integer.MAX_VALUE, cores = 0;
+        for (int i = 0; i < 40; i++) {
+            var drops = net.minecraft.world.level.block.Block.getDrops(BleepContent.FALLEN_STAR.get().defaultBlockState(), helper.getLevel(), helper.absolutePos(FAR), null);
+            least = Math.min(least, drops.stream().filter(d -> d.is(BleepContent.STAR_SHARD.get())).mapToInt(ItemStack::getCount).sum());
+            if (drops.stream().anyMatch(d -> d.is(BleepContent.BLEEP_CORE.get()))) cores++;
+        }
+        helper.assertTrue(least >= 3, "a fallen star always gives three to five star shards, once only " + least);
+        helper.assertTrue(cores > 5 && cores < 35, "and about half the time a Bleep Core: " + cores + " in 40");
+        helper.succeed();
+    }
+
+    private static void aHomebaseDropsItself(GameTestHelper helper) {
+        var drops = net.minecraft.world.level.block.Block.getDrops(BleepContent.HOMEBASE.get().defaultBlockState(), helper.getLevel(), helper.absolutePos(HOME), null);
+        helper.assertTrue(drops.stream().anyMatch(d -> d.is(BleepContent.HOMEBASE_ITEM.get())), "a broken homebase drops itself (26.1 and 26.3 read its loot table), it gave " + drops);
+        helper.succeed();
     }
 
     private static Player withCore(GameTestHelper helper) {

@@ -99,6 +99,19 @@ public final class BleepContent {
                     .lightLevel(state -> state.getValue(HomebaseBlock.CHARGING) ? 7 : 0));
     public static final DeferredItem<BlockItem> HOMEBASE_ITEM = ITEMS.registerSimpleBlockItem(HOMEBASE);
 
+    /** From the stars: glowing rock with strange signs on it (it lines a crater), and the fallen star in the middle. */
+    public static final DeferredBlock<io.hookdev.bleep.block.StarBlock> STARSTONE = BLOCKS.registerBlock("starstone", p -> new io.hookdev.bleep.block.StarBlock(p, false),
+            p -> p.mapColor(MapColor.COLOR_PURPLE).strength(2.5f, 6.0f).sound(SoundType.AMETHYST).lightLevel(state -> 5).requiresCorrectToolForDrops());
+    public static final DeferredItem<BlockItem> STARSTONE_ITEM = ITEMS.registerSimpleBlockItem(STARSTONE);
+    public static final DeferredBlock<io.hookdev.bleep.block.StarBlock> FALLEN_STAR = BLOCKS.registerBlock("fallen_star", p -> new io.hookdev.bleep.block.StarBlock(p, true),
+            p -> p.mapColor(MapColor.COLOR_LIGHT_BLUE).strength(3.0f, 6.0f).sound(SoundType.AMETHYST).lightLevel(state -> 13).requiresCorrectToolForDrops());
+    public static final DeferredItem<BlockItem> FALLEN_STAR_ITEM = ITEMS.registerSimpleBlockItem(FALLEN_STAR);
+    /** A sliver of a fallen star: eight of them and a block of diamond make a Bleep Core. */
+    public static final DeferredItem<Item> STAR_SHARD = ITEMS.registerSimpleItem("star_shard", p -> p.rarity(Rarity.UNCOMMON));
+    public static final DeferredHolder<EntityType<?>, EntityType<io.hookdev.bleep.entity.FallingStar>> FALLING_STAR = ENTITIES.register("falling_star",
+            id -> EntityType.Builder.<io.hookdev.bleep.entity.FallingStar>of(io.hookdev.bleep.entity.FallingStar::new, MobCategory.MISC).sized(0.5f, 0.5f)
+                    .clientTrackingRange(16).updateInterval(1).build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
     /** Its voice: a blip for every mood (tools/make-sounds.mjs: a new mood needs a new sound), a hurt buzz, and the clunk of being built. */
     public static final Map<Emotion, DeferredHolder<SoundEvent, SoundEvent>> VOICE = new EnumMap<>(Emotion.class);
     static {
@@ -122,6 +135,9 @@ public final class BleepContent {
                 output.accept(BLEEP_TRACKS.get());
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
+                output.accept(STAR_SHARD.get());
+                output.accept(STARSTONE_ITEM.get());
+                output.accept(FALLEN_STAR_ITEM.get());
                 output.accept(POWER_BANK.get());
                 output.accept(BALL.get());
                 CHIPS.values().forEach(item -> output.accept(item.get()));

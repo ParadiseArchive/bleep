@@ -63,6 +63,7 @@ public final class DisplayTextures {
             case TALK -> "talk" + ((int) (state.ageInTicks / 6) % 4);
             case HI -> "hi" + ((int) (state.ageInTicks / 10) % 2);
             case BIRTHDAY -> "birthday" + step;
+            case STARS -> "stars" + ((int) (state.ageInTicks / 5) % 4);
             default -> "face";
         };
     }
@@ -71,6 +72,7 @@ public final class DisplayTextures {
         switch (state.display) {
             case NAME -> ticker(image, state.name, (int) (state.ageInTicks / 3));
             case BIRTHDAY -> ticker(image, "HAPPY BIRTHDAY", (int) (state.ageInTicks / 3));
+            case STARS -> stars(image, (int) (state.ageInTicks / 5) % 4);
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
@@ -221,6 +223,19 @@ public final class DisplayTextures {
         }
         String[] heart = beat ? new String[] {".#.#.", "#####", "#####", ".###.", "..#.."} : new String[] {".....", ".#.#.", ".###.", "..#..", "....."};
         for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++) if (heart[y].charAt(x) == '#') set(image, 12 + x, 2 + y, PINK);
+    }
+
+    // ---------- stars: a little constellation, twinkling ----------
+
+    private static void stars(NativeImage image, int twinkle) {
+        int[][] stars = {{2, 2}, {6, 1}, {10, 3}, {14, 2}, {17, 5}, {4, 6}, {9, 7}, {13, 6}};
+        for (int i = 0; i < stars.length; i++) {
+            int x = stars[i][0], y = stars[i][1];
+            boolean bright = (i + twinkle) % 4 == 0;
+            set(image, x, y, bright ? 0xFFFFFFFF : GLOW);
+            if (bright) { set(image, x - 1, y, DIM); set(image, x + 1, y, DIM); set(image, x, y - 1, DIM); set(image, x, y + 1, DIM); }
+        }
+        for (int x = 3; x < 6; x++) set(image, x, 4, DIM); // a line between two of them
     }
 
     // ---------- news in the Bleepedia ----------

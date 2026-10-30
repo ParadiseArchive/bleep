@@ -54,6 +54,9 @@ public final class Memory {
     /** The game time it was put together, the last time its owner opened the Bleepedia, and its stats. */
     public long born = -1, lastOpened = -1;
     public int daysTogether, fightsWon, timesEmpty;
+    /** Strange signs on the ??? page of its Bleepedia: they come one by one, from the stars (SIGNS at most). */
+    public int signs;
+    public static final int SIGNS = 64;
     public double distance;
     /** Things that only make the diary the first time. */
     public final List<String> firsts = new ArrayList<>();
@@ -102,6 +105,7 @@ public final class Memory {
         output.putInt("fights_won", fightsWon);
         output.putInt("times_empty", timesEmpty);
         output.putDouble("distance", distance);
+        output.putInt("signs", signs);
         output.store("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC), friends);
     }
 
@@ -122,6 +126,7 @@ public final class Memory {
         fightsWon = input.getIntOr("fights_won", 0);
         timesEmpty = input.getIntOr("times_empty", 0);
         distance = input.getDoubleOr("distance", 0);
+        signs = input.getIntOr("signs", 0);
         friends.clear();
         input.read("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC)).ifPresent(friends::putAll);
     }

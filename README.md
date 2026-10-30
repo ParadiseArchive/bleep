@@ -27,8 +27,8 @@ thing. A new bleep sometimes dawdles over what you ask; a best friend hardly eve
 
 ## The heart of it: build your own
 
-A bleep is made of four parts. The most important one is the core, made of bedrock: find one deep down, or craft it
-if you can spare thirteen diamonds.
+A bleep is made of four parts. The most important one is the core: warm, humming, and nobody knows what it is made of.
+Find one deep down or in a fallen star, or craft it if you can spare thirteen diamonds (or have eight star shards).
 
 1. Find a **Bleep Core** in the chest of a dungeon or an abandoned mineshaft, or craft one.
 2. Craft its **Display**, its **Tracks** and its **Arms** from iron, redstone, black glass and dried kelp.
@@ -98,6 +98,11 @@ opens Work while it stays: how far it goes from its spot, and its jobs: farmer, 
 Three upgrade chips: speed, shield and a bigger battery. The chip on its info screen shows which are in, and takes one
 out again. And a bleep that likes you writes you a
 letter now and then, from its diary, and brings it over.
+
+### From the stars
+Where do bleeps come from? On a clear night, very rarely, a star falls: a crater of glowing starstone, a fallen star
+in the middle, sometimes with a core inside. Bleeps look up at night, sing together at full moon, and fill a page of
+their Bleepedia with signs nobody can read. Hints, never an answer.
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

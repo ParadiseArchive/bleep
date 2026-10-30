@@ -218,9 +218,9 @@ face('boot_2', f => { f.rect(3, 3, 14, 1, DIM); f.rect(3, 7, 14, 1, DIM); f.rect
 
 // ---------- items ----------
 const item = (name, model) => json(join(ASSETS, 'items', name + '.json'), { model: { type: 'minecraft:model', model } });
-// the Bleep Core: a lump of bedrock with a glowing heart
+// the Bleep Core: a lump of something not from here, deep violet, with a glowing heart
 texture('item/bleep_core', 16, 16, g => {
-  const BED = ['#3a3a3a', '#4c4c4c', '#5e5e5e', '#2a2a2a'];
+  const BED = ['#2a2350', '#3a2f6b', '#4a3d85', '#1c1838'];
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
     const dx = x - 7.5, dy = y - 7.5;
     if (dx * dx + dy * dy > 42) continue;
@@ -380,6 +380,37 @@ const YAW = { north: 0, east: 90, south: 180, west: 270 };
 json(join(ASSETS, 'blockstates/homebase.json'), { variants: Object.fromEntries(Object.entries(YAW).flatMap(([facing, y]) => [false, true].map(on =>
   ['charging=' + on + ',facing=' + facing, { model: 'bleep:block/homebase' + (on ? '_charging' : ''), ...(y ? { y } : {}) }]))) });
 item('homebase', 'bleep:block/homebase');
+
+// ---------- from the stars: starstone (strange signs on it), the fallen star, star shards ----------
+const SIGN = '#2de2e6', SIGN_DIM = '#1f6f86';
+texture('block/starstone', 16, 16, g => {
+  const ROCK = ['#241d40', '#2d2550', '#362c60', '#1d1834'];
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) g.set(x, y, ROCK[(x * 5 + y * 11 + ((x * y) % 7)) % 4]);
+  // signs nobody can read
+  for (const [x, y, w, h] of [[2, 2, 1, 4], [2, 5, 3, 1], [9, 2, 4, 1], [12, 2, 1, 3], [10, 4, 1, 1], [3, 10, 1, 4], [4, 10, 2, 1], [8, 9, 1, 1], [9, 10, 1, 3], [10, 12, 3, 1], [13, 8, 1, 2]]) g.rect(x, y, w, h, SIGN);
+  for (const [x, y] of [[6, 7], [14, 13], [1, 14], [7, 1]]) g.set(x, y, SIGN_DIM);
+});
+texture('block/fallen_star', 16, 16, g => {
+  g.rect(0, 0, 16, 16, '#1d1834');
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
+    if (d < 3) g.set(x, y, '#ffffff'); else if (d < 5) g.set(x, y, '#8ff7ff'); else if (d < 7) g.set(x, y, '#2de2e6'); else if (d < 8.5) g.set(x, y, '#3a2f6b');
+  }
+  for (const [x, y] of [[1, 1], [14, 2], [2, 13], [13, 14], [7, 0], [0, 8]]) g.set(x, y, '#8ff7ff'); // rays
+});
+texture('item/star_shard', 16, 16, g => {
+  const rows = ['......#.', '.....##.', '....###.', '...####.', '..####..', '.####...', '.###....', '.##.....'];
+  rows.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') g.set(4 + x, 4 + y, (x + y) % 3 ? '#2de2e6' : '#8ff7ff'); }));
+  g.set(10, 4, '#ffffff'); g.set(6, 8, '#ffffff');
+});
+for (const name of ['starstone', 'fallen_star']) {
+  json(join(ASSETS, 'models/block/' + name + '.json'), { parent: 'minecraft:block/cube_all', textures: { all: 'bleep:block/' + name } });
+  json(join(ASSETS, 'blockstates/' + name + '.json'), { variants: { '': { model: 'bleep:block/' + name } } });
+  item(name, 'bleep:block/' + name);
+}
+json(join(ASSETS, 'models/item/star_shard.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/star_shard' } });
+item('star_shard', 'bleep:item/star_shard');
+// what starstone and the fallen star give is worked out in block/StarBlock (26.1 and 26.3 write loot tables differently)
 json(join(DATA, 'recipe/homebase.json'), {
   type: 'minecraft:crafting_shaped', category: 'misc',
   key: { L: 'minecraft:lightning_rod', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block', S: 'minecraft:smooth_stone_slab' },
@@ -387,7 +418,10 @@ json(join(DATA, 'recipe/homebase.json'), {
 });
 json(join(DATA, 'loot_table/blocks/homebase.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/homebase',
   pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:homebase' }] }] });
-json(join(ROOT, 'data/minecraft/tags/block/mineable/pickaxe.json'), { values: ['bleep:homebase'] });
+json(join(ROOT, 'data/minecraft/tags/block/mineable/pickaxe.json'), { values: ['bleep:homebase', 'bleep:starstone', 'bleep:fallen_star'] });
+// the core from the stars: eight star shards round a block of diamond
+json(join(DATA, 'recipe/bleep_core_from_stars.json'), { type: 'minecraft:crafting_shaped', category: 'misc',
+  key: { S: 'bleep:star_shard', B: 'minecraft:diamond_block' }, pattern: ['SSS', 'SBS', 'SSS'], result: { count: 1, id: 'bleep:bleep_core' } });
 
 // ---------- what bleeps think (thought.bleep.<kind>.<n>; the counts are THOUGHTS in BleepEntity) ----------
 const THOUGHTS = {
@@ -528,7 +562,11 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'item.bleep.bleep_display': 'Bleep Display',
   'item.bleep.bleep_tracks': 'Bleep Tracks',
   'item.bleep.bleep_arms': 'Bleep Arms',
-  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in dungeons and abandoned mineshafts,\nor crafted, at a price.',
+  'tooltip.bleep.bleep_core': 'The heart of a bleep. Warm, and humming.\nNobody knows what it is made of.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in dungeons, abandoned mineshafts\nand fallen stars, or crafted, at a price.',
+  'block.bleep.starstone': 'Starstone', 'block.bleep.fallen_star': 'Fallen Star', 'item.bleep.star_shard': 'Star Shard',
+  'tooltip.bleep.starstone': 'Glowing rock from a fallen star.\nThe signs on it are no alphabet anybody knows.',
+  'tooltip.bleep.fallen_star': 'Still warm. It hums.\nMine it: star shards, and maybe a Bleep Core.',
+  'tooltip.bleep.star_shard': 'A sliver of a fallen star.\nEight round a block of diamond: a Bleep Core.',
   'tooltip.bleep.bleep_display': 'A bleep\'s face.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nOne of the three parts a core needs.',
@@ -537,7 +575,8 @@ json(join(ASSETS, 'lang/en_us.json'), {
   // the Bleepedia
   'screen.bleep.bleepedia': 'Bleepedia', 'screen.bleep.bleepedia_of': 'Bleepedia of %s', 'screen.bleep.new': 'NEW',
   'screen.bleep.nothing_yet': 'Nothing here yet.', 'screen.bleep.day': 'Day %s',
-  'screen.bleep.tab.mobs': 'Mobs', 'screen.bleep.tab.biomes': 'Biomes', 'screen.bleep.tab.finds': 'Finds', 'screen.bleep.tab.about': 'About me', 'screen.bleep.tab.diary': 'Diary',
+  'screen.bleep.tab.mobs': 'Mobs', 'screen.bleep.tab.biomes': 'Biomes', 'screen.bleep.tab.finds': 'Finds', 'screen.bleep.tab.about': 'About', 'screen.bleep.tab.signs': '???',
+  'screen.bleep.signs.hint': 'It does not know what they mean either.', 'screen.bleep.tab.diary': 'Diary',
   'screen.bleep.about.day': 'Day of its life', 'screen.bleep.about.together': 'Days together', 'screen.bleep.about.distance': 'Driven',
   'screen.bleep.about.mobs': 'Mobs met', 'screen.bleep.about.biomes': 'Biomes seen', 'screen.bleep.about.finds': 'Finds',
   'screen.bleep.about.fights': 'Fights won', 'screen.bleep.about.empty': 'Ran empty', 'screen.bleep.about.bond': 'Bond',
@@ -633,6 +672,19 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'diary.bleep.farmer': 'First harvest. I am a farmer now. Moo. No, wait.', 'diary.bleep.tidy': 'Tidied up for the first time. It felt good. Do not tell anyone.',
   'diary.bleep.guard': 'Kept watch at night and sounded the alarm. I was very brave.',
   'activity.bleep.working': 'Working', 'activity.bleep.hide_and_seek': 'Playing hide and seek', 'activity.bleep.trick': 'Doing a trick',
+  // the stars: hints, never an answer
+  'thought.bleep.star.fell': 'Did you see that? It came down over there. It... called me.',
+  'thought.bleep.stars.0': 'Something up there knows my name.',
+  'thought.bleep.stars.1': 'That one blinked at me. Stars do not blink. Do they?',
+  'thought.bleep.stars.2': 'I feel like I have been up there. That is silly. Is it?',
+  'thought.bleep.stars.3': 'So many lights. One of them is warm. I can tell.',
+  'thought.bleep.stars.4': 'Shh. I am listening. To what? I do not know yet.',
+  'thought.bleep.chorus': 'We all beeped at once. Nobody started it. Nobody stopped it.',
+  'diary.bleep.star': 'A star fell close by. I know that sound. I do not know how I know.',
+  'diary.bleep.stars': 'Looked at the stars tonight. They looked back.',
+  'diary.bleep.chorus': 'Full moon, midnight. We all beeped together. None of us knows why.',
+  'message.bleep.star_fell': 'A star fell from the sky, not far from here...',
+  'activity.bleep.stargazing': 'Looking at the stars',
   'diary.bleep.ball': 'We played ball for the first time. I brought it back. Every. Single. Time.',
   'diary.bleep.friend': 'Played with another bleep: %s. We are friends now. I think.',
   'diary.bleep.squabble': '%s took MY find. I saw it first. I am writing this down.',
@@ -840,7 +892,8 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'jade.bleep.nobody_home': 'Nobody lives here yet',
   'config.jade.plugin_bleep.bleep': 'Bleep: battery, mood and bond',
   'config.jade.plugin_bleep.homebase': 'Bleep: who lives in a homebase',
-  'jei.bleep.bleep_core': 'The heart of a bleep, made of bedrock. Found in dungeon chests (one in four) and abandoned mineshaft chests (about one in seven), or crafted from thirteen diamonds and four obsidian.\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
+  'jei.bleep.star_shard': 'A sliver of a fallen star. On a clear night, very rarely, a star falls near you and leaves a small crater of starstone, with a fallen star in the middle. Mine them: starstone gives a shard or two, the fallen star three to five, and half the time a Bleep Core.\n\nEight shards round a block of diamond make a Bleep Core.',
+  'jei.bleep.bleep_core': 'The heart of a bleep. Warm, humming, and nobody knows what it is made of. Found in dungeon chests (one in four), abandoned mineshaft chests (about one in seven) and, half the time, in a fallen star; or crafted from thirteen diamonds and four obsidian, or from eight star shards round a block of diamond.\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
   'jei.bleep.bleep_display': 'A bleep\'s face. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_tracks': 'What a bleep drives on. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_arms': 'Big enough to hold things, like its favourite item when it brings it to you. One of the three parts a Bleep Core needs.',

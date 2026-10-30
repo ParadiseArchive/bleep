@@ -10,7 +10,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## Build your own
 
-- **Find the core.** The Bleep Core, the heart of a bleep, made of bedrock, waits in the chests of dungeons and abandoned mineshafts. Or craft one, if you can spare thirteen diamonds.
+- **Find the core.** The Bleep Core, the heart of a bleep (nobody knows what it is made of), waits in the chests of dungeons and abandoned mineshafts, and in fallen stars. Or craft one, if you can spare thirteen diamonds, or eight star shards and a block of diamond.
 - **Craft the rest.** A Display, Tracks and Arms, from iron, redstone, black glass and dried kelp.
 - **Build it.** Right-click the ground with the core, the other three parts in your inventory.
 - **Put together part by part.** The tracks go down first, then its body, its arms and its head, each with a clunk and a few sparks, and then its screen comes on for the very first time.
@@ -80,6 +80,11 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - **Upgrade chips.** A speed chip, a shield chip (hits cost half) and a battery chip (lasts half as long again). The chip on its info screen shows which are in, and takes one out again.
 - **Letters.** A bleep that is your Friend now and then writes you a letter from its diary, signed, and brings it over.
+
+## From the stars
+
+- **Falling stars.** On a clear night, very rarely, a star falls nearby: a crater of glowing starstone, a fallen star at the bottom with star shards and, half the time, a Bleep Core.
+- **A mystery.** Bleeps look up at the stars at night, sing together at full moon, and fill a page of their Bleepedia with signs nobody can read. Hints, never an answer.
 
 ## The Bleepedia
 

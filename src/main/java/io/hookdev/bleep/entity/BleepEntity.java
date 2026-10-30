@@ -206,6 +206,9 @@ public class BleepEntity extends TamableAnimal {
     /** Long.MIN_VALUE: never with its owner yet. */
     private long lastWithOwner = Long.MIN_VALUE, lastWithOwnerReal = Long.MIN_VALUE, lastBirthday = -1;
     private int welcomeTicks, partyTicks;
+    /** Looking up at the night sky; and the nights it last did that, and sang at full moon. */
+    private int gazeTicks;
+    private long gazeNight = -1, chorusNight = -1;
     public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, MIN_RADIUS = 2, MAX_RADIUS = 16;
     /** Where its work takes it next (a ripe crop, a chest), and how long before it sounds the alarm again. */
     private @Nullable BlockPos workAt;
@@ -951,7 +954,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1075,6 +1078,7 @@ public class BleepEntity extends TamableAnimal {
         tickBirthday();
         tickWork();
         tickTrick();
+        tickStars();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
             io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
@@ -2119,6 +2123,65 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- the stars ----------
+
+    /** A new strange sign on the ??? page of its Bleepedia (or a few). */
+    public void addSigns(int n) {
+        int before = memory.signs;
+        memory.signs = Math.min(Memory.SIGNS, memory.signs + n);
+        if (memory.signs > before) this.entityData.set(NEWS, true);
+    }
+
+    /** It saw a star fall close by: it stares at the spot, and wonders. */
+    public void sawStarFall(BlockPos where) {
+        if (slept || abandoned()) return;
+        getLookControl().setLookAt(net.minecraft.world.phys.Vec3.atCenterOf(where));
+        feel(Emotion.SURPRISED, 60);
+        say("thought.bleep.star.fell");
+        rememberFirst("star", "diary.bleep.star", "");
+        addSigns(3);
+    }
+
+    /** On a clear night it sometimes looks up at the stars, still and quiet; at full moon, at midnight, all bleeps sing together. */
+    private void tickStars() {
+        if (gazeTicks > 0) {
+            gazeTicks--;
+            getNavigation().stop();
+            getLookControl().setLookAt(getX() + getLookAngle().x, getEyeY() + 20, getZ() + getLookAngle().z);
+        }
+        if (slept || abandoned() || level().dimension() != Level.OVERWORLD || !level().isDarkOutside()) return;
+        long clock = level().getOverworldClockTime(), night = clock / 24000, time = clock % 24000;
+        // full moon (phase 0), midnight: the same four notes in every bleep at the same moment
+        if (night % 8 == 0 && time >= 18000 && time < 18060) {
+            int beat = (int) (time - 18000);
+            float[] notes = {1.0f, 1.26f, 1.5f, 2.0f};
+            if (beat % 12 == 0 && beat / 12 < notes.length) playSound(BleepContent.VOICE.get(Emotion.HAPPY).get(), 0.8f, notes[beat / 12]);
+            if (beat == 0) {
+                showDisplay(Display.STARS, 80);
+                if (chorusNight != night) {
+                    chorusNight = night;
+                    pinThought("thought.bleep.chorus");
+                    rememberFirst("chorus", "diary.bleep.chorus", "");
+                    addSigns(2);
+                }
+            }
+        }
+        if (gazeTicks == 0 && tickCount % 600 == 300 && !level().isRaining() && level().canSeeSky(blockPosition().above()) && free() && !busyWithOthers()
+                && quietTicks > 200 && getRandom().nextFloat() < 0.25f) { // looking up
+            gazeTicks = 120;
+            pinThought("thought.bleep.stars." + getRandom().nextInt(5));
+            rememberFirst("stars", "diary.bleep.stars", "");
+            if (gazeNight != night) {
+                gazeNight = night;
+                addSigns(1);
+            }
+        }
+    }
+
+    public boolean stargazing() {
+        return gazeTicks > 0;
+    }
+
     // ---------- welcome home, birthdays ----------
 
     /** Its owner back after a long time away (or logged in again): it races over, over the moon. */
@@ -2179,6 +2242,7 @@ public class BleepEntity extends TamableAnimal {
         feel(Emotion.EXCITED, 100);
         say("thought.bleep.birthday");
         remember("diary.bleep.birthday", String.valueOf(day - 1));
+        addSigns(1);
         if (getOwner() instanceof Player owner) owner.sendSystemMessage(Component.translatable("message.bleep.birthday", getDisplayName(), day - 1));
     }
 
@@ -2247,6 +2311,7 @@ public class BleepEntity extends TamableAnimal {
         if (bedside) return Activity.BEDSIDE;
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
+        if (gazeTicks > 0) return Activity.STARGAZING;
         if (trickTicks > 0) return Activity.TRICK;
         if (workAt != null) return Activity.WORKING;
         if (fightingWith != null) return Activity.SQUABBLING;
@@ -2483,6 +2548,8 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("jobs", jobs());
         output.putInt("stay_radius", stayRadius());
         output.putInt("chips", chips());
+        output.putLong("gaze_night", gazeNight);
+        output.putLong("chorus_night", chorusNight);
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2527,6 +2594,8 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(JOBS, input.getIntOr("jobs", 0));
         this.entityData.set(RADIUS, Mth.clamp(input.getIntOr("stay_radius", STAY_RADIUS), MIN_RADIUS, MAX_RADIUS));
         this.entityData.set(CHIPS, input.getIntOr("chips", 0));
+        gazeNight = input.getLongOr("gaze_night", -1);
+        chorusNight = input.getLongOr("chorus_night", -1);
         this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);

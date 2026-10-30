@@ -34,7 +34,8 @@ public class BleepediaScreen extends Screen {
     private static final int W = 300, H = 214, ROW = 30, TOP = 52;
     private static final int SHELL = 0xFFEEF1F4, SHELL_EDGE = 0xFFB7C0C9, PANEL = 0xFF15181E, CARD = 0xFF22262E, SCREEN = 0xFF08090C;
     private static final int TEXT = 0xFFEEF1F4, DIM = 0xFF8A93A0, GLOW = 0xFF8FF7FF, AMBER = 0xFFFFB547;
-    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary"};
+    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary", "signs"};
+    private static final int SIGNS_TAB = 5, GLYPH_COLS = 8, GLYPH_W = 34, GLYPH_H = 18;
 
     /** One line on a page: an icon (a mob, a block, a colour or nothing), a title, a text, and whether it is found and new. */
     private record Row(@Nullable EntityType<?> mob, @Nullable ItemStack item, int colour, Component title, Component text, boolean known, boolean fresh) {}
@@ -63,7 +64,7 @@ public class BleepediaScreen extends Screen {
         for (int i = 0; i < TABS.length; i++) {
             int t = i;
             Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; open = -1; rebuildWidgets(); })
-                    .bounds(left + 8 + i * 57, top + 24, 55, 16).build();
+                    .bounds(left + 8 + i * 47, top + 24, 45, 16).build();
             button.active = i != tab;
             addRenderableWidget(button);
         }
@@ -163,6 +164,8 @@ public class BleepediaScreen extends Screen {
         }
         pages.add(diary);
         counts[4] = String.valueOf(data.diary().size());
+        pages.add(new ArrayList<>()); // the signs are drawn, not listed
+        counts[SIGNS_TAB] = data.signs() + " / " + Memory.SIGNS;
     }
 
     private static void stat(List<Row> rows, String key, String value) {
@@ -256,6 +259,10 @@ public class BleepediaScreen extends Screen {
         if (count != null && !count.isEmpty()) g.text(font, count, left + W - 10 - font.width(count), top + 10, GLOW, false);
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
 
+        if (tab == SIGNS_TAB) {
+            drawSigns(g);
+            return;
+        }
         List<Row> rows = pages.get(tab);
         int y = top + TOP, x = left + 10, w = W - 20, shown = 0;
         drawn.clear();
@@ -306,6 +313,34 @@ public class BleepediaScreen extends Screen {
             String more = (first + 1) + "-" + (first + shown) + " / " + rows.size();
             g.text(font, more, left + W - 10 - font.width(more), top + H - 2 - 9, DIM, false);
         }
+    }
+
+    /**
+     * The ??? page: 64 places, question marks until a sign appears. The signs are no alphabet anybody knows: each is
+     * a little figure of strokes, always the same for its place, and nobody can read them.
+     */
+    private void drawSigns(GuiGraphicsExtractor g) {
+        drawn.clear();
+        int x0 = left + 14, y0 = top + TOP;
+        for (int i = 0; i < Memory.SIGNS; i++) {
+            int x = x0 + (i % GLYPH_COLS) * GLYPH_W, y = y0 + (i / GLYPH_COLS) * GLYPH_H;
+            if (i >= data.signs()) {
+                g.text(font, "?", x + 13, y + 4, 0xFF3A404A, false);
+                continue;
+            }
+            long seed = i * 2654435761L + 97;
+            for (int s = 0; s < 4; s++) { // a few strokes on a 5 x 7 grid
+                seed = seed * 6364136223846793005L + 1442695040888963407L;
+                int a = (int) ((seed >>> 33) % 35), len = 2 + (int) ((seed >>> 20) & 3);
+                boolean down = ((seed >>> 10) & 1) == 0;
+                int gx = a % 5, gy = a / 5;
+                for (int k = 0; k < len; k++) {
+                    int px = Math.min(4, gx + (down ? 0 : k)), py = Math.min(6, gy + (down ? k : 0));
+                    g.fill(x + 12 + px * 2, y + 2 + py * 2, x + 14 + px * 2, y + 4 + py * 2, GLOW);
+                }
+            }
+        }
+        g.text(font, Component.translatable("screen.bleep.signs.hint"), left + 10, top + H - 11, DIM, false);
     }
 
     /** The mob itself, drawn so its head fills the box. */

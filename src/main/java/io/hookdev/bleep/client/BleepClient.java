@@ -18,7 +18,10 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 @Mod(value = Bleep.MODID, dist = Dist.CLIENT)
 public class BleepClient {
     public BleepClient(IEventBus modEventBus) {
-        modEventBus.addListener((EntityRenderersEvent.RegisterLayerDefinitions event) -> event.registerLayerDefinition(BleepModel.LAYER, BleepModel::createBodyLayer));
+        modEventBus.addListener((EntityRenderersEvent.RegisterLayerDefinitions event) -> {
+            event.registerLayerDefinition(BleepModel.LAYER, BleepModel::createBodyLayer);
+            event.registerLayerDefinition(AccessoryModel.LAYER, AccessoryModel::createLayer);
+        });
         modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.BLEEP.get(), BleepRenderer::new));
         NeoForge.EVENT_BUS.addListener(BleepClient::tooltip);
     }

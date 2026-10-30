@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "minecraft:red_dye",
+    "S": "minecraft:string",
+    "N": "minecraft:iron_nugget"
+  },
+  "pattern": [
+    "RSR",
+    " N ",
+    " N "
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:antenna"
+  }
+}

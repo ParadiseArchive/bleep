@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": "minecraft:white_wool",
+    "P": "minecraft:paper"
+  },
+  "pattern": [
+    " W ",
+    " P ",
+    "PPP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:party_hat"
+  }
+}

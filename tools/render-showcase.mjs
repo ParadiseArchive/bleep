@@ -280,11 +280,26 @@ function bleepParts(pose = {}) {
     { pivot: [4, -10, 0], step: 3, turn: { x: arm, z: pose.armSpread ? -pose.armSpread : 0 }, boxes: [[40, 0, 0, 0, -1, 2, 6, 2], [48, 0, -0.5, 6, -1.5, 3, 2, 3]] },
   ].filter((part) => (part.step || 1) <= (pose.built ?? 4)); // being put together: tracks, body, arms, head
 }
-/** The bleep as block-model elements, so the isometric renderer can draw it. */
-function bleepElements(pose) {
-  const T = 'bleep:entity/bleep/bleep', deg = (r) => (r || 0) * 180 / Math.PI;
+/** What it wears, from client/AccessoryModel.java: [texture u, v, x, y, z, w, h, d], in the head's or the body's pixels. */
+const ACCESSORIES = {
+  party_hat: [[0, 0, -3, -8, -3, 6, 1, 6], [24, 0, -2, -10, -2, 4, 2, 4], [40, 0, -1, -12, -1, 2, 2, 2]],
+  top_hat: [[0, 8, -4, -8, -4, 8, 1, 8], [32, 8, -3, -13, -3, 6, 5, 6]],
+  antenna: [[0, 20, -0.5, -13, -0.5, 1, 6, 1], [4, 20, -1, -15, -1, 2, 2, 2], [12, 20, -2.5, -11, -0.5, 2, 2, 1], [12, 20, 0.5, -11, -0.5, 2, 2, 1]],
+  sticker_star: [[0, 30, 0, -4.5, -5.5, 3, 3, 1]], sticker_heart: [[8, 30, 0, -4.5, -5.5, 3, 3, 1]], sticker_bolt: [[16, 30, 0, -4.5, -5.5, 3, 3, 1]],
+};
+/** The bleep as block-model elements, so the isometric renderer can draw it. pose.color tints its shell (tintindex 0). */
+function bleepElements(pose = {}) {
+  const deg = (r) => (r || 0) * 180 / Math.PI;
   const elements = [];
-  for (const part of bleepParts(pose)) {
+  const parts = bleepParts(pose);
+  // what it wears hangs on its head or its body, in its own texture and not dyed
+  const head = parts.find((p) => p.face !== undefined), body = parts.find((p) => p.step === 2);
+  for (const name of [pose.hat, pose.sticker].filter(Boolean)) {
+    const on = name.startsWith('sticker') ? body : head;
+    if (on) parts.push({ pivot: on.pivot, turn: on.turn, boxes: ACCESSORIES[name], texture: 'bleep:entity/bleep/accessories' });
+  }
+  for (const part of parts) {
+    const T = part.texture || 'bleep:entity/bleep/bleep', tint = part.texture || pose.color === undefined ? undefined : 0;
     const [px, py, pz] = part.pivot;
     const rotation = part.turn ? { origin: [px + 8, -py, 8 - pz], x: deg(part.turn.x), y: -deg(part.turn.y), z: -deg(part.turn.z) } : null;
     for (const [u, v, x, y, z, w, h, d] of part.boxes) {
@@ -293,12 +308,12 @@ function bleepElements(pose) {
       elements.push({
         from: [x0 + 8, -(y0 + h), 8 - (z0 + d)], to: [x0 + w + 8, -y0, 8 - z0], rotation,
         faces: {
-          south: { uv: r(u + d, v + d, u + d + w, v + d + h), texture: T },          // its front
-          north: { uv: r(u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h), texture: T },
-          west: { uv: r(u, v + d, u + d, v + d + h), texture: T },
-          east: { uv: r(u + d + w, v + d, u + 2 * d + w, v + d + h), texture: T },
-          up: { uv: r(u + d, v, u + d + w, v + d), texture: T },
-          down: { uv: r(u + d + w, v, u + d + 2 * w, v + d), texture: T },
+          south: { uv: r(u + d, v + d, u + d + w, v + d + h), texture: T, tintindex: tint },          // its front
+          north: { uv: r(u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h), texture: T, tintindex: tint },
+          west: { uv: r(u, v + d, u + d, v + d + h), texture: T, tintindex: tint },
+          east: { uv: r(u + d + w, v + d, u + 2 * d + w, v + d + h), texture: T, tintindex: tint },
+          up: { uv: r(u + d, v, u + d + w, v + d), texture: T, tintindex: tint },
+          down: { uv: r(u + d + w, v, u + d + 2 * w, v + d), texture: T, tintindex: tint },
         },
       });
     }
@@ -334,11 +349,25 @@ render('bleep_home', [{ model: 'homebase_charging', y: S, xf: big() }, { model: 
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
   save('bleep_core', W, H, px, 8);
 }
+// dyed, and dressed up: Minecraft's dye colours (DyeColor.getTextureDiffuseColor)
+const DYES = { red: [0xb0, 0x2e, 0x26], blue: [0x3c, 0x44, 0xaa], lime: [0x80, 0xc7, 0x1f], yellow: [0xfe, 0xd8, 0x3d], magenta: [0xc7, 0x4e, 0xbd], orange: [0xf9, 0x80, 0x1d], cyan: [0x16, 0x9c, 0x9c], pink: [0xf3, 0x8b, 0xaa] };
+const DRESSED = [
+  ['bleep_red', { color: 'red', hat: 'party_hat', face: 'excited', arms: -0.2, armSpread: 2.5 }],
+  ['bleep_blue', { color: 'blue', hat: 'top_hat' }],
+  ['bleep_lime', { color: 'lime', hat: 'antenna', sticker: 'sticker_heart' }],
+  ['bleep_yellow', { color: 'yellow', sticker: 'sticker_star', face: 'stubborn' }],
+  ['bleep_magenta', { color: 'magenta', hat: 'party_hat', sticker: 'sticker_bolt' }],
+  ['bleep_cyan', { color: 'cyan', hat: 'antenna' }],
+];
+for (const [name, pose] of DRESSED) {
+  MODELS.set(name, bleepElements(pose));
+  render(name, [{ model: name, xf: big(), tints: [DYES[pose.color]] }], 2);
+}
 // being put together: its tracks and body are on, the arms and head still to come
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank']) {
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -356,9 +385,43 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
   save('faces/' + file.replace('.png', ''), 20, 10, px, 8, false);
 }
 
+{
+  const FONT = { B: '##.#.###.#.###.', O: '####.##.##.####', L: '#..#..#..#..###', T: '###.#..#..#..#.' };
+  const GLOW = [0x8f, 0xf7, 0xff], DIM = [0x2f, 0x8f, 0x96], AMBER = [0xff, 0xb5, 0x47], BROWN = [0xb9, 0x7a, 0x3e], CHIP = [0x5a, 0x3a, 0x1e];
+  const screen = (file, draw) => {
+    const px = Buffer.alloc(20 * 10 * 4);
+    for (let i = 0; i < 200; i++) { px[i * 4] = 8; px[i * 4 + 1] = 9; px[i * 4 + 2] = 12; px[i * 4 + 3] = 255; }
+    draw((x, y, c) => { if (x >= 0 && x < 20 && y >= 0 && y < 10) { const i = (y * 20 + x) * 4; px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; } });
+    save('faces/' + file, 20, 10, px, 8, false);
+  };
+  screen('trick_name', (set) => { // its name, halfway across
+    [...'BOLT'].forEach((ch, i) => [...FONT[ch]].forEach((p, g) => { if (p === '#') set(3 + i * 4 + g % 3, 2 + Math.floor(g / 3), GLOW); }));
+    for (let x = 0; x < 20; x++) set(x, 8, DIM);
+  });
+  screen('trick_game', (set) => { // tic-tac-toe, X to win
+    for (let i = 0; i < 9; i++) { set(7, i, DIM); set(11, i, DIM); }
+    for (let i = 0; i < 11; i++) { set(4 + i, 2, DIM); set(4 + i, 6, DIM); }
+    const X = (cx, cy) => [[0, 1], [2, 1], [1, 2], [0, 3], [2, 3]].forEach(([dx, dy]) => set(cx + dx, cy + dy, GLOW));
+    const O = (cx, cy) => [[1, 1], [0, 2], [2, 2], [1, 3]].forEach(([dx, dy]) => set(cx + dx, cy + dy, AMBER));
+    X(4, -1); X(8, 3); O(12, -1); O(4, 3); X(12, 7);
+    set(18, 4, GLOW);
+  });
+  screen('trick_home', (set) => { // an arrow, home ahead
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 20; x++) {
+      const u = x + 0.5 - 9.5, v = y + 0.5 - 4.5;
+      if ((Math.abs(u) < 0.8 && v > -1 && v < 3.6) || (v <= -0.5 && v > -4 && Math.abs(u) < (v + 4.2) * 0.9)) set(x, y, GLOW);
+    }
+    set(1, 8, DIM); set(18, 8, DIM);
+  });
+  screen('trick_want', (set) => { // a cookie, please?
+    ['.###.', '#####', '##o##', '#o###', '####o', '.###.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(5 + x, 2 + y, c === 'o' ? CHIP : BROWN); }));
+    [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') set(13 + g % 3, 2 + Math.floor(g / 3), GLOW); });
+  });
+}
+
 // ---------- item icons and recipes for the docs ----------
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
-const SCREEN_ITEMS = ['bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
+const SCREEN_ITEMS = ['minecraft:shears', 'minecraft:red_dye', 'bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
   'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb'];
 

@@ -3,9 +3,11 @@ package io.hookdev.bleep.gametest;
 import io.hookdev.bleep.Bleep;
 import io.hookdev.bleep.BleepContent;
 import io.hookdev.bleep.block.HomebaseBlock;
+import io.hookdev.bleep.entity.Accessory;
 import io.hookdev.bleep.entity.Activity;
 import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Bond;
+import io.hookdev.bleep.entity.Display;
 import io.hookdev.bleep.entity.Emotion;
 import io.hookdev.bleep.entity.NaughtyGoal;
 import io.hookdev.bleep.entity.Obsession;
@@ -80,6 +82,10 @@ public final class BleepGameTests {
         test("redstone_wakes_an_empty_bleep", BleepGameTests::redstoneWakesAnEmptyBleep, 40);
         test("a_power_bank_tops_it_up", BleepGameTests::aPowerBankTopsItUp, 20);
         test("lightning_overcharges_it", BleepGameTests::lightningOverchargesIt, 40);
+        test("dye_paints_it", BleepGameTests::dyePaintsIt, 20);
+        test("it_wears_a_hat_and_a_sticker", BleepGameTests::itWearsAHatAndASticker, 20);
+        test("its_name_scrolls_across", BleepGameTests::itsNameScrollsAcross, 20);
+        test("an_arrow_points_home", BleepGameTests::anArrowPointsHome, 40);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -484,6 +490,57 @@ public final class BleepGameTests {
         helper.assertTrue(bleep.isAlive() && bleep.getHealth() == bleep.getMaxHealth(), "and does not hurt it");
         helper.assertTrue(bleep.overcharged(), "it is overcharged");
         helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.GLITCH || bleep.emotion() == Emotion.EXCITED, "hyper and glitchy, it shows " + bleep.emotion()));
+    }
+
+    /** A Minecraft item by name: 26.3 and 26.1 keep some (the dyes) in different places. */
+    private static ItemStack vanilla(String name) {
+        return new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name)));
+    }
+
+    private static void dyePaintsIt(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.assertTrue(bleep.give(owner, vanilla("red_dye")), "it takes red dye");
+        helper.assertTrue(bleep.color() == (net.minecraft.world.item.DyeColor.RED.getTextureDiffuseColor() & 0xFFFFFF), "and turns red");
+        helper.assertTrue(bleep.give(owner, vanilla("white_dye")), "white dye");
+        helper.assertTrue(bleep.color() == -1, "washes it back to its own white");
+        helper.succeed();
+    }
+
+    private static void itWearsAHatAndASticker(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(Accessory.PARTY_HAT).get()));
+        helper.assertTrue(bleep.hat() == Accessory.PARTY_HAT, "it wears the party hat");
+        bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(Accessory.TOP_HAT).get()));
+        helper.assertTrue(bleep.hat() == Accessory.TOP_HAT, "a new hat takes its place");
+        helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.PARTY_HAT).get())), "and the old one comes back");
+        bleep.give(owner, new ItemStack(BleepContent.ACCESSORIES.get(Accessory.STICKER_HEART).get()));
+        helper.assertTrue(bleep.sticker() == Accessory.STICKER_HEART && bleep.hat() == Accessory.TOP_HAT, "a sticker goes on next to the hat");
+        helper.assertTrue(bleep.takeOff(owner), "shears take them off");
+        helper.assertTrue(bleep.hat() == null && bleep.sticker() == null, "both");
+        helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.ACCESSORIES.get(Accessory.STICKER_HEART).get())), "and give them back");
+        helper.succeed();
+    }
+
+    private static void itsNameScrollsAcross(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.setCustomName(Component.literal("Bolt"));
+        helper.assertTrue(bleep.display() == Display.NAME, "a new name scrolls across its display");
+        helper.succeed();
+    }
+
+    private static void anArrowPointsHome(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        BlockPos home = homebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        bleep.goHome();
+        helper.runAfterDelay(2, () -> {
+            helper.assertTrue(bleep.display() == Display.HOME, "on its way home its display shows the way, it shows " + bleep.display());
+            helper.succeed();
+        });
     }
 
     private static void aNameAlwaysShows(GameTestHelper helper) {

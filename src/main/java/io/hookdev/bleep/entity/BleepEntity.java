@@ -80,6 +80,10 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> OBSESSION = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> REVEALED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> ASSEMBLY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> HAT = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> STICKER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -168,6 +172,8 @@ public class BleepEntity extends TamableAnimal {
     private int quietTicks;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
+    /** Ticks left of what its display shows instead of its face. */
+    private int displayTicks;
     /** Made in registerGoals, which Minecraft calls from the constructor, before field initialisers run: no initialiser here. */
     private NaughtyGoal naughty;
 
@@ -213,6 +219,10 @@ public class BleepEntity extends TamableAnimal {
         builder.define(OBSESSION, -1);
         builder.define(REVEALED, false);
         builder.define(ASSEMBLY, 0);
+        builder.define(COLOR, -1);
+        builder.define(HAT, -1);
+        builder.define(STICKER, -1);
+        builder.define(DISPLAY, 0);
     }
 
     // ---------- what the info screen shows ----------
@@ -307,6 +317,59 @@ public class BleepEntity extends TamableAnimal {
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size()));
     }
 
+    /** Its colour (RGB), or -1 for its own white. */
+    public int color() {
+        return this.entityData.get(COLOR);
+    }
+
+    public void setColor(int rgb) {
+        this.entityData.set(COLOR, rgb);
+    }
+
+    public @Nullable Accessory hat() {
+        return Accessory.byId(this.entityData.get(HAT));
+    }
+
+    public @Nullable Accessory sticker() {
+        return Accessory.byId(this.entityData.get(STICKER));
+    }
+
+    /** Puts this on; what it wore in that place goes back to the player. */
+    public void wear(Player player, Accessory accessory) {
+        Accessory old = accessory.hat ? hat() : sticker();
+        if (old != null) giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(old).get()));
+        this.entityData.set(accessory.hat ? HAT : STICKER, accessory.ordinal());
+        feel(Emotion.EXCITED, 40);
+    }
+
+    /** Shears take off its hat and sticker, back to the player. False if it wears nothing. */
+    public boolean takeOff(Player player) {
+        boolean any = false;
+        for (Accessory worn : new Accessory[]{hat(), sticker()}) {
+            if (worn == null) continue;
+            giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(worn).get()));
+            any = true;
+        }
+        this.entityData.set(HAT, -1);
+        this.entityData.set(STICKER, -1);
+        return any;
+    }
+
+    private void giveBack(Player player, ItemStack stack) {
+        if (!player.getInventory().add(stack)) level().addFreshEntity(new ItemEntity(level(), player.getX(), player.getY(), player.getZ(), stack));
+    }
+
+    /** What its display shows instead of its face, if anything. */
+    public Display display() {
+        return Display.byId(this.entityData.get(DISPLAY));
+    }
+
+    /** Shows this on its display for a while (0: until something else comes up). */
+    public void showDisplay(Display display, int ticks) {
+        this.entityData.set(DISPLAY, display.ordinal());
+        displayTicks = ticks;
+    }
+
     /** Ticks left until it is put together, or 0. */
     public int assembly() {
         return this.entityData.get(ASSEMBLY);
@@ -384,6 +447,19 @@ public class BleepEntity extends TamableAnimal {
      * day). Returns whether it took it.
      */
     public boolean give(Player player, ItemStack stack) {
+        var dye = stack.get(net.minecraft.core.component.DataComponents.DYE);
+        if (dye != null) { // white dye washes it back to its own white
+            int rgb = dye == net.minecraft.world.item.DyeColor.WHITE ? -1 : dye.getTextureDiffuseColor() & 0xFFFFFF;
+            if (rgb == color()) return false;
+            setColor(rgb);
+            feel(Emotion.EXCITED, 40);
+            return true;
+        }
+        Accessory accessory = BleepContent.accessory(stack);
+        if (accessory != null) {
+            wear(player, accessory);
+            return true;
+        }
         if (stack.is(Items.REDSTONE_BLOCK)) {
             if (battery() >= FULL) {
                 player.sendOverlayMessage(Component.translatable("message.bleep.full", getDisplayName()));
@@ -534,6 +610,13 @@ public class BleepEntity extends TamableAnimal {
 
     public @Nullable BlockPos light() {
         return lit;
+    }
+
+    /** Its live display texture goes too. */
+    @Override
+    public void onClientRemoval() {
+        super.onClientRemoval();
+        io.hookdev.bleep.client.ClientHooks.forgetDisplay(getId());
     }
 
     @Override
@@ -727,6 +810,7 @@ public class BleepEntity extends TamableAnimal {
             llamaTicks = 40;
         }
         lightTheWay();
+        tickDisplay(moving);
         if (overchargeTicks > 0 && --overchargeTicks % 10 == 0 && level() instanceof ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.8, getZ(), 2, 0.3, 0.3, 0.3, 0.05);
         }
@@ -764,6 +848,29 @@ public class BleepEntity extends TamableAnimal {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.3 + 0.25 * (ASSEMBLE_TICKS - left) / ASSEMBLE_STEP, getZ(), 8, 0.3, 0.1, 0.3, 0.05);
         }
         if (left == 0) boot();
+    }
+
+    /**
+     * Its display: an arrow home while it drives there, now and then a game of tic-tac-toe when it is bored, or a cookie
+     * it would like when it has had no treat today; a shown thing ends after its ticks.
+     */
+    private void tickDisplay(boolean moving) {
+        Display display = display();
+        if (displayTicks > 0 && --displayTicks == 0) display = Display.FACE;
+        if (goingHome) display = Display.HOME;
+        else if (display == Display.HOME) display = Display.FACE;
+        if (display == Display.FACE && !slept && tickCount % 200 == 0) {
+            if (emotion() == Emotion.BORED && getRandom().nextFloat() < 0.3f) {
+                showDisplay(Display.GAME, 240);
+                return;
+            }
+            today();
+            if (emotion() == Emotion.HAPPY && giftsToday == 0 && getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER && getRandom().nextFloat() < 0.08f) {
+                showDisplay(Display.WANT, 80);
+                return;
+            }
+        }
+        if (display.ordinal() != this.entityData.get(DISPLAY)) this.entityData.set(DISPLAY, display.ordinal());
     }
 
     /** A stubborn turn on the spot, then it does what it was told. */
@@ -980,6 +1087,7 @@ public class BleepEntity extends TamableAnimal {
         if (!stack.isEmpty()) {
             if (level().isClientSide()) return super.mobInteract(player, hand);
             if (asleep() && !charges(stack)) return super.mobInteract(player, hand);
+            if (stack.is(Items.SHEARS)) return takeOff(player) ? InteractionResult.SUCCESS : super.mobInteract(player, hand);
             if (stack.is(BleepContent.POWER_BANK.get())) { // the bank is kept: it shows what is left
                 usePowerBank(player, stack);
                 return InteractionResult.SUCCESS;
@@ -1008,6 +1116,8 @@ public class BleepEntity extends TamableAnimal {
     public void setCustomName(@Nullable Component name) {
         super.setCustomName(name);
         setCustomNameVisible(name != null);
+        // its new name scrolls across its display, like a ticker
+        if (name != null && !level().isClientSide()) showDisplay(Display.NAME, 60 + name.getString().length() * 12);
     }
 
     /** A robot does not need air. */
@@ -1064,6 +1174,9 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("assembly", assembly());
         output.putInt("learned", learned);
         output.putInt("overcharge", overchargeTicks);
+        output.putInt("color", color());
+        output.putInt("hat", this.entityData.get(HAT));
+        output.putInt("sticker", this.entityData.get(STICKER));
         output.putLong("bond_day", bondDay);
         output.putInt("pets_today", petsToday);
         output.putInt("gifts_today", giftsToday);
@@ -1088,6 +1201,9 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(ASSEMBLY, input.getIntOr("assembly", 0));
         learned = input.getIntOr("learned", 0);
         overchargeTicks = input.getIntOr("overcharge", 0);
+        setColor(input.getIntOr("color", -1));
+        this.entityData.set(HAT, input.getIntOr("hat", -1));
+        this.entityData.set(STICKER, input.getIntOr("sticker", -1));
         bondDay = input.getLongOr("bond_day", -1);
         petsToday = input.getIntOr("pets_today", 0);
         giftsToday = input.getIntOr("gifts_today", 0);

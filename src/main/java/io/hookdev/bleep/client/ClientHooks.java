@@ -9,4 +9,8 @@ public final class ClientHooks {
     public static void openInfo(BleepEntity bleep) {
         McVersionClient.setScreen(new BleepScreen(bleep));
     }
+
+    public static void forgetDisplay(int id) {
+        DisplayTextures.forget(id);
+    }
 }

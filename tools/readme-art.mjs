@@ -50,8 +50,9 @@ p{margin:0;font-size:18px;color:#aeb6c9;max-width:440px}
     <div class="chips"><span class="chip" style="color:#2de2e6">Minecraft 26.1.2 · 26.3</span><span class="chip" style="color:#2de2e6">NeoForge</span><span class="chip" style="color:#ffb547">Version ${VERSION}</span><span class="chip" style="color:#ff4f8b">Open source</span></div>
   </div>
   <div class="sky">
-    <img src="${IMG}bleep_excited.png" style="height:300px;margin-bottom:12px">
-    <img src="${IMG}bleep_home.png" style="height:250px;margin-bottom:12px">
+    <img src="${IMG}bleep_blue.png" style="height:240px;margin-bottom:12px">
+    <img src="${IMG}bleep_red.png" style="height:225px;margin-bottom:12px">
+    <img src="${IMG}bleep_lime.png" style="height:240px;margin-bottom:12px">
   </div>
   <div class="by">${HOOK}HOOK DEV</div>
 </div>`;
@@ -77,6 +78,7 @@ const M = 150, L = 200;
 const SHELVES = {
   bleep: shelf('bleep.render', [['bleep_assembling', 'Being put together', M - 30], ['bleep', 'Happy', L], ['bleep_excited', 'Excited', L], ['bleep_asleep', 'Switched off', L], ['bleep_home', 'Charging at home', L + 20]]),
   faces: faceShelf(),
+  dress: shelf('dress-up.render', [['bleep_red', 'Party hat', L], ['bleep_blue', 'Top hat', L + 10], ['bleep_lime', 'Antenna, heart', L + 10], ['bleep_yellow', 'Star sticker', L - 30], ['bleep_magenta', 'Party hat, bolt', L], ['bleep_cyan', 'Antenna', L + 10]]),
   parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['power_bank', 'Power Bank', 96], ['homebase_charging', 'Homebase', M]]),
 };
 

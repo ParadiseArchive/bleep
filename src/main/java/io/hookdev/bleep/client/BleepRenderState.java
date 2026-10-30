@@ -12,4 +12,10 @@ public class BleepRenderState extends ArmedEntityRenderState {
     public boolean carrying;
     /** Ticks left until it is put together (0: it is whole). */
     public int assembly;
+    /** Its colour (ARGB, -1 for its own white), what it wears, what its display shows, its name and where home is (degrees, NaN if unknown). */
+    public int color = -1;
+    public io.hookdev.bleep.entity.Accessory hat, sticker;
+    public io.hookdev.bleep.entity.Display display = io.hookdev.bleep.entity.Display.FACE;
+    public String name = "";
+    public float homeAngle = Float.NaN;
 }

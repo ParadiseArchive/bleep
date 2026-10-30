@@ -44,6 +44,14 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ![The info screen](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/info-screen.png)
 
+## Dress it up
+
+- **Any colour.** Right-click your bleep with a dye: its white shell takes the colour. White dye washes it back.
+- **Hats and stickers.** A party hat, a top hat or an antenna with a red bow, and a star, heart or lightning sticker on its front. Shears take them off again.
+- **Tricks on its display.** A new name scrolls across like a ticker, a bored bleep plays tic-tac-toe against itself, an arrow points the way home, and now and then it asks for a cookie.
+
+![Six bleeps in six colours, in hats, with stickers](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.1.0/.github/readme/shelf-dress.png)
+
 ## Character
 
 - **Its favourite thing.** Every bleep is crazy about one item and drops hints about it in its thoughts. Hold it and it drives circles round you; if it finds one lying about, it gets so excited it glitches, then brings it to you anyway.

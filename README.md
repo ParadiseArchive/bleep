@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/readme/banner.png" width="100%" alt="Bleep: a robot pet with an attitude. BLEEP in pixel letters next to an excited bleep and one charging on its homebase.">
+  <img src=".github/readme/banner.png" width="100%" alt="Bleep: a robot pet with an attitude. BLEEP in pixel letters next to a blue bleep in a top hat, a red one in a party hat and a lime one with an antenna.">
 </p>
 
 <p align="center">
@@ -63,6 +63,12 @@ brings you what it finds. A favourite item, a dry remark about every mob in the 
 and a fear of llamas nobody can explain.
 
 <img src=".github/readme/shelf-bleep.png" width="100%" alt="A bleep being put together, happy, excited, switched off and charging at home.">
+
+### Dress it up
+Any dye colours its shell. It wears a hat (a party hat, a top hat or an antenna with a bow) and a sticker on its front,
+and its display has tricks: its name as a ticker, tic-tac-toe when it is bored, an arrow home.
+
+<img src=".github/readme/shelf-dress.png" width="100%" alt="Six bleeps in six colours, in party hats, a top hat and antennas, with stickers.">
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

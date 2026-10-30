@@ -24,9 +24,10 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
 
     public BleepRenderer(EntityRendererProvider.Context context) {
         super(context, new BleepModel(context.bakeLayer(BleepModel.LAYER)), 0.45f);
-        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> state.assembly > 0 ? OFF : face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
+        this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> state.assembly > 0 ? OFF : DisplayTextures.shows(state.display) ? DisplayTextures.texture(state) : face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
                 new BleepModel(context.bakeLayer(BleepModel.LAYER)), RenderTypes::eyes, false));
         this.addLayer(new ItemInHandLayer<>(this));
+        this.addLayer(new AccessoryLayer(this, new AccessoryModel(context.bakeLayer(AccessoryModel.LAYER))));
     }
 
     /**
@@ -39,6 +40,12 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         boolean blink = emotion != Emotion.ASLEEP && emotion != Emotion.SURPRISED && emotion != Emotion.EXCITED
                 && (int) (ageInTicks + id * 37) % BLINK_EVERY < BLINK;
         return Bleep.id("textures/entity/bleep/face/" + emotion.texture() + (blink ? "_blink" : "") + ".png");
+    }
+
+    /** Dye paints the whole bleep; its white shell shows the colour, its dark parts stay dark. */
+    @Override
+    protected int getModelTint(BleepRenderState state) {
+        return state.color;
     }
 
     @Override
@@ -59,5 +66,13 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         ArmedEntityRenderState.extractArmedEntityRenderState(bleep, state, this.itemModelResolver, partialTicks);
         state.carrying = !bleep.getMainHandItem().isEmpty();
         state.assembly = bleep.assembly();
+        state.color = bleep.color() == -1 ? -1 : 0xFF000000 | bleep.color();
+        state.hat = bleep.hat();
+        state.sticker = bleep.sticker();
+        state.display = bleep.display();
+        state.name = bleep.hasCustomName() ? bleep.getCustomName().getString() : "BLEEP";
+        var home = bleep.home();
+        state.homeAngle = home != null && home.dimension().equals(bleep.level().dimension())
+                ? DisplayTextures.homeAngle(bleep.yBodyRot, home.pos().getX() + 0.5 - bleep.getX(), home.pos().getZ() + 0.5 - bleep.getZ()) : Float.NaN;
     }
 }

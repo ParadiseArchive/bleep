@@ -118,6 +118,27 @@ texture('entity/bleep/bleep', 64, 64, g => {
   box(g, 48, 0, 3, 2, 3, (face, x, y, w, h) => DARK2);
 });
 
+// ---------- what a bleep wears (64 x 64), from the boxes in client/AccessoryModel.java ----------
+texture('entity/bleep/accessories', 64, 64, g => {
+  const MAG = '#ff4f8b', CYN = '#2de2e6', YEL = '#ffd23f', BLK = '#1b1d22', BLK2 = '#2c2f36', RED = '#d6283b', RED2 = '#a01a2a';
+  // party hat: three tiers in magenta and cyan stripes, a white pompom on top
+  box(g, 0, 0, 6, 1, 6, (face, x) => (x % 2 ? MAG : CYN));
+  box(g, 24, 0, 4, 2, 4, (face, x, y) => ((x + y) % 2 ? CYN : MAG));
+  box(g, 40, 0, 2, 2, 2, () => WHITE);
+  // top hat: black, a grey band round the crown
+  box(g, 0, 8, 8, 1, 8, (face, x, y, w, h) => (x === 0 || y === 0 || x === w - 1 || y === h - 1 ? BLK : BLK2));
+  box(g, 32, 8, 6, 5, 6, (face, x, y, w, h) => (face !== 'top' && face !== 'bottom' && y === h - 2 ? GREY : BLK));
+  // antenna: a grey rod, a red ball, a red bow
+  box(g, 0, 20, 1, 6, 1, () => GREY);
+  box(g, 4, 20, 2, 2, 2, (face, x, y) => (x === 0 && y === 0 ? '#ff8a96' : RED));
+  box(g, 12, 20, 2, 2, 1, (face, x, y) => ((x + y) % 2 ? RED : RED2));
+  // stickers: a white edge, the picture on the front
+  const sticker = (u, pic) => box(g, u, 30, 3, 3, 1, (face, x, y) => (face === 'front' ? pic[y][x] : WHITE));
+  sticker(0, [[WHITE, YEL, WHITE], [YEL, YEL, YEL], [YEL, WHITE, YEL]]);   // a star
+  sticker(8, [[MAG, WHITE, MAG], [MAG, MAG, MAG], [WHITE, MAG, WHITE]]);   // a heart
+  sticker(16, [[WHITE, YEL, YEL], [WHITE, YEL, WHITE], [YEL, YEL, WHITE]]); // a lightning bolt
+});
+
 // ---------- faces on the display (20 x 10, at (18, 18) in a 128 x 128 texture) ----------
 const W = 20, H = 10;
 function face(name, draw) {
@@ -236,7 +257,22 @@ texture('item/power_bank', 16, 16, g => {
   g.rect(6, 1, 4, 2, '#c87533'); g.rect(7, 1, 2, 1, '#e89a5c');
   for (const y of [5, 8, 11]) g.rect(6, y, 4, 2, y === 5 ? '#1f9aa0' : GLOW);
 });
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank']) {
+// the accessories as items
+texture('item/party_hat', 16, 16, g => {
+  for (let y = 3; y < 15; y++) { const half = Math.floor((y - 3) / 2); for (let x = 7 - half; x <= 8 + half; x++) g.set(x, y, (x + y) % 3 ? '#ff4f8b' : '#2de2e6'); }
+  g.rect(7, 1, 2, 2, WHITE);
+});
+texture('item/top_hat', 16, 16, g => { g.rect(4, 3, 8, 9, '#2c2f36'); g.rect(4, 9, 8, 1, GREY); g.rect(1, 12, 14, 2, '#1b1d22'); });
+texture('item/antenna', 16, 16, g => { g.rect(7, 4, 2, 11, GREY); g.rect(6, 1, 4, 3, '#d6283b'); g.rect(3, 7, 4, 3, '#d6283b'); g.rect(9, 7, 4, 3, '#a01a2a'); });
+for (const [name, colour, pic] of [['sticker_star', '#ffd23f', ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##']],
+  ['sticker_heart', '#ff4f8b', ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...', '.......']],
+  ['sticker_bolt', '#ffd23f', ['...###.', '..###..', '.###...', '######.', '...###.', '..###..', '.##....']]]) {
+  texture('item/' + name, 16, 16, g => {
+    g.rect(3, 3, 11, 11, WHITE);
+    pic.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') g.set(5 + x, 5 + y, colour); }));
+  });
+}
+for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -252,6 +288,15 @@ const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text
 // ---------- the parts: all crafted; the core is expensive, and also found (BleepPartsModifier) ----------
 const shaped = (name, pattern, key) => json(join(DATA, 'recipe/' + name + '.json'),
   { type: 'minecraft:crafting_shaped', category: 'misc', key, pattern, result: { count: 1, id: 'bleep:' + name } });
+// what it wears: a party hat of paper with a woollen pompom, a top hat of black wool, an antenna with a red bow,
+// and stickers (four at a time) of paper and slime with a dye
+shaped('party_hat', [' W ', ' P ', 'PPP'], { W: 'minecraft:white_wool', P: 'minecraft:paper' });
+shaped('top_hat', [' W ', ' W ', 'WWW'], { W: 'minecraft:black_wool' });
+shaped('antenna', ['RSR', ' N ', ' N '], { R: 'minecraft:red_dye', S: 'minecraft:string', N: 'minecraft:iron_nugget' });
+for (const [name, dye] of [['sticker_star', 'yellow_dye'], ['sticker_heart', 'pink_dye'], ['sticker_bolt', 'light_blue_dye']]) {
+  json(join(DATA, 'recipe/' + name + '.json'), { type: 'minecraft:crafting_shapeless', category: 'misc',
+    ingredients: ['minecraft:paper', 'minecraft:slime_ball', 'minecraft:' + dye], result: { count: 4, id: 'bleep:' + name } });
+}
 // a power bank: copper on top, iron round two blocks of redstone
 shaped('power_bank', [' C ', 'IRI', 'IRI'], { C: 'minecraft:copper_ingot', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block' });
 // the core, the expensive way: obsidian (the nearest thing to bedrock) round diamonds and a block of diamond, 13 in all
@@ -458,6 +503,14 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'message.bleep.not_yet': '%s will do that once it is your %s.',
   'screen.bleep.take_torch': 'Take torch',
   'item.bleep.power_bank': 'Power Bank',
+  'item.bleep.party_hat': 'Party Hat', 'item.bleep.top_hat': 'Top Hat', 'item.bleep.antenna': 'Antenna with a Bow',
+  'item.bleep.sticker_star': 'Star Sticker', 'item.bleep.sticker_heart': 'Heart Sticker', 'item.bleep.sticker_bolt': 'Lightning Sticker',
+  'tooltip.bleep.party_hat': 'Right-click your bleep: it wears it.\nShears take it off again.',
+  'tooltip.bleep.top_hat': 'Right-click your bleep: it wears it.\nShears take it off again.',
+  'tooltip.bleep.antenna': 'Right-click your bleep: it wears it.\nShears take it off again.',
+  'tooltip.bleep.sticker_star': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
+  'tooltip.bleep.sticker_heart': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
+  'tooltip.bleep.sticker_bolt': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
   'tooltip.bleep.power_bank': 'One full charge for a bleep.\nRight-click your bleep to top it up;\nright-click a homebase to fill it again.',
   'jei.bleep.power_bank': 'One full charge for a bleep, carried along: its bar shows what is left. Right-click your bleep with it to top it up, even when it is switched off. Right-click a homebase with it to fill it again.\n\nRedstone charges a bleep too: 8% a dust, 72% a block. And lightning fills it up at once, and makes it hyper for half a minute.',
   'message.bleep.full': '%s is fully charged.',

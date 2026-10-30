@@ -2,6 +2,7 @@ package io.hookdev.bleep;
 
 import com.mojang.serialization.MapCodec;
 import io.hookdev.bleep.block.HomebaseBlock;
+import io.hookdev.bleep.entity.Accessory;
 import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Emotion;
 import io.hookdev.bleep.item.BleepCoreItem;
@@ -55,6 +56,20 @@ public final class BleepContent {
     public static final DeferredItem<Item> BLEEP_TRACKS = ITEMS.registerSimpleItem("bleep_tracks", p -> p.stacksTo(16).rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> BLEEP_ARMS = ITEMS.registerSimpleItem("bleep_arms", p -> p.stacksTo(16).rarity(Rarity.RARE));
 
+    /** What a bleep can wear: three hats and three stickers, each an item of its own. */
+    public static final Map<Accessory, DeferredItem<Item>> ACCESSORIES = new EnumMap<>(Accessory.class);
+    static {
+        for (Accessory accessory : Accessory.values()) {
+            ACCESSORIES.put(accessory, ITEMS.registerSimpleItem(accessory.id(), p -> p.stacksTo(accessory.hat ? 1 : 64)));
+        }
+    }
+
+    /** The accessory this item is, or null. */
+    public static Accessory accessory(net.minecraft.world.item.ItemStack stack) {
+        for (var entry : ACCESSORIES.entrySet()) if (stack.is(entry.getValue().get())) return entry.getKey();
+        return null;
+    }
+
     /** One full charge for a bleep, carried along: its bar shows what is left. It fills up again on a homebase. */
     public static final DeferredItem<Item> POWER_BANK = ITEMS.registerSimpleItem("power_bank", p -> p.durability(100).rarity(Rarity.UNCOMMON));
 
@@ -88,6 +103,7 @@ public final class BleepContent {
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
                 output.accept(POWER_BANK.get());
+                ACCESSORIES.values().forEach(item -> output.accept(item.get()));
             })
             .build());
 

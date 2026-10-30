@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:paper",
+    "minecraft:slime_ball",
+    "minecraft:yellow_dye"
+  ],
+  "result": {
+    "count": 4,
+    "id": "bleep:sticker_star"
+  }
+}

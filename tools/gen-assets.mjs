@@ -279,7 +279,15 @@ for (const [name, colour, pic] of [['sticker_star', '#ffd23f', ['...#...', '..##
     pic.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') g.set(5 + x, 5 + y, colour); }));
   });
 }
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+// a ball to play with: half pink, half cyan, a white band round the middle, a shine on top
+texture('item/ball', 16, 16, g => {
+  const rows = ['....pppppp....', '..pppppppppp..', '.ppwwpppppppp.', '.ppwpppppppppp', 'pppppppppppppp', 'pppppppppppppp', 'wwwwwwwwwwwwww',
+    'cccccccccccccc', 'cccccccccccccc', 'cccccccccccccc', '.cccccccccccdc', '.ccccccccccddc', '..ccccccccddc.', '....cccccc....'];
+  const C = { p: '#ff4f8b', w: '#eef1f4', c: '#2de2e6', d: '#1f9aa0' };
+  rows.forEach((row, y) => [...row].forEach((ch, x) => { if (C[ch]) g.set(1 + x, 1 + y, C[ch]); }));
+  g.set(13, 1 + 4, '#c93a6c'); g.set(13, 1 + 5, '#c93a6c');
+});
+for (const part of ['ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -309,6 +317,8 @@ for (const [name, dye] of [['sticker_star', 'yellow_dye'], ['sticker_heart', 'pi
 }
 // a power bank: copper on top, iron round two blocks of redstone
 shaped('power_bank', [' C ', 'IRI', 'IRI'], { C: 'minecraft:copper_ingot', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block' });
+// a bouncy ball: wool round a slimeball
+shaped('ball', [' W ', 'WSW', ' W '], { W: 'minecraft:white_wool', S: 'minecraft:slime_ball' });
 // the core, the expensive way: obsidian (the nearest thing to bedrock) round diamonds and a block of diamond, 13 in all
 shaped('bleep_core', ['ODO', 'DBD', 'ODO'], { O: 'minecraft:obsidian', D: 'minecraft:diamond', B: 'minecraft:diamond_block' });
 // a black screen in an iron frame, redstone to light it
@@ -385,6 +395,7 @@ const THOUGHTS = {
   storm: ['Thunder! Come on, lightning. Pick me. PICK ME.', 'I hear a storm. I am ready. I am SO ready.'],
   dream: ['Zzz... a field of batteries... all mine... zzz', 'Zzz... the llama is chasing me... zzz', 'Zzz... wheels for the cow... zzz', 'Zzz... beep... boop... zzz'],
   dance: ['Bleep bloop, this is my jam!', 'Left track, right track, spin!', 'Music! My circuits are dancing.'],
+  play: ['Tag! You are it! No, I am it! Who is it?', 'Round and round! This is the best game.', 'Catch me if you can! You can. Do not.'],
 };
 // the favourite items (Obsession in Java): their names, and the hints in its thoughts until its owner finds out
 const FAVOURITES = {
@@ -518,6 +529,35 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'screen.bleep.about.fights': 'Fights won', 'screen.bleep.about.empty': 'Ran empty', 'screen.bleep.about.bond': 'Bond',
   'biome.bleep.unknown': 'Somewhere new. I am filing this under adventure.',
   'diary.bleep.dance': 'I danced for the first time. I am very good at it.',
+  'diary.bleep.ball': 'We played ball for the first time. I brought it back. Every. Single. Time.',
+  'diary.bleep.friend': 'Played with another bleep: %s. We are friends now. I think.',
+  'diary.bleep.squabble': '%s took MY find. I saw it first. I am writing this down.',
+  'diary.bleep.jealous': 'You petted another bleep. I saw it. I see everything.',
+  'diary.bleep.spit': 'A llama spat at me. Everything went fizzy. I knew it.',
+  'diary.bleep.home_bed': 'There is a bed by my home. Cosy.',
+  'diary.bleep.home_toy': 'There is a toy at my home. A home with a toy is a real home.',
+  'diary.bleep.home_sign': 'My name is on a sign at my home. Everyone knows it is mine now.',
+  'thought.bleep.ball.0': 'Ball! BALL! I see the ball!',
+  'thought.bleep.ball.1': 'Again! Throw it again!',
+  'thought.bleep.ball.2': 'I got it! I got it! Here you go.',
+  'thought.bleep.ball.3': 'Best game ever. Again?',
+  'thought.bleep.ball.caught': 'Caught it! Did you see that?',
+  'thought.bleep.together.mine.0': 'Hey! That was mine! I saw it first!',
+  'thought.bleep.together.mine.1': 'Rude. Very rude. I am telling.',
+  'thought.bleep.together.mine.2': 'Fine. Keep it. I did not want it anyway. I wanted it.',
+  'thought.bleep.together.won': 'Mine now. Finders keepers.',
+  'thought.bleep.together.jealous.0': 'Why do they get petted? What about me?',
+  'thought.bleep.together.jealous.1': 'I am also here. Just saying.',
+  'thought.bleep.together.jealous.2': 'Hmph. I am the better bleep.',
+  'thought.bleep.together.cheered': 'Oh! A happy bleep! I feel better already.',
+  'thought.bleep.spit': 'Llama spit! In my circuits! Bzzt!',
+  'thought.bleep.home.bed': 'A bed by my home! I will never use it. I love it.',
+  'thought.bleep.home.toy': 'A toy at home! Home is the best place.',
+  'thought.bleep.home.sign': 'That is my name on that sign! My own home!',
+  'activity.bleep.playing': 'Playing',
+  'item.bleep.ball': 'Ball', 'entity.bleep.ball': 'Ball',
+  'tooltip.bleep.ball': 'Right-click to throw it.\nYour bleep brings it back.\nNear its homebase it is a toy.',
+  'message.bleep.too_many': 'You already have %s bleeps. Any more and it really turns into a fight.',
   'diary.bleep.golem': 'Met a big iron friend. He does not know he is my big brother yet.',
   'diary.bleep.bedside': 'Slept next to your bed. You snore. A bit.',
   'diary.bleep.abandoned': 'I was switched off for a very long time. Then you came.',
@@ -658,6 +698,7 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'tooltip.bleep.sticker_heart': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
   'tooltip.bleep.sticker_bolt': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
   'tooltip.bleep.power_bank': 'One full charge for a bleep.\nRight-click your bleep to top it up;\nright-click a homebase to fill it again.',
+  'jei.bleep.ball': 'A ball to play with. Right-click to throw it: it bounces, and your bleep (any bleep, from the first day) drives after it and brings it back. Playing ball raises the bond a little, five times a day. A bleep it hits catches it.\n\nA ball lying by its homebase, or in an item frame there, is a toy: a comfort that makes it charge faster.',
   'jei.bleep.power_bank': 'One full charge for a bleep, carried along: its bar shows what is left. Right-click your bleep with it to top it up, even when it is switched off. Right-click a homebase with it to fill it again.\n\nRedstone charges a bleep too: 8% a dust, 72% a block. And lightning fills it up at once, and makes it hyper for half a minute.',
   'message.bleep.full': '%s is fully charged.',
   'message.bleep.power_bank_empty': 'The power bank is empty: fill it on a homebase.',

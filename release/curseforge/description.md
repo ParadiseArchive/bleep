@@ -59,6 +59,14 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **A sword for a fight.** Put a weapon in its storage and a Buddy fights with the one that hits hardest.
 - **Its name.** Every bleep is called Bleep until you type a new name on its info screen. It always shows above its head.
 
+## Play and company
+
+- **A ball.** Craft one and throw it: it bounces, and your bleep brings it back. Throw it at your bleep and it catches it.
+- **Bleeps together.** They play tag, squabble over a find, get jealous when you pet another one, and cheer each other up.
+- **Home comforts.** A bed, a toy and its name on a sign by its homebase make it charge faster, and happier.
+- **Llama spit** gets in its circuits: its screen glitches.
+- **Ten bleeps** per player at most. Any more and it really turns into a fight.
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

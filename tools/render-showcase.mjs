@@ -389,7 +389,7 @@ render('bleep_dancing', [{ model: 'bleep_dancing', xf: big(), tints: [DYES.orang
 MODELS.set('bleep_assembling', bleepElements({ built: 2 }));
 render('bleep_assembling', [{ model: 'bleep_assembling', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
+for (const part of ['ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -410,6 +410,7 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 {
   const FONT = { B: '##.#.###.#.###.', O: '####.##.##.####', L: '#..#..#..#..###', T: '###.#..#..#..#.' };
   const GLOW = [0x8f, 0xf7, 0xff], DIM = [0x2f, 0x8f, 0x96], AMBER = [0xff, 0xb5, 0x47], BROWN = [0xb9, 0x7a, 0x3e], CHIP = [0x5a, 0x3a, 0x1e];
+  const PINK = [0xff, 0x4f, 0x8b], WHITE = [0xee, 0xf1, 0xf4];
   const screen = (file, draw) => {
     const px = Buffer.alloc(20 * 10 * 4);
     for (let i = 0; i < 200; i++) { px[i * 4] = 8; px[i * 4 + 1] = 9; px[i * 4 + 2] = 12; px[i * 4 + 3] = 255; }
@@ -438,6 +439,11 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
   screen('trick_want', (set) => { // a cookie, please?
     ['.###.', '#####', '##o##', '#o###', '####o', '.###.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(5 + x, 2 + y, c === 'o' ? CHIP : BROWN); }));
     [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') set(13 + g % 3, 2 + Math.floor(g / 3), GLOW); });
+  });
+  screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
+    ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
+    for (let x = 6; x < 10; x++) set(x, 8, DIM);
+    [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') set(13 + g % 3, 2 + Math.floor(g / 3), AMBER); });
   });
 }
 

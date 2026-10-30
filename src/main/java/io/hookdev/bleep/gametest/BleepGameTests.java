@@ -30,6 +30,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
@@ -100,6 +101,13 @@ public final class BleepGameTests {
         test("its_magnet_fills_its_storage", BleepGameTests::itsMagnetFillsItsStorage, 100);
         test("it_fights_with_a_sword_from_its_storage", BleepGameTests::itFightsWithASwordFromItsStorage, 100);
         test("it_shows_off_and_keeps_it", BleepGameTests::itShowsOffAndKeepsIt, 120);
+        test("it_brings_the_ball_back", BleepGameTests::itBringsTheBallBack, 300);
+        test("two_bleeps_play_together", BleepGameTests::twoBleepsPlayTogether, 40);
+        test("petting_one_makes_the_other_jealous", BleepGameTests::pettingOneMakesTheOtherJealous, 20);
+        test("a_happy_bleep_cheers_up_a_sad_one", BleepGameTests::aHappyBleepCheersUpASadOne, 220);
+        test("llama_spit_makes_it_glitch", BleepGameTests::llamaSpitMakesItGlitch, 20);
+        test("a_bed_by_its_home_is_a_comfort", BleepGameTests::aBedByItsHomeIsAComfort, 20);
+        test("ten_bleeps_is_plenty", BleepGameTests::tenBleepsIsPlenty, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -727,6 +735,95 @@ public final class BleepGameTests {
             helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 1 && bleep.getMainHandItem().isEmpty(), "after showing it, it goes back in its storage");
             helper.succeed();
         });
+    }
+
+    /** A player in the bench, in the level (so its bleeps can find it). */
+    private static Player owner(GameTestHelper helper, double x) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(x, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        return owner;
+    }
+
+    private static void itBringsTheBallBack(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        int bond = bleep.bond();
+        helper.spawnItem(BleepContent.BALL.get(), new Vec3(6.5, 0.2, 1.5));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(owner.getInventory().contains(new ItemStack(BleepContent.BALL.get())), "it should bring the ball back");
+            helper.assertTrue(bleep.bond() == bond + Bond.PLAY, "playing ball raises the bond, it is " + bleep.bond() + ", diary " + bleep.memory().diary.stream().map(e -> e.key()).toList());
+            helper.assertTrue(bleep.storage().isEmpty(), "and the magnet never takes a ball");
+        });
+    }
+
+    private static void twoBleepsPlayTogether(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity one = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        BleepEntity two = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        one.tame(owner);
+        two.tame(owner);
+        helper.assertTrue(one.playWith(two), "two free bleeps play together");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(one.activity() == Activity.PLAYING && two.activity() == Activity.PLAYING, "both should be playing, they are " + one.activity() + " and " + two.activity());
+            helper.assertTrue(one.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.friend")), "a new friend in its diary");
+        });
+    }
+
+    private static void pettingOneMakesTheOtherJealous(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity petted = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), SPOT);
+        BleepEntity other = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), FAR);
+        petted.tame(owner);
+        other.tame(owner);
+        petted.pet();
+        helper.succeedWhen(() -> {
+            helper.assertTrue(other.emotion() == Emotion.SAD, "the other one should be sad, it is " + other.emotion());
+            helper.assertTrue(other.thought().startsWith("thought.bleep.together.jealous."), "and jealous, it thinks " + other.thought());
+        });
+    }
+
+    private static void aHappyBleepCheersUpASadOne(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity happy = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), SPOT);
+        BleepEntity sad = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), FAR);
+        happy.tame(owner);
+        sad.tame(owner);
+        happy.feel(Emotion.EXCITED, 400);
+        sad.feel(Emotion.SAD, 400);
+        helper.succeedWhen(() -> helper.assertTrue(sad.thought().equals("thought.bleep.together.cheered") && sad.emotion() == Emotion.HAPPY, "the sad one should cheer up, it is " + sad.emotion()));
+    }
+
+    private static void llamaSpitMakesItGlitch(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        var spit = new net.minecraft.world.entity.projectile.LlamaSpit(
+                (EntityType<net.minecraft.world.entity.projectile.LlamaSpit>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("llama_spit")), helper.getLevel());
+        bleep.hurtServer(helper.getLevel(), helper.getLevel().damageSources().spit(spit, null), 1);
+        helper.assertTrue(bleep.thought().equals("thought.bleep.spit"), "spit in its circuits, it thinks " + bleep.thought());
+        helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.GLITCH, "its screen should glitch, it shows " + bleep.emotion()));
+    }
+
+    private static void aBedByItsHomeIsAComfort(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        BlockPos home = homebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        helper.setBlock(new BlockPos(1, 0, 2), net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("red_bed")));
+        bleep.checkComforts();
+        helper.assertTrue((bleep.comforts() & BleepEntity.COMFORT_BED) != 0, "a bed by its home is a comfort");
+        helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.home_bed")), "written in its diary");
+        helper.succeed();
+    }
+
+    private static void tenBleepsIsPlenty(GameTestHelper helper) {
+        Player player = withCore(helper);
+        for (Item part : BleepCoreItem.parts()) player.getInventory().add(new ItemStack(part));
+        var owners = io.hookdev.bleep.BleepOwners.get(helper.getLevel());
+        for (int i = 0; i < io.hookdev.bleep.BleepOwners.MAX; i++) owners.add(player.getUUID(), java.util.UUID.randomUUID());
+        useCore(helper, player);
+        helper.assertTrue(player.getMainHandItem().is(BleepContent.BLEEP_CORE.get()), "with ten bleeps the core stays in your hand");
+        helper.assertTrue(helper.getLevel().getEntitiesOfClass(BleepEntity.class, new net.minecraft.world.phys.AABB(helper.absolutePos(SPOT)).inflate(8)).isEmpty(), "no eleventh bleep");
+        helper.succeed();
     }
 
     private static Player withCore(GameTestHelper helper) {

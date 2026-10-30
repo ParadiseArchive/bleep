@@ -16,7 +16,9 @@ public enum Display {
     /** It would like a cookie, please. */
     WANT,
     /** Something new in its Bleepedia that its owner has not seen yet: a ! now and then. */
-    NEWS;
+    NEWS,
+    /** Its owner has a ball with them: it would like to play. */
+    BALL;
 
     private static final Display[] VALUES = values();
 

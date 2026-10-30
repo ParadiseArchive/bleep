@@ -85,6 +85,10 @@ Every bleep carries a storage as big as a small chest, behind the chest on its i
 pulls in what lies about; now and then it drives over to show you something it found. Put a sword in it and a Buddy
 fights with it. Its name is Bleep until you type a new one on its info screen.
 
+### Play and company
+Throw a ball and it brings it back. Have more than one bleep and they play tag, squabble over finds, get jealous when
+you pet another and cheer each other up. A bed, a toy and its name on a sign make its home cosy. Ten bleeps per player.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

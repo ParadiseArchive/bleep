@@ -23,6 +23,7 @@ public class BleepClient {
             event.registerLayerDefinition(AccessoryModel.LAYER, AccessoryModel::createLayer);
         });
         modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.BLEEP.get(), BleepRenderer::new));
+        modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.BALL_ENTITY.get(), net.minecraft.client.renderer.entity.ThrownItemRenderer::new));
         NeoForge.EVENT_BUS.addListener(BleepClient::tooltip);
         // the Bleepedia arrives when its owner opens it
         modEventBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event) ->

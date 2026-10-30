@@ -70,6 +70,12 @@ public final class BleepContent {
         return null;
     }
 
+    /** A ball to throw for your bleep: it bounces, and your bleep brings it back. */
+    public static final DeferredItem<io.hookdev.bleep.item.BallItem> BALL = ITEMS.registerItem("ball", io.hookdev.bleep.item.BallItem::new, p -> p.stacksTo(16));
+    public static final DeferredHolder<EntityType<?>, EntityType<io.hookdev.bleep.entity.BallEntity>> BALL_ENTITY = ENTITIES.register("ball",
+            id -> EntityType.Builder.<io.hookdev.bleep.entity.BallEntity>of(io.hookdev.bleep.entity.BallEntity::new, MobCategory.MISC).sized(0.25f, 0.25f)
+                    .clientTrackingRange(4).updateInterval(5).build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
     /** One full charge for a bleep, carried along: its bar shows what is left. It fills up again on a homebase. */
     public static final DeferredItem<Item> POWER_BANK = ITEMS.registerSimpleItem("power_bank", p -> p.durability(100).rarity(Rarity.UNCOMMON));
 
@@ -103,6 +109,7 @@ public final class BleepContent {
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
                 output.accept(POWER_BANK.get());
+                output.accept(BALL.get());
                 ACCESSORIES.values().forEach(item -> output.accept(item.get()));
             })
             .build());

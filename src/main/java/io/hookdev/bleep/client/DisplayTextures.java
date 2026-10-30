@@ -59,6 +59,7 @@ public final class DisplayTextures {
             case HOME -> "home" + arrow(state.homeAngle);
             case WANT -> "want" + ((int) (state.ageInTicks / 10) % 2);
             case NEWS -> "news" + ((int) (state.ageInTicks / 8) % 2);
+            case BALL -> "ball" + ((int) (state.ageInTicks / 10) % 2);
             default -> "face";
         };
     }
@@ -70,6 +71,7 @@ public final class DisplayTextures {
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
             case NEWS -> news(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case BALL -> ball(image, (int) (state.ageInTicks / 10) % 2 == 0);
             default -> {}
         }
     }
@@ -177,6 +179,22 @@ public final class DisplayTextures {
         if (blink) { // a pleading question mark
             String glyph = FONT.get('?');
             for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') set(image, 13 + g % 3, 2 + g / 3, GLOW);
+        }
+    }
+
+    // ---------- shall we play? a ball ----------
+
+    private static void ball(NativeImage image, boolean blink) {
+        String[] icon = {".pp.", "pwpp", "gggg", ".gg."};
+        int bounce = blink ? 0 : 1;
+        for (int y = 0; y < icon.length; y++) for (int x = 0; x < 4; x++) {
+            char c = icon[y].charAt(x);
+            if (c != '.') set(image, 6 + x, 2 + bounce + y, c == 'p' ? PINK : c == 'g' ? GLOW : 0xFFEEF1F4);
+        }
+        set(image, 6, 8, DIM); set(image, 7, 8, DIM); set(image, 8, 8, DIM); set(image, 9, 8, DIM); // the ground it bounces on
+        if (blink) {
+            String glyph = FONT.get('?');
+            for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') set(image, 13 + g % 3, 2 + g / 3, AMBER);
         }
     }
 

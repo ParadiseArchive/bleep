@@ -139,7 +139,7 @@ public class BleepEntity extends TamableAnimal {
     public static final Map<String, Integer> THOUGHTS = Map.ofEntries(
             Map.entry("happy", 5), Map.entry("excited", 3), Map.entry("sad", 3), Map.entry("angry", 3), Map.entry("bored", 4),
             Map.entry("surprised", 2), Map.entry("tired", 3), Map.entry("asleep", 3), Map.entry("charging", 3), Map.entry("llama", 2),
-            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2), Map.entry("dream", 4), Map.entry("dance", 3));
+            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2), Map.entry("dream", 4), Map.entry("dance", 3), Map.entry("play", 3));
     /** What it says about a kind of mob it has no line for (another mod's). */
     public static final String UNKNOWN_MOB = "Never seen one of those. Filing it under weird.";
     /** Mobs worth a line in its diary. */
@@ -175,6 +175,15 @@ public class BleepEntity extends TamableAnimal {
     private @Nullable BlockPos lit;
     /** Ticks it has had nothing to do; a bored bleep gets up to something (NaughtyGoal). */
     private int quietTicks;
+    /** How far it sees a ball to fetch. */
+    public static final int BALL_RANGE = 16;
+    /** Playing with another bleep: who, for how long; and how long before it may cheer up, or be jealous, again. */
+    private @Nullable BleepEntity partner;
+    private int playTicks, playCooldown, cheerTicks, jealousTicks, playsToday;
+    /** What its home has around it (a bed, a toy, its name on a sign: COMFORT_*), and the day that gave it a bond point. */
+    private int comforts;
+    private long comfortDay = -1;
+    public static final int COMFORT_BED = 1, COMFORT_TOY = 2, COMFORT_SIGN = 4;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -221,6 +230,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
+        this.goalSelector.addGoal(7, new PlayGoal());
         this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
         // bleeps are afraid of llamas, for reasons nobody knows
         this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Llama.class, 10, 1.0, 1.3));
@@ -555,7 +565,7 @@ public class BleepEntity extends TamableAnimal {
         long day = level().getGameTime() / Bond.DAY;
         if (day != bondDay) {
             bondDay = day;
-            petsToday = giftsToday = fightsToday = 0;
+            petsToday = giftsToday = fightsToday = playsToday = 0;
         }
         return day;
     }
@@ -564,6 +574,9 @@ public class BleepEntity extends TamableAnimal {
     public void pet() {
         today();
         feel(Emotion.EXCITED, 60);
+        if (getOwner() instanceof Player owner) { // the others saw that
+            for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && b.isOwnedBy(owner) && !b.asleep())) other.jealous();
+        }
         if (petsToday < Bond.PETS_PER_DAY) {
             petsToday++;
             changeBond(Bond.PET);
@@ -757,6 +770,9 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public void remove(RemovalReason reason) {
         if (!level().isClientSide()) removeLight();
+        if (level() instanceof ServerLevel server && (reason == RemovalReason.KILLED || reason == RemovalReason.DISCARDED)) {
+            io.hookdev.bleep.BleepOwners.get(server).remove(getUUID());
+        }
         if (!level().isClientSide() && reason == RemovalReason.KILLED) {
             stow();
             net.minecraft.world.Containers.dropContents(level(), this, storage);
@@ -935,14 +951,14 @@ public class BleepEntity extends TamableAnimal {
                 beamHome();
                 home = true;
             }
-            setBattery(battery() + (home ? HOME_CHARGE : SLEEP_CHARGE));
+            setBattery(battery() + (home ? homeCharge() : SLEEP_CHARGE));
             if (battery() >= FULL) { // awake again, and a little sad about it
                 slept = false;
                 feel(Emotion.SAD, 80);
                 if (followAfterSleep) follow();
             }
         } else if (home) {
-            setBattery(battery() + HOME_CHARGE);
+            setBattery(battery() + homeCharge());
         } else if (moving) {
             setBattery(battery() - DRIVE_COST * (home() == null ? HOMELESS_COST : 1));
         }
@@ -966,6 +982,11 @@ public class BleepEntity extends TamableAnimal {
         }
         tickMagnet();
         tickHands();
+        tickTogether();
+        if (home && tickCount % 200 == 0) checkComforts();
+        if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
+            io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
+        }
         if (overchargeTicks > 0 && --overchargeTicks % 10 == 0 && level() instanceof ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.8, getZ(), 2, 0.3, 0.3, 0.3, 0.05);
         }
@@ -980,6 +1001,7 @@ public class BleepEntity extends TamableAnimal {
         if (!slept) {
             lookForNewMobs();
             if (tickCount % 40 == 0) lookForFavourite();
+            if (tickCount % 10 == 5) lookForBall();
             if (tickCount % 40 == 0) noticeBiome();
             if (tickCount % 40 == 20) lookForFinds();
         }
@@ -1027,6 +1049,10 @@ public class BleepEntity extends TamableAnimal {
             today();
             if (emotion() == Emotion.HAPPY && giftsToday == 0 && getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER && getRandom().nextFloat() < 0.08f) {
                 showDisplay(Display.WANT, 80);
+                return;
+            }
+            if ((emotion() == Emotion.HAPPY || emotion() == Emotion.BORED) && getRandom().nextFloat() < 0.12f && ownerHasBall() && distanceToSqr(getOwner()) < TOGETHER * TOGETHER) {
+                showDisplay(Display.BALL, 80);
                 return;
             }
         }
@@ -1081,7 +1107,7 @@ public class BleepEntity extends TamableAnimal {
         LivingEntity owner = getOwner();
         Obsession favourite = obsession();
         for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(MAGNET_RANGE), i -> i.isAlive() && !i.hasPickUpDelay() && i != fetching
-                && (owner == null || i.getOwner() != owner) && (favourite == null || !favourite.matches().test(i.getItem())) && storage.canAddItem(i.getItem()))) {
+                && (owner == null || i.getOwner() != owner) && (favourite == null || !favourite.matches().test(i.getItem())) && !isBall(i.getItem()) && storage.canAddItem(i.getItem()))) {
             if (distanceToSqr(item) < 1.5 * 1.5) {
                 int before = item.getItem().getCount();
                 ItemStack rest = storage.addItem(item.getItem().copy());
@@ -1327,8 +1353,10 @@ public class BleepEntity extends TamableAnimal {
     /** Picks up its favourite item (so excited it glitches), or a whole stack of anything else. */
     private void pickUp(ItemEntity item) {
         Obsession favourite = obsession();
-        boolean loved = favourite != null && favourite.matches().test(item.getItem());
-        setItemSlot(EquipmentSlot.MAINHAND, item.getItem().split(loved ? 1 : item.getItem().getCount()));
+        boolean loved = favourite != null && favourite.matches().test(item.getItem()), ball = isBall(item.getItem());
+        for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(12), b -> b != this && b.fetching == item)) other.lostTo(this);
+        setItemSlot(EquipmentSlot.MAINHAND, item.getItem().split(loved || ball ? 1 : item.getItem().getCount()));
+        if (ball) feel(Emotion.EXCITED, 30);
         if (item.getItem().isEmpty()) item.discard();
         fetching = null;
         if (loved) {
@@ -1340,17 +1368,166 @@ public class BleepEntity extends TamableAnimal {
     /** ...and gives it to its owner anyway. */
     private void handOver(Player owner) {
         ItemStack stack = getMainHandItem().copy();
+        boolean ball = isBall(stack); // before it goes: adding it to an inventory empties the stack
         setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         if (!owner.getInventory().add(stack)) {
             level().addFreshEntity(new ItemEntity(level(), owner.getX(), owner.getY(), owner.getZ(), stack));
         }
         feel(Emotion.EXCITED, 40);
+        if (ball) played();
+    }
+
+    // ---------- the ball ----------
+
+    public static boolean isBall(ItemStack stack) {
+        return stack.is(BleepContent.BALL.get());
+    }
+
+    /** A ball lying about: it is going to get it (FetchGoal), whatever its bond. */
+    private void lookForBall() {
+        if (fetching != null || !getMainHandItem().isEmpty() || naughty.busy() || getTarget() != null || !(getOwner() instanceof Player) || !free()) return;
+        fetching = level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(BALL_RANGE), i -> i.isAlive() && isBall(i.getItem()))
+                .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+        if (fetching != null) pinThought("thought.bleep.ball.0");
+    }
+
+    /** A ball thrown at it: caught, and it brings it back. */
+    public boolean catchBall(ItemStack ball) {
+        if (!getMainHandItem().isEmpty() || asleep() || abandoned()) return false;
+        setItemSlot(EquipmentSlot.MAINHAND, ball);
+        feel(Emotion.EXCITED, 40);
+        pinThought("thought.bleep.ball.caught");
+        return true;
+    }
+
+    /** Brought the ball back: that was fun (a bond point, five a day). */
+    private void played() {
+        today();
+        pinThought("thought.bleep.ball." + (1 + getRandom().nextInt(3)));
+        rememberFirst("ball", "diary.bleep.ball", "");
+        if (playsToday < Bond.PLAYS_PER_DAY) {
+            playsToday++;
+            changeBond(Bond.PLAY);
+        }
+    }
+
+    private boolean ownerHasBall() {
+        if (!(getOwner() instanceof Player owner)) return false;
+        for (int i = 0; i < owner.getInventory().getContainerSize(); i++) if (isBall(owner.getInventory().getItem(i))) return true;
+        return false;
+    }
+
+    // ---------- bleeps together ----------
+
+    /** Another bleep got there first. */
+    private void lostTo(BleepEntity winner) {
+        fetching = null;
+        getNavigation().stop();
+        feel(Emotion.ANGRY, 40);
+        pinThought("thought.bleep.together.mine." + getRandom().nextInt(3));
+        rememberFirst("squabble", "diary.bleep.squabble", winner.getName().getString());
+        winner.pinThought("thought.bleep.together.won");
+    }
+
+    /** Its owner petted another bleep. */
+    private void jealous() {
+        if (jealousTicks > 0) return;
+        jealousTicks = 400;
+        feel(Emotion.SAD, 60);
+        pinThought("thought.bleep.together.jealous." + getRandom().nextInt(3));
+        rememberFirst("jealous", "diary.bleep.jealous", "");
+    }
+
+    public boolean playing() {
+        return playTicks > 0 && partner != null;
+    }
+
+    /** Starts playing with another bleep (tests). */
+    public boolean playWith(BleepEntity other) {
+        if (other == this || playing() || other.playing() || !free() || !other.free()) return false;
+        for (BleepEntity b : List.of(this, other)) {
+            b.partner = b == this ? other : this;
+            b.playTicks = 200;
+            b.playCooldown = 1200;
+            b.pinThought("thought.bleep.play." + b.getRandom().nextInt(3));
+            b.rememberFirst("friend", "diary.bleep.friend", b.partner.getName().getString());
+        }
+        return true;
+    }
+
+    /** Playing with another bleep now and then; a happy bleep cheers up a sad or bored one close by. */
+    private void tickTogether() {
+        if (playCooldown > 0) playCooldown--;
+        if (cheerTicks > 0) cheerTicks--;
+        if (jealousTicks > 0) jealousTicks--;
+        if (playTicks > 0 && (--playTicks == 0 || partner == null || !partner.isAlive() || partner.slept)) {
+            playTicks = 0;
+            partner = null;
+        }
+        if (slept) return;
+        if (tickCount % 200 == 100 && playTicks == 0 && playCooldown == 0 && quietTicks > 200 && mayBeNaughty() && getRandom().nextFloat() < 0.25f) {
+            level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(10), b -> b != this && !b.slept && !b.abandoned() && b.playCooldown == 0)
+                    .stream().findFirst().ifPresent(this::playWith);
+        }
+        Emotion emotion = emotion();
+        if (tickCount % 100 == 50 && (emotion == Emotion.HAPPY || emotion == Emotion.EXCITED)) {
+            for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && !b.slept && !b.abandoned() && b.cheerTicks == 0
+                    && (b.emotion() == Emotion.SAD || b.emotion() == Emotion.BORED))) {
+                other.cheerTicks = 1200;
+                other.idleTicks = 0;
+                other.feel(Emotion.HAPPY, 60);
+                other.pinThought("thought.bleep.together.cheered");
+            }
+        }
+    }
+
+    // ---------- home comforts ----------
+
+    /** A home with comforts charges a quarter faster for each one. */
+    private float homeCharge() {
+        return HOME_CHARGE * (1 + 0.25f * Integer.bitCount(comforts));
+    }
+
+    public int comforts() {
+        return comforts;
+    }
+
+    /** Looks around its homebase: a bed, a toy (a ball, lying there or in an item frame), its own name on a sign. */
+    public void checkComforts() {
+        GlobalPos home = home();
+        if (home == null || !home.dimension().equals(level().dimension())) return;
+        BlockPos at = home.pos();
+        int found = 0;
+        String name = getName().getString().toLowerCase(java.util.Locale.ROOT);
+        for (BlockPos pos : BlockPos.betweenClosed(at.offset(-4, -1, -4), at.offset(4, 2, 4))) {
+            BlockState state = level().getBlockState(pos);
+            if (state.is(net.minecraft.tags.BlockTags.BEDS)) found |= COMFORT_BED;
+            if (state.is(net.minecraft.tags.BlockTags.ALL_SIGNS) && level().getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign
+                    && io.hookdev.bleep.McVersion.signText(sign).toLowerCase(java.util.Locale.ROOT).contains(name)) found |= COMFORT_SIGN;
+        }
+        var around = new net.minecraft.world.phys.AABB(at).inflate(4);
+        if (!level().getEntitiesOfClass(ItemEntity.class, around, i -> isBall(i.getItem())).isEmpty()
+                || !level().getEntitiesOfClass(net.minecraft.world.entity.decoration.ItemFrame.class, around, f -> isBall(f.getItem())).isEmpty()) found |= COMFORT_TOY;
+        int fresh = found & ~comforts;
+        for (int bit : new int[] {COMFORT_BED, COMFORT_TOY, COMFORT_SIGN}) {
+            if ((fresh & bit) == 0) continue;
+            String which = bit == COMFORT_BED ? "bed" : bit == COMFORT_TOY ? "toy" : "sign";
+            feel(Emotion.EXCITED, 40);
+            pinThought("thought.bleep.home." + which);
+            rememberFirst("home_" + which, "diary.bleep.home_" + which, "");
+        }
+        comforts = found;
+        long day = today();
+        if (Integer.bitCount(found) >= 2 && comfortDay != day) {
+            comfortDay = day;
+            changeBond(Bond.COMFORT);
+        }
     }
 
     private Emotion currentEmotion() {
         if (slept || bedside) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
-        if (danceTicks > 0) return Emotion.EXCITED;
+        if (danceTicks > 0 || playing()) return Emotion.EXCITED;
         if (overchargeTicks > 0) return (overchargeTicks / 10) % 2 == 0 ? Emotion.GLITCH : Emotion.EXCITED;
         if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
@@ -1363,6 +1540,7 @@ public class BleepEntity extends TamableAnimal {
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
+        if (playing()) return Activity.PLAYING;
         if (dawdleTicks > 0) return Activity.DAWDLING;
         if (digTicks > 0) return Activity.DIGGING;
         if (danceTicks > 0) return Activity.DANCING;
@@ -1391,7 +1569,7 @@ public class BleepEntity extends TamableAnimal {
             pinTicks--;
             return;
         }
-        String kind = activity == Activity.BEDSIDE ? "dream" : activity == Activity.DANCING ? "dance" : emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
+        String kind = activity == Activity.BEDSIDE ? "dream" : activity == Activity.DANCING ? "dance" : activity == Activity.PLAYING ? "play" : emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
                 : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : activity == Activity.OVERCHARGED ? "overcharged"
                 : emotion == Emotion.BOOT ? "excited" : emotion.texture();
         // in a thunderstorm it hopes for lightning
@@ -1427,6 +1605,12 @@ public class BleepEntity extends TamableAnimal {
         setHealth(getMaxHealth());
         if (!hurt) return false;
         setBattery(battery() - damage * DAMAGE_COST);
+        if (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.LlamaSpit) { // spit in its circuits
+            feel(Emotion.GLITCH, 50);
+            pinThought("thought.bleep.spit");
+            rememberFirst("spit", "diary.bleep.spit", "");
+            return true;
+        }
         if (source.getEntity() instanceof Player player && isOwnedBy(player)) {
             feel(Emotion.ANGRY, 60);
             changeBond(Bond.HIT_BY_OWNER);
@@ -1445,7 +1629,9 @@ public class BleepEntity extends TamableAnimal {
         ItemStack stack = player.getItemInHand(hand);
         if (abandoned()) {
             if (level().isClientSide()) return InteractionResult.SUCCESS;
-            if (stack.is(Items.REDSTONE_BLOCK)) {
+            if (stack.is(Items.REDSTONE_BLOCK) && level() instanceof ServerLevel server && io.hookdev.bleep.BleepOwners.get(server).full(player.getUUID())) {
+                player.sendOverlayMessage(Component.translatable("message.bleep.too_many", io.hookdev.bleep.BleepOwners.MAX));
+            } else if (stack.is(Items.REDSTONE_BLOCK)) {
                 stack.consume(1, player);
                 repair(player);
             } else {
@@ -1479,6 +1665,13 @@ public class BleepEntity extends TamableAnimal {
             pet();
         }
         return InteractionResult.SUCCESS;
+    }
+
+    /** Tamed (built, or an abandoned one woken up): on its owner's list of bleeps. */
+    @Override
+    public void tame(Player player) {
+        super.tame(player);
+        if (level() instanceof ServerLevel server) io.hookdev.bleep.BleepOwners.get(server).add(player.getUUID(), getUUID());
     }
 
     /** Name tags do nothing to a bleep: you rename it on its info screen. */
@@ -1571,6 +1764,9 @@ public class BleepEntity extends TamableAnimal {
         output.putBoolean("own_hand", ownHand);
         output.putBoolean("armed", armed);
         output.putInt("show", showTicks);
+        output.putInt("plays_today", playsToday);
+        output.putInt("comforts", comforts);
+        output.putLong("comfort_day", comfortDay);
     }
 
     @Override
@@ -1604,6 +1800,9 @@ public class BleepEntity extends TamableAnimal {
         ownHand = input.getBooleanOr("own_hand", false);
         armed = input.getBooleanOr("armed", false);
         showTicks = input.getIntOr("show", 0);
+        playsToday = input.getIntOr("plays_today", 0);
+        comforts = input.getIntOr("comforts", 0);
+        comfortDay = input.getLongOr("comfort_day", -1);
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */
@@ -1640,6 +1839,30 @@ public class BleepEntity extends TamableAnimal {
             } else if (ticks % 20 == 1) {
                 getNavigation().moveTo(pos.getX() + 0.5, pos.getY() + 0.125, pos.getZ() + 0.5, 1.0);
             }
+        }
+    }
+
+    /** Playing tag with another bleep: round and round each other, on the other side of a circle. */
+    private class PlayGoal extends Goal {
+        private int ticks;
+
+        PlayGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return playing() && partner.isAlive() && free() && distanceToSqr(partner) < 16 * 16;
+        }
+
+        @Override
+        public void tick() {
+            if (partner == null) return;
+            getLookControl().setLookAt(partner);
+            if (ticks++ % 5 != 0) return;
+            double angle = tickCount * 0.12 + (getId() < partner.getId() ? 0 : Math.PI);
+            double x = (getX() + partner.getX()) / 2 + Math.cos(angle) * 2.5, z = (getZ() + partner.getZ()) / 2 + Math.sin(angle) * 2.5;
+            getNavigation().moveTo(x, getY(), z, 1.25);
         }
     }
 

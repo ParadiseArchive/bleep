@@ -34,6 +34,10 @@ public class BleepCoreItem extends Item {
     public InteractionResult useOn(UseOnContext context) {
         Player player = context.getPlayer();
         if (!(context.getLevel() instanceof ServerLevel level) || player == null) return InteractionResult.SUCCESS;
+        if (io.hookdev.bleep.BleepOwners.get(level).full(player.getUUID())) { // ten is plenty
+            player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.bleep.too_many", io.hookdev.bleep.BleepOwners.MAX));
+            return InteractionResult.FAIL;
+        }
         if (!player.isCreative()) {
             List<Item> missing = new ArrayList<>();
             for (Item part : parts()) if (find(player, part) < 0) missing.add(part);

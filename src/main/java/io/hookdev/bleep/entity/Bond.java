@@ -16,6 +16,8 @@ public final class Bond {
     public static final int GIFT = 3, GIFTS_PER_DAY = 5;
     public static final int FAVOURITE = 10;
     public static final int FIGHT = 2, FIGHTS_PER_DAY = 5;
+    /** Fetching the ball and bringing it back; a home with two comforts or more, once a day. */
+    public static final int PLAY = 1, PLAYS_PER_DAY = 5, COMFORT = 1;
     public static final int DISCOVERY = 1;
     public static final int DAY_TOGETHER = 1, DAY_APART = -2, DAYS_APART_COUNTED = 5;
     public static final int SWITCHED_OFF = -3, HIT_BY_OWNER = -5, HOMEBASE_BROKEN = -10;

@@ -539,7 +539,7 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
 const SCREEN_ITEMS = ['minecraft:shears', 'minecraft:red_dye', 'bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
-  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book', 'minecraft:chest', 'minecraft:iron_sword', 'minecraft:iron_hoe', 'minecraft:wheat', 'minecraft:cake', 'minecraft:fishing_rod', 'minecraft:furnace', 'minecraft:poppy'];
+  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book', 'minecraft:chest', 'minecraft:iron_sword', 'minecraft:iron_hoe', 'minecraft:wheat', 'minecraft:cake', 'minecraft:fishing_rod', 'minecraft:furnace', 'minecraft:poppy', 'minecraft:iron_axe', 'minecraft:compass'];
 
 /** Writes items/<namespace>/<name>.png: a flat item at 16x16, a block item rendered like in the inventory. */
 function icon(id) {

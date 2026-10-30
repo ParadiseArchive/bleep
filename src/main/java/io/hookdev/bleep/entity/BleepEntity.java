@@ -224,9 +224,13 @@ public class BleepEntity extends TamableAnimal {
     private ItemStack purse = ItemStack.EMPTY;
     private int shopTicks, caveCooldown, oreCooldown, cartWait;
     public static final int GUARD_RANGE = 8, GUARD_TIME = 24000;
-    public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, JOB_FISHER = 8, JOB_SMELTER = 16, JOB_GARDENER = 32, MIN_RADIUS = 2, MAX_RADIUS = 16;
+    public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, JOB_FISHER = 8, JOB_SMELTER = 16, JOB_GARDENER = 32, JOB_HERDER = 64, JOB_LUMBERJACK = 128, MIN_RADIUS = 2, MAX_RADIUS = 16;
     /** What its work at workAt is. */
-    private static final int WORK_CROP = 1, WORK_CHEST = 2, WORK_FISH = 3, WORK_FURNACE = 4, WORK_GARDEN = 5;
+    private static final int WORK_CROP = 1, WORK_CHEST = 2, WORK_FISH = 3, WORK_FURNACE = 4, WORK_GARDEN = 5, WORK_ANIMAL = 6, WORK_TREE = 7;
+    /** The herder breeds no more than this many of a kind round its spot. */
+    public static final int HERD_MAX = 12;
+    /** The animal it is on its way to (herder): it moves about, so the goal follows it. */
+    private net.minecraft.world.entity.animal.@Nullable Animal workAnimal;
     private int workKind;
     /** Places it could not get to lately: skipped for a while. */
     private final Set<BlockPos> unreachable = new java.util.HashSet<>();
@@ -2045,6 +2049,8 @@ public class BleepEntity extends TamableAnimal {
             fishWater = waterNextTo(workAt);
             return;
         }
+        if (doing(JOB_HERDER) && findAnimal()) return;
+        if (doing(JOB_LUMBERJACK) && find(WORK_TREE, this::treeBase)) return;
         BlockState flower = flowerToPlant();
         if (doing(JOB_GARDENER) && flower != null && gardenSize() < GARDEN_SIZE) {
             find(WORK_GARDEN, pos -> Math.floorMod(pos.getX() - stayAt.getX() + pos.getZ() - stayAt.getZ(), 2) == 0 && !pos.equals(stayAt) // a chequered garden
@@ -2067,6 +2073,104 @@ public class BleepEntity extends TamableAnimal {
         workAt = best;
         workKind = kind;
         return true;
+    }
+
+    // ---------- the herder, the lumberjack ----------
+
+    /** A sheep to shear, or an animal to feed so it has young (with food for it in its storage, a mate close by, not too many already). */
+    private boolean findAnimal() {
+        int r = stayRadius();
+        var animals = level().getEntitiesOfClass(net.minecraft.world.entity.animal.Animal.class, new net.minecraft.world.phys.AABB(stayAt).inflate(r, 2, r),
+                a -> a.isAlive() && !(a instanceof BleepEntity) && !a.isBaby() && !unreachable.contains(a.blockPosition()));
+        net.minecraft.world.entity.animal.Animal best = null;
+        double nearest = Double.MAX_VALUE;
+        for (var animal : animals) {
+            boolean shear = animal instanceof net.minecraft.world.entity.animal.sheep.Sheep sheep && sheep.readyForShearing();
+            long kind = animals.stream().filter(a -> a.getType() == animal.getType()).count();
+            boolean feed = !shear && animal.getAge() == 0 && animal.canFallInLove() && foodSlot(animal) >= 0 && kind >= 2 && kind < HERD_MAX;
+            double d = distanceToSqr(animal);
+            if ((shear || feed) && d < nearest) {
+                best = animal;
+                nearest = d;
+            }
+        }
+        if (best == null) return false;
+        workAnimal = best;
+        workAt = best.blockPosition();
+        workKind = WORK_ANIMAL;
+        return true;
+    }
+
+    /** A slot in its storage with food this animal likes, or -1. */
+    private int foodSlot(net.minecraft.world.entity.animal.Animal animal) {
+        for (int i = 0; i < storage.getContainerSize(); i++) if (!storage.getItem(i).isEmpty() && animal.isFood(storage.getItem(i))) return i;
+        return -1;
+    }
+
+    /** At the animal: shears a sheep (the wool goes in its storage), or feeds it (and it falls in love). */
+    private void herd(net.minecraft.world.entity.animal.@Nullable Animal animal) {
+        if (animal == null || !animal.isAlive() || distanceToSqr(animal) > 3 * 3) return;
+        if (animal instanceof net.minecraft.world.entity.animal.sheep.Sheep sheep && sheep.readyForShearing()) {
+            sheep.setSheared(true);
+            var wool = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(sheep.getColor().getSerializedName() + "_wool"));
+            ItemStack rest = storage.addItem(new ItemStack(wool, 1 + getRandom().nextInt(3)));
+            if (!rest.isEmpty()) spawnAtLocation((ServerLevel) level(), rest);
+            sheep.playSound(net.minecraft.sounds.SoundEvents.SHEEP_SHEAR, 1, 1);
+            if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.shear");
+        } else {
+            int slot = foodSlot(animal);
+            if (slot < 0 || !animal.canFallInLove() || animal.getAge() != 0) return;
+            storage.removeItem(slot, 1);
+            animal.setInLove(null);
+            if (getRandom().nextFloat() < 0.3f) pinThought("thought.bleep.work.herd");
+        }
+        rememberFirst("herder", "diary.bleep.herder", "");
+    }
+
+    /** The bottom log of a real tree: on the ground, with natural leaves round its top (not a log someone built with). */
+    private boolean treeBase(BlockPos pos) {
+        if (!level().getBlockState(pos).is(net.minecraft.tags.BlockTags.LOGS) || !earthy(level().getBlockState(pos.below()))) return false;
+        BlockPos top = pos;
+        for (int i = 0; i < 24 && level().getBlockState(top.above()).is(net.minecraft.tags.BlockTags.LOGS); i++) top = top.above();
+        for (BlockPos at : BlockPos.betweenClosed(top.offset(-2, -1, -2), top.offset(2, 2, 2))) {
+            BlockState leaf = level().getBlockState(at);
+            if (leaf.getBlock() instanceof net.minecraft.world.level.block.LeavesBlock && !leaf.getValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT)) return true;
+        }
+        return false;
+    }
+
+    /** Fells the tree: every log of it (64 at most) into its storage, and a sapling from its storage in its place. The leaves fall by themselves. */
+    private void chop(BlockPos base) {
+        if (!(level() instanceof ServerLevel server) || !treeBase(base)) return;
+        java.util.ArrayDeque<BlockPos> todo = new java.util.ArrayDeque<>(List.of(base));
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        int felled = 0;
+        while (!todo.isEmpty() && felled < 64) {
+            BlockPos at = todo.poll();
+            if (!seen.add(at) || at.getY() < base.getY() || Math.abs(at.getX() - base.getX()) > 4 || Math.abs(at.getZ() - base.getZ()) > 4) continue;
+            BlockState log = level().getBlockState(at);
+            if (!log.is(net.minecraft.tags.BlockTags.LOGS)) continue;
+            for (ItemStack drop : net.minecraft.world.level.block.Block.getDrops(log, server, at, null)) {
+                ItemStack rest = storage.addItem(drop);
+                if (!rest.isEmpty()) spawnAtLocation(server, rest);
+            }
+            level().levelEvent(2001, at, net.minecraft.world.level.block.Block.getId(log));
+            level().setBlock(at, Blocks.AIR.defaultBlockState(), 3);
+            felled++;
+            for (BlockPos next : BlockPos.betweenClosed(at.offset(-1, 0, -1), at.offset(1, 1, 1))) todo.add(next.immutable());
+        }
+        for (int i = 0; i < storage.getContainerSize(); i++) { // a new tree where the old one stood
+            ItemStack sapling = storage.getItem(i);
+            if (!sapling.is(net.minecraft.tags.ItemTags.SAPLINGS) || !(sapling.getItem() instanceof net.minecraft.world.item.BlockItem item)) continue;
+            BlockState state = item.getBlock().defaultBlockState();
+            if (!state.canSurvive(level(), base)) continue;
+            level().setBlock(base, state, 3);
+            storage.removeItem(i, 1);
+            break;
+        }
+        playSound(net.minecraft.sounds.SoundEvents.WOOD_BREAK, 1, 0.9f);
+        if (getRandom().nextFloat() < 0.4f) pinThought("thought.bleep.work.chop");
+        rememberFirst("lumberjack", "diary.bleep.lumberjack", "");
     }
 
     // ---------- the fisher, the smelter, the gardener ----------
@@ -2247,6 +2351,8 @@ public class BleepEntity extends TamableAnimal {
             case WORK_FISH -> { startFishing(); return; }
             case WORK_FURNACE -> { smelt(pos); return; }
             case WORK_GARDEN -> { garden(pos); return; }
+            case WORK_ANIMAL -> { herd(workAnimal); workAnimal = null; return; }
+            case WORK_TREE -> { chop(pos); return; }
             default -> {}
         }
         BlockState state = level().getBlockState(pos);
@@ -3530,6 +3636,10 @@ public class BleepEntity extends TamableAnimal {
         @Override
         public void tick() {
             if (workAt == null) return;
+            if (workKind == WORK_ANIMAL) { // the animal walks about: after it
+                if (workAnimal == null || !workAnimal.isAlive()) { workAt = null; return; }
+                workAt = workAnimal.blockPosition();
+            }
             getLookControl().setLookAt(net.minecraft.world.phys.Vec3.atCenterOf(workAt));
             if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(workAt)) < 2.0 * 2.0) {
                 getNavigation().stop();

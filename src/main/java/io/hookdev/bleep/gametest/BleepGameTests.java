@@ -136,6 +136,9 @@ public final class BleepGameTests {
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("a_herder_shears_sheep", BleepGameTests::aHerderShearsSheep, 400);
+        test("a_herder_feeds_the_herd", BleepGameTests::aHerderFeedsTheHerd, 400);
+        test("a_lumberjack_fells_a_tree", BleepGameTests::aLumberjackFellsATree, 400);
         test("it_shows_the_way", BleepGameTests::itShowsTheWay, 300);
         test("it_dreams", BleepGameTests::itDreams, 20);
         test("it_buries_a_treasure", BleepGameTests::itBuriesATreasure, 400);
@@ -1189,6 +1192,35 @@ public final class BleepGameTests {
     @SuppressWarnings("unchecked")
     private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
         return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static void aHerderShearsSheep(GameTestHelper helper) {
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_HERDER);
+        net.minecraft.world.entity.animal.sheep.Sheep sheep = helper.spawnWithNoFreeWill(type("sheep"), FAR);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(sheep.isSheared(), "it shears the sheep");
+            helper.assertTrue(bleep.storage().hasAnyMatching(s -> s.is(net.minecraft.tags.ItemTags.WOOL)), "and keeps the wool");
+        });
+    }
+
+    private static void aHerderFeedsTheHerd(GameTestHelper helper) {
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_HERDER);
+        bleep.storage().addItem(new ItemStack(Items.WHEAT, 4));
+        net.minecraft.world.entity.animal.Animal a = helper.spawnWithNoFreeWill(type("cow"), FAR), b = helper.spawnWithNoFreeWill(type("cow"), new BlockPos(5, 0, 2));
+        helper.succeedWhen(() -> helper.assertTrue(a.isInLove() && b.isInLove(), "it feeds both cows wheat"));
+    }
+
+    private static void aLumberjackFellsATree(GameTestHelper helper) {
+        BlockPos base = new BlockPos(5, 0, 1);
+        helper.setBlock(base.below(), Blocks.DIRT);
+        for (int y = 0; y < 4; y++) helper.setBlock(base.above(y), Blocks.OAK_LOG);
+        for (BlockPos at : BlockPos.betweenClosed(base.offset(-1, 4, -1), base.offset(1, 4, 1))) helper.setBlock(at, Blocks.OAK_LEAVES);
+        BleepEntity bleep = worker(helper, BleepEntity.JOB_LUMBERJACK);
+        bleep.storage().addItem(new ItemStack(Items.OAK_SAPLING));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.storage().countItem(Items.OAK_LOG) == 4, "four logs in its storage");
+            helper.assertTrue(helper.getBlockState(base).is(Blocks.OAK_SAPLING), "and a sapling where the tree stood");
+        });
     }
 
     private static void itShowsTheWay(GameTestHelper helper) {

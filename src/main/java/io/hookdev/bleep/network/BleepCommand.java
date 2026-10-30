@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A button on a bleep's info screen: Follow, Stay or Go Home. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -32,22 +32,17 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
         obey(context.player(), context.player().level().getEntity(message.entityId()), message.command());
     }
 
-    /** Server side: only the owner's own bleep, close by, listens. True if it did as it was told. */
+    /** Server side: only the owner's own bleep, close by, listens (and it may dawdle first). */
     public static boolean obey(Player player, @Nullable Entity target, int command) {
+        return obey(player, target, command, target == null ? 1 : target.getRandom().nextFloat());
+    }
+
+    /** With the dice already thrown: below the bleep's dawdle chance it dawdles. True if it will do as it was told. */
+    public static boolean obey(Player player, @Nullable Entity target, int command, float roll) {
         if (!(target instanceof BleepEntity bleep) || !bleep.isOwnedBy(player) || bleep.distanceToSqr(player) > REACH * REACH) return false;
-        switch (command) {
-            case FOLLOW -> bleep.follow();
-            case STAY -> bleep.stay();
-            case GO_HOME -> {
-                if (bleep.goHome()) return true;
-                player.sendOverlayMessage(Component.translatable("message.bleep.no_home", bleep.getDisplayName()));
-                return false;
-            }
-            default -> {
-                return false;
-            }
-        }
-        return true;
+        if (bleep.order(command, roll)) return true;
+        if (command == GO_HOME) player.sendOverlayMessage(Component.translatable("message.bleep.no_home", bleep.getDisplayName()));
+        return false;
     }
 
     @Override

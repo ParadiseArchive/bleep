@@ -2,6 +2,8 @@ package io.hookdev.bleep.client;
 
 import io.hookdev.bleep.Bleep;
 import io.hookdev.bleep.entity.Emotion;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.model.ArmedModel;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
@@ -11,6 +13,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.HumanoidArm;
 
 /**
  * A bleep, in pixels (1/16 block): two tracks with three wheels each, a chassis between them, a round white body,
@@ -18,7 +21,7 @@ import net.minecraft.util.Mth;
  * from the same box sizes); the faces on the display come from a 128 x 128 texture, so the display has twice the
  * pixels: 20 x 10.
  */
-public class BleepModel extends EntityModel<BleepRenderState> {
+public class BleepModel extends EntityModel<BleepRenderState> implements ArmedModel<BleepRenderState> {
     public static final ModelLayerLocation LAYER = new ModelLayerLocation(Bleep.id("bleep"), "main");
     private static final float ARMS_FORWARD = -0.9f;
 
@@ -116,7 +119,33 @@ public class BleepModel extends EntityModel<BleepRenderState> {
                 rightArm.xRot = leftArm.xRot = 0;
                 head.xRot = head.yRot = 0;
             }
+            case STUBBORN -> { // arms folded, looking away
+                rightArm.xRot = leftArm.xRot = -1.2f;
+                rightArm.zRot = -0.7f;
+                leftArm.zRot = 0.7f;
+                head.yRot += 0.6f;
+                head.xRot -= 0.1f;
+            }
+            case GLITCH -> { // twitching all over
+                head.zRot = Mth.sin(age * 3.1f) * 0.25f;
+                head.yRot += Mth.sin(age * 2.3f) * 0.3f;
+                rightArm.xRot = -1.8f + Mth.sin(age * 4.1f) * 0.6f;
+                leftArm.xRot = -1.8f + Mth.cos(age * 3.7f) * 0.6f;
+            }
             default -> {}
         }
+        if (state.carrying && emotion != Emotion.GLITCH) { // holding its find out in front
+            rightArm.xRot = leftArm.xRot = -1.1f;
+            rightArm.zRot = leftArm.zRot = 0;
+        }
+    }
+
+    /** Where an item in its hand goes: in the hand at the end of the arm. */
+    @Override
+    public void translateToHand(BleepRenderState state, HumanoidArm arm, PoseStack poseStack) {
+        root.translateAndRotate(poseStack);
+        body.translateAndRotate(poseStack);
+        (arm == HumanoidArm.RIGHT ? rightArm : leftArm).translateAndRotate(poseStack);
+        poseStack.translate((arm == HumanoidArm.RIGHT ? -1 : 1) / 16f, 0, 0);
     }
 }

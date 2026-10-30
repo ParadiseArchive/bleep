@@ -1,20 +1,24 @@
 package io.hookdev.bleep.client;
 
 import io.hookdev.bleep.entity.BleepEntity;
+import io.hookdev.bleep.entity.Bond;
+import io.hookdev.bleep.entity.Obsession;
 import io.hookdev.bleep.network.BleepCommand;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * A bleep's info screen, opened by right-clicking your own bleep: its face as on its display, its name, mood and what
- * it is doing, its battery and bond with you, what it is thinking, and the Follow, Stay and Go Home buttons. It
+ * it is doing, its battery and bond with you, its favourite item (??? until you find out), what it is thinking, and
+ * the Follow, Stay and Go Home buttons. It
  * follows the bleep live and closes when the bleep is gone or too far away.
  */
 public class BleepScreen extends Screen {
-    private static final int W = 232, H = 172;
+    private static final int W = 232, H = 192;
     private static final int SHELL = 0xFFEEF1F4, SHELL_EDGE = 0xFFB7C0C9, PANEL = 0xFF15181E, SCREEN = 0xFF08090C;
     private static final int TEXT = 0xFFEEF1F4, DIM = 0xFF8A93A0, GLOW = 0xFF8FF7FF, AMBER = 0xFFFFB547, PINK = 0xFFFF4F8B;
     /** Where the display sits in the face textures (128 x 128), and how big it is drawn here. */
@@ -77,14 +81,26 @@ public class BleepScreen extends Screen {
         bar(g, by, Component.translatable("screen.bleep.battery"), battery / BleepEntity.FULL, battery < BleepEntity.TIRED ? AMBER : GLOW,
                 Component.literal(Math.round(battery) + "%"));
         int bond = bleep.bond();
-        String level = bond >= 75 ? "best_friend" : bond >= 50 ? "buddy" : bond >= 25 ? "friend" : "new";
-        bar(g, by + 14, Component.translatable("screen.bleep.bond"), bond / 100f, PINK, Component.translatable("bond.bleep." + level));
+        bar(g, by + 14, Component.translatable("screen.bleep.bond"), bond / (float) Bond.MAX, PINK, Component.translatable(Bond.key(bond)));
+
+        // its favourite item, once you know it
+        int oy = by + 30;
+        g.text(font, Component.translatable("screen.bleep.favourite"), left + 10, oy + 4, DIM, false);
+        Obsession favourite = bleep.obsession();
+        if (favourite != null && bleep.revealed()) {
+            g.item(favourite.iconStack(), left + 62, oy);
+            g.text(font, Component.translatable(favourite.nameKey()), left + 82, oy + 4, TEXT, false);
+        } else {
+            g.text(font, "???", left + 62, oy + 4, TEXT, false);
+        }
 
         // what it is thinking
-        int qy = by + 30, qh = 34;
+        int qy = oy + 22, qh = 34;
         g.fill(left + 10, qy, left + W - 10, qy + qh, 0xFF22262E);
         if (!bleep.thought().isEmpty()) {
-            Component thought = Component.literal("“").append(Component.translatable(bleep.thought())).append("”");
+            // a mob from another mod has no line of its own
+            String key = Language.getInstance().has(bleep.thought()) ? bleep.thought() : "thought.bleep.unknown_mob";
+            Component thought = Component.literal("“").append(Component.translatable(key)).append("”");
             g.textWithWordWrap(font, thought, left + 16, qy + 6, W - 32, TEXT);
         }
 

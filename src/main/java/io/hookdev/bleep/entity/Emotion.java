@@ -8,7 +8,11 @@ public enum Emotion {
     /** Battery empty: the screen is off but for a last sleepy face. */
     ASLEEP,
     /** The first time the screen comes on. */
-    BOOT;
+    BOOT,
+    /** Dawdling over an order: it does it anyway in a moment. */
+    STUBBORN,
+    /** Too excited (it found its favourite thing), or zapped. */
+    GLITCH;
 
     private static final Emotion[] VALUES = values();
 

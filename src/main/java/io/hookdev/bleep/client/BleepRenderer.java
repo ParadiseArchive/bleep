@@ -5,7 +5,9 @@ import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Emotion;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.layers.LivingEntityEmissiveLayer;
+import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
@@ -22,6 +24,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         super(context, new BleepModel(context.bakeLayer(BleepModel.LAYER)), 0.45f);
         this.addLayer(new LivingEntityEmissiveLayer<>(this, state -> face(state.emotion, state.ageInTicks, state.id), (state, ageInTicks) -> 1.0f,
                 new BleepModel(context.bakeLayer(BleepModel.LAYER)), RenderTypes::eyes, false));
+        this.addLayer(new ItemInHandLayer<>(this));
     }
 
     /**
@@ -30,7 +33,8 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
      */
     public static Identifier face(Emotion emotion, float ageInTicks, int id) {
         if (emotion == Emotion.BOOT) return Bleep.id("textures/entity/bleep/face/boot_" + ((int) (ageInTicks / 8) % 3) + ".png");
-        boolean blink = emotion != Emotion.ASLEEP && emotion != Emotion.SURPRISED
+        if (emotion == Emotion.GLITCH) return Bleep.id("textures/entity/bleep/face/glitch_" + ((int) (ageInTicks / 2) % 2) + ".png");
+        boolean blink = emotion != Emotion.ASLEEP && emotion != Emotion.SURPRISED && emotion != Emotion.EXCITED
                 && (int) (ageInTicks + id * 37) % BLINK_EVERY < BLINK;
         return Bleep.id("textures/entity/bleep/face/" + emotion.texture() + (blink ? "_blink" : "") + ".png");
     }
@@ -50,5 +54,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         super.extractRenderState(bleep, state, partialTicks);
         state.emotion = bleep.emotion();
         state.id = bleep.getId();
+        ArmedEntityRenderState.extractArmedEntityRenderState(bleep, state, this.itemModelResolver, partialTicks);
+        state.carrying = !bleep.getMainHandItem().isEmpty();
     }
 }

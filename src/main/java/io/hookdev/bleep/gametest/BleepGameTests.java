@@ -5,7 +5,9 @@ import io.hookdev.bleep.BleepContent;
 import io.hookdev.bleep.block.HomebaseBlock;
 import io.hookdev.bleep.entity.Activity;
 import io.hookdev.bleep.entity.BleepEntity;
+import io.hookdev.bleep.entity.Bond;
 import io.hookdev.bleep.entity.Emotion;
+import io.hookdev.bleep.entity.Obsession;
 import io.hookdev.bleep.network.BleepCommand;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,8 +24,10 @@ import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -54,6 +58,14 @@ public final class BleepGameTests {
         test("an_empty_bleep_goes_home_to_charge", BleepGameTests::anEmptyBleepGoesHomeToCharge, 100);
         test("the_homebase_lights_up_while_it_charges", BleepGameTests::theHomebaseLightsUpWhileItCharges, 60);
         test("a_broken_homebase_leaves_it_homeless", BleepGameTests::aBrokenHomebaseLeavesItHomeless, 60);
+        test("petting_raises_the_bond_five_times_a_day", BleepGameTests::pettingRaisesTheBondFiveTimesADay, 20);
+        test("treats_and_the_favourite_raise_the_bond", BleepGameTests::treatsAndTheFavouriteRaiseTheBond, 20);
+        test("hitting_it_or_switching_it_off_lowers_the_bond", BleepGameTests::hittingItOrSwitchingItOffLowersTheBond, 20);
+        test("a_new_level_is_celebrated", BleepGameTests::aNewLevelIsCelebrated, 20);
+        test("it_dawdles_then_does_it_anyway", BleepGameTests::itDawdlesThenDoesItAnyway, 100);
+        test("in_danger_it_always_listens", BleepGameTests::inDangerItAlwaysListens, 20);
+        test("a_new_mob_gets_a_thought", BleepGameTests::aNewMobGetsAThought, 120);
+        test("it_brings_its_favourite_to_its_owner", BleepGameTests::itBringsItsFavouriteToItsOwner, 300);
         test("a_name_always_shows", BleepGameTests::aNameAlwaysShows, 20);
         test("the_core_boots_a_bleep", BleepGameTests::theCoreBootsABleep, 100);
     }
@@ -146,11 +158,11 @@ public final class BleepGameTests {
     private static void onlyTheOwnerGivesOrders(GameTestHelper helper) {
         Player owner = player(helper), stranger = player(helper);
         BleepEntity bleep = bleep(helper, owner);
-        helper.assertFalse(BleepCommand.obey(stranger, bleep, BleepCommand.STAY), "a bleep only listens to its owner");
+        helper.assertFalse(BleepCommand.obey(stranger, bleep, BleepCommand.STAY, 1), "a bleep only listens to its owner");
         helper.assertFalse(bleep.isOrderedToSit(), "a stranger should not make it stay");
-        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.STAY) && bleep.isOrderedToSit(), "Stay should make it stay");
-        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.FOLLOW) && !bleep.isOrderedToSit(), "Follow should make it follow");
-        helper.assertFalse(BleepCommand.obey(owner, bleep, BleepCommand.GO_HOME), "a bleep without a homebase cannot go home");
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.STAY, 1) && bleep.isOrderedToSit(), "Stay should make it stay");
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.FOLLOW, 1) && !bleep.isOrderedToSit(), "Follow should make it follow");
+        helper.assertFalse(BleepCommand.obey(owner, bleep, BleepCommand.GO_HOME, 1), "a bleep without a homebase cannot go home");
         helper.succeed();
     }
 
@@ -170,7 +182,7 @@ public final class BleepGameTests {
         bleep.tame(owner);
         BlockPos home = homebase(helper, HOME);
         bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
-        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.GO_HOME), "with a homebase, Go Home should work");
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.GO_HOME, 1), "with a homebase, Go Home should work");
         helper.succeedWhen(() -> {
             helper.assertTrue(bleep.onHome(), "it should drive onto its homebase");
             helper.assertTrue(bleep.isOrderedToSit(), "and stay there");
@@ -217,6 +229,97 @@ public final class BleepGameTests {
         helper.succeedWhen(() -> {
             helper.assertTrue(bleep.home() == null, "without its homebase it should be homeless");
             helper.assertTrue(bleep.emotion() == Emotion.SAD, "and a little sad about it, it shows " + bleep.emotion());
+        });
+    }
+
+    /** Its favourite item made the compass, so the tests know what it is. */
+    private static final int COMPASS = Obsession.ALL.indexOf(Obsession.ALL.stream().filter(o -> o.id().equals("compass")).findFirst().orElseThrow());
+
+    private static void pettingRaisesTheBondFiveTimesADay(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        for (int i = 0; i < 7; i++) bleep.pet();
+        helper.assertTrue(bleep.bond() == Bond.PETS_PER_DAY * Bond.PET, "petting counts five times a day, bond is " + bleep.bond());
+        helper.succeed();
+    }
+
+    private static void treatsAndTheFavouriteRaiseTheBond(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setObsession(COMPASS);
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.COOKIE)), "a cookie is a treat");
+        helper.assertTrue(bleep.bond() == Bond.GIFT, "a treat is worth 3, bond is " + bleep.bond());
+        helper.assertFalse(bleep.give(owner, new ItemStack(Items.DIRT)), "dirt is not a treat");
+        helper.assertFalse(bleep.revealed(), "its favourite is a secret until you find it");
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.COMPASS)), "it takes its favourite item");
+        helper.assertTrue(bleep.revealed(), "giving it its favourite shows you what it is");
+        helper.assertTrue(bleep.bond() == Bond.GIFT + Bond.FAVOURITE, "its favourite is worth 10, bond is " + bleep.bond());
+        helper.assertFalse(bleep.give(owner, new ItemStack(Items.COMPASS)), "only one favourite a day counts");
+        helper.assertTrue(bleep.bond() == Bond.GIFT + Bond.FAVOURITE, "a second favourite the same day is not worth more");
+        helper.succeed();
+    }
+
+    private static void hittingItOrSwitchingItOffLowersTheBond(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBond(50);
+        bleep.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(owner), 1);
+        helper.assertTrue(bleep.bond() == 50 + Bond.HIT_BY_OWNER, "a hit from its owner costs 5, bond is " + bleep.bond());
+        bleep.setBattery(0);
+        helper.assertTrue(bleep.bond() == 50 + Bond.HIT_BY_OWNER + Bond.SWITCHED_OFF, "switching off costs 3, bond is " + bleep.bond());
+        helper.succeed();
+    }
+
+    private static void aNewLevelIsCelebrated(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.setBond(24);
+        helper.assertTrue(Bond.level(bleep.bond()) == 0, "24 is still New");
+        bleep.pet();
+        helper.assertTrue(Bond.level(bleep.bond()) == 1, "25 is Friend");
+        helper.succeedWhen(() -> helper.assertTrue(bleep.emotion() == Emotion.EXCITED, "a new level makes it excited"));
+    }
+
+    private static void itDawdlesThenDoesItAnyway(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.STAY, 0), "it will do it");
+        helper.assertFalse(bleep.isOrderedToSit(), "a new bleep that rolls low dawdles first");
+        helper.assertTrue(bleep.dawdling(), "it should be dawdling");
+        helper.runAfterDelay(5, () -> helper.assertTrue(bleep.emotion() == Emotion.STUBBORN, "it pulls a stubborn face, it shows " + bleep.emotion()));
+        helper.succeedWhen(() -> helper.assertTrue(bleep.isOrderedToSit() && !bleep.dawdling(), "after dawdling it stays anyway"));
+    }
+
+    private static void inDangerItAlwaysListens(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBattery(10);
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.STAY, 0), "it will do it");
+        helper.assertTrue(bleep.isOrderedToSit(), "with a low battery it does not dawdle");
+        helper.succeed();
+    }
+
+    private static void aNewMobGetsAThought(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        // looked up by name: 26.3 and 26.1 keep their entity types in different classes
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> cow = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("cow"));
+        helper.spawnWithNoFreeWill(cow, FAR);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.seenMobs().contains("minecraft:cow"), "it should have a look at the cow");
+            helper.assertTrue(bleep.thought().equals("mob.bleep.cow"), "and think about it, it thinks " + bleep.thought());
+        });
+    }
+
+    private static void itBringsItsFavouriteToItsOwner(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(0.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        bleep.setObsession(COMPASS);
+        helper.spawnItem(Items.COMPASS, new Vec3(5.5, 0.2, 1.5));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.COMPASS)), "it should bring the compass to its owner, it holds " + bleep.getMainHandItem());
+            helper.assertTrue(bleep.revealed(), "finding it shows you what its favourite is");
         });
     }
 

@@ -2,7 +2,7 @@ package io.hookdev.bleep.entity;
 
 /** What a bleep is doing, for its info screen. The order is sent to clients: only ever add at the end. */
 public enum Activity {
-    FOLLOWING, STAYING, GOING_HOME, CHARGING, AT_HOME, SLEEPING, HIDING, STARTING;
+    FOLLOWING, STAYING, GOING_HOME, CHARGING, AT_HOME, SLEEPING, HIDING, STARTING, DAWDLING, FETCHING, LOOKING;
 
     private static final Activity[] VALUES = values();
 

@@ -11,6 +11,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ public class Bleep {
         modEventBus.addListener((EntityAttributeCreationEvent event) -> event.put(BleepContent.BLEEP.get(), BleepEntity.createAttributes().build()));
         modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle));
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
+        NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
         LOGGER.info("Bleep loaded. Bleep bloop.");
     }
 
@@ -42,6 +44,15 @@ public class Bleep {
         var player = event.getEntity();
         for (BleepEntity bleep : level.getEntities(BleepContent.BLEEP.get(), b -> b.isOwnedBy(player) && b.homeHere())) {
             if (bleep.home().pos().closerToCenterThan(player.position(), 32)) bleep.beamHome();
+        }
+    }
+
+    /** A player beat a monster: their bleeps close by won that fight together with them. */
+    private static void fightWon(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof net.minecraft.world.entity.monster.Enemy) || !(event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player player)
+                || !(event.getEntity().level() instanceof ServerLevel level)) return;
+        for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, event.getEntity().getBoundingBox().inflate(BleepEntity.TOGETHER), b -> b.isOwnedBy(player))) {
+            bleep.foughtTogether();
         }
     }
 

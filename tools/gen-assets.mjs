@@ -165,6 +165,10 @@ const FACES = {
     // an almost empty battery in the corner
     f.rect(15, 0, 4, 1, DIM); f.rect(15, 2, 4, 1, DIM); f.set(15, 1, DIM); f.set(18, 1, DIM); f.set(19, 1, DIM); f.set(16, 1, AMBER);
   },
+  stubborn: (f, blink) => { // one eye squinting, tongue out
+    if (blink) blinkEyes(f, 4); else { f.rect(5, 2, 2, 3); f.rect(13, 4, 3, 1); }
+    f.rect(7, 7, 6, 1); f.rect(10, 8, 2, 2, '#ff4f8b');
+  },
   asleep: f => { // closed eyes and a z, dimmed
     EYES.forEach(x => { f.set(x - 1, 4, DIM); f.rect(x, 5, 3, 1, DIM); f.set(x + 3, 4, DIM); });
     f.rect(9, 8, 2, 1, DIM);
@@ -175,6 +179,15 @@ for (const [name, draw] of Object.entries(FACES)) {
   face(name, f => draw(f, false));
   if (name !== 'asleep' && name !== 'surprised') face(name + '_blink', f => draw(f, true));
 }
+// glitching: the face torn into bands, two frames
+face('glitch_0', f => {
+  f.rect(6, 2, 2, 3); f.rect(15, 1, 2, 3); f.rect(0, 5, 7, 1, DIM); f.rect(11, 6, 9, 1); f.rect(9, 8, 5, 1);
+  for (const [x, y] of [[2, 1], [18, 8], [4, 9], [12, 3], [17, 5]]) f.set(x, y, AMBER);
+});
+face('glitch_1', f => {
+  f.rect(3, 3, 2, 3); f.rect(12, 2, 2, 3); f.rect(8, 4, 12, 1, DIM); f.rect(0, 7, 8, 1); f.rect(6, 8, 6, 1);
+  for (const [x, y] of [[16, 0], [1, 6], [10, 9], [5, 1], [19, 3]]) f.set(x, y, '#ff4f8b');
+});
 // the start-up screen: a line flicks on, then a loading bar fills
 face('boot_0', f => { f.rect(0, 4, W, 2, DIM); f.rect(6, 4, 8, 2); });
 face('boot_1', f => { f.rect(3, 3, 14, 1, DIM); f.rect(3, 7, 14, 1, DIM); f.rect(3, 3, 1, 5, DIM); f.rect(16, 3, 1, 5, DIM); f.rect(5, 5, 4, 1); });
@@ -254,7 +267,116 @@ const THOUGHTS = {
   asleep: ['Zzz... electric sheep... zzz', 'Zzz... a cow with wheels... zzz', 'Zzz...'],
   charging: ['Mmm. Fresh electrons.', 'Charging. Please do not unplug.', 'Home sweet homebase.'],
   llama: ['It is watching. It knows. Do not move.', 'Llama. LLAMA. Hiding now.'],
+  stubborn: ['Yes, yes. In a minute.', 'I heard you. I am choosing to finish my turn first.', 'Fine. FINE.'],
+  glitch: ['BL33P B00P!!1', 'TOO MUCH HAPPY. REBOOTING HAPPY.'],
 };
+// the favourite items (Obsession in Java): their names, and the hints in its thoughts until its owner finds out
+const FAVOURITES = {
+  amethyst_shard: ['Amethyst Shard', 'Something purple… something that goes *ting*…'],
+  lightning_rod: ['Lightning Rod', 'One day. One day the lightning will come.'],
+  compass: ['Compass', "That little needle knows something. I'm sure of it."],
+  music_disc: ['Music Disc', 'Round. Shiny. Tasty?'],
+  glow_berries: ['Glow Berries', 'Little lights you can eat…'],
+  clock: ['Clock', 'Tick. Tock. Something round knows what time it is.'],
+  spyglass: ['Spyglass', 'A tube that makes far things close. I want to look through it.'],
+  firework_rocket: ['Firework Rocket', 'A stick that goes WHOOSH and then sparkles. Want.'],
+  bell: ['Bell', 'Ding! …Where is that ding coming from?'],
+  honeycomb: ['Honeycomb', 'Little hexagons. So tidy. So perfect.'],
+};
+// what it thinks the first time it sees each mob (mob.bleep.<id>), from the design doc
+const MOBS = {
+  allay: "Flies, sings, fetches stuff. Show-off.",
+  armadillo: "Rolls into a ball when scared. Honestly? Smart.",
+  axolotl: "Permanently smiling. Suspicious.",
+  bat: "Hangs upside down all day. And they call ME weird.",
+  camel: "Two seats, zero hurry.",
+  cat: "It stares at me like I owe it money.",
+  chicken: "A bird that can't fly. Someone gave up here.",
+  cod: "A fish. Doing fish things. Riveting.",
+  copper_golem: "A fellow metal friend! …Why is it turning green?",
+  cow: "Why doesn't that cow have wheels?",
+  donkey: "A horse that says no. I respect that.",
+  frog: "Swallows things whole. Keeping my distance.",
+  glow_squid: "Its whole body is a screen. Unfair.",
+  happy_ghast: "A giant cloud with a face. It seems… fine?",
+  horse: "No tracks, still faster than me. Rude.",
+  iron_golem: "Big brother. He just doesn't know it yet.",
+  llama: "It's watching. It knows. Don't move.",
+  mooshroom: "A cow with a garden on its back. Overachiever.",
+  mule: "Half horse, half donkey, full storage.",
+  nautilus: "Carries its house everywhere. Never needs a homebase. Jealous.",
+  ocelot: "It ran away from me. Hurtful.",
+  parrot: "It copies sounds. Bleep. …Don't you dare.",
+  pig: "People ride this? I have tracks.",
+  pufferfish: "Angry balloon. Do not hug.",
+  rabbit: "Jumps everywhere. Has it considered tracks?",
+  salmon: "Swims upstream on purpose. Why.",
+  sheep: "It's just wearing a cloud.",
+  skeleton_horse: "A horse that forgot the horse part.",
+  sniffer: "Big nose. Big dreams.",
+  snow_golem: "Made of snow in a world with lava. Bold.",
+  squid: "Eight arms and still can't hold a sword.",
+  strider: "Shivers the second it leaves lava. Dramatic.",
+  sulfur_cube: "It eats blocks and becomes them. Identity crisis.",
+  tadpole: "A frog in beta.",
+  trader_llama: "A llama. With a JOB. Even worse.",
+  tropical_fish: "Too many colors. Pick one.",
+  turtle: "Finally. Something slower than me.",
+  villager: "Hmm. Hmm hmm. Deep conversation, as always.",
+  wandering_trader: "Sells random stuff. Brings llamas. Unforgivable.",
+  bee: "Tiny factory worker. Stings on its break.",
+  cave_spider: "Smaller spider. Still no wheels.",
+  dolphin: "Smarter than the player. Don't tell them.",
+  enderman: "Not looking. NOT looking. …I looked.",
+  fox: "Steals things from chests. …Okay, we have that in common.",
+  goat: "Headbutts first. Asks questions never.",
+  panda: "Round, lazy, eats all day. Goals.",
+  piglin: "Loves gold more than I love my favorite thing. Respect.",
+  polar_bear: "Big, fluffy, protective. Fair enough.",
+  spider: "Eight legs and still no wheels. Bad design.",
+  wolf: "Good boy. Bites. Good boy?",
+  zombified_piglin: "Hit one and the whole family shows up. Classic.",
+  blaze: "Spinning sticks on fire. Not battery-powered. Sad.",
+  bogged: "A skeleton wearing seaweed. Fashion choice.",
+  breeze: "All wind, no substance.",
+  camel_husk: "A dried-up camel. Thirsty for revenge.",
+  creaking: "Only moves when no one looks. Good thing I can't blink.",
+  creeper: "Green, angry, and allergic to hugs.",
+  drowned: "A zombie that took swimming lessons.",
+  elder_guardian: "Grumpy old fish with a laser. Unnecessary.",
+  endermite: "Tiny, purple, annoying. Nothing like me.",
+  evoker: "Summons fangs and little flying guys. No manners.",
+  ghast: "Cries all the time. Throws fireballs. Mood.",
+  guardian: "One eye, many spikes, zero chill.",
+  hoglin: "A pig, but angry about it.",
+  husk: "A zombie that forgot sunscreen.",
+  magma_cube: "Jelly, but hot. No thank you.",
+  parched: "A skeleton that really needs a drink.",
+  phantom: "Sleep, or this happens. Noted.",
+  piglin_brute: "No amount of gold fixes this one.",
+  pillager: "Crossbow, frown, no hobbies.",
+  ravager: "Big angry furniture.",
+  shulker: "A box that bites. I'd like to unsubscribe.",
+  silverfish: "Lives in stone. Rent free.",
+  skeleton: "No muscles, still holds a bow. Respect, honestly.",
+  slime: "Hit it and there's more of it. Bad math.",
+  stray: "A skeleton that's always cold. Wear a scarf.",
+  vex: "Tiny flying menace with a sword. Who gave it a sword?",
+  vindicator: "Has an axe and no indoor voice.",
+  warden: "No.",
+  witch: "Drinks potions all day. Not judging. Okay, a little.",
+  wither_skeleton: "Tall, dark and withering.",
+  zoglin: "A hoglin, but somehow worse.",
+  zombie: "Slow, groaning, smells weird. So… Monday morning.",
+  zombie_horse: "A horse that gave up. Then got back up.",
+  zombie_nautilus: "Even its shell looks tired.",
+  zombie_villager: "Hmmrgh. Same conversation, worse breath.",
+  ender_dragon: "Big, purple, flies in circles. I'll be behind you.",
+  wither: "Three heads and not one good idea.",
+};
+const favouriteLines = Object.fromEntries(Object.entries(FAVOURITES).flatMap(([id, [name, hint]]) =>
+  [['obsession.bleep.' + id, name], ['thought.bleep.obsession.' + id, hint]]));
+const mobLines = Object.fromEntries(Object.entries(MOBS).map(([id, line]) => ['mob.bleep.' + id, line]));
 const thoughtLines = Object.fromEntries(Object.entries(THOUGHTS).flatMap(([kind, lines]) => lines.map((line, n) => ['thought.bleep.' + kind + '.' + n, line])));
 
 // ---------- language ----------
@@ -280,6 +402,16 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'activity.bleep.hiding': 'Hiding from a llama', 'activity.bleep.starting': 'Starting up',
   'bond.bleep.new': 'New', 'bond.bleep.friend': 'Friend', 'bond.bleep.buddy': 'Buddy', 'bond.bleep.best_friend': 'Best friend',
   ...thoughtLines,
+  ...favouriteLines,
+  ...mobLines,
+  'thought.bleep.unknown_mob': 'Never seen one of those. Filing it under weird.',
+  'screen.bleep.favourite': 'Favourite',
+  'activity.bleep.dawdling': 'Dawdling', 'activity.bleep.fetching': 'Fetching something', 'activity.bleep.looking': 'Having a look',
+  'emotion.bleep.stubborn': 'Stubborn', 'emotion.bleep.glitch': 'Glitching',
+  'message.bleep.level_up': '%s is now your %s!',
+  'message.bleep.loves': '%s LOVES the %s!',
+  'message.bleep.thinks': '%s: "%s"',
+  'message.bleep.full_of_gifts': '%s has had enough treats for today.',
 });
 
 console.log('Bleep assets written.');

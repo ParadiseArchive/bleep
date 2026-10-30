@@ -10,7 +10,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## Build your own
 
-- **Find the core.** The Bleep Core, the heart of a bleep, made of bedrock, waits in the chests of dungeons and abandoned mineshafts.
+- **Find the core.** The Bleep Core, the heart of a bleep, made of bedrock, waits in the chests of dungeons and abandoned mineshafts. Or craft one, if you can spare thirteen diamonds.
 - **Craft the rest.** A Display, Tracks and Arms, from iron, redstone, black glass and dried kelp.
 - **Build it.** Right-click the ground with the core, the other three parts in your inventory.
 - **Put together part by part.** The tracks go down first, then its body, its arms and its head, each with a clunk and a few sparks, and then its screen comes on for the very first time.

@@ -45,7 +45,7 @@ public final class BleepContent {
                     .clientTrackingRange(10).build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     /**
-     * The heart of a bleep, made of bedrock. Use it on the ground with the other three parts in your inventory and a
+     * The heart of a bleep, made of bedrock: found deep down, or crafted at a price. Use it on the ground with the other three parts in your inventory and a
      * bleep is put together there (in creative, the parts are not needed).
      */
     public static final DeferredItem<BleepCoreItem> BLEEP_CORE = ITEMS.registerItem("bleep_core", BleepCoreItem::new,

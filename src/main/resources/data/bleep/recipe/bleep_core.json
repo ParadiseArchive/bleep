@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "O": "minecraft:obsidian",
+    "D": "minecraft:diamond",
+    "B": "minecraft:diamond_block"
+  },
+  "pattern": [
+    "ODO",
+    "DBD",
+    "ODO"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:bleep_core"
+  }
+}

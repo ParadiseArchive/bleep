@@ -243,9 +243,11 @@ json(join(ASSETS, 'sounds.json'), Object.fromEntries(Object.keys(VOICES).map((na
   ['entity.bleep.' + name, { subtitle: 'subtitles.bleep.' + name, sounds: ['bleep:entity/bleep/' + name] }])));
 const subtitleLines = Object.fromEntries(Object.entries(VOICES).map(([name, text]) => ['subtitles.bleep.' + name, text]));
 
-// ---------- the parts: display, tracks and arms are crafted; the core is found (BleepPartsModifier) ----------
+// ---------- the parts: all crafted; the core is expensive, and also found (BleepPartsModifier) ----------
 const shaped = (name, pattern, key) => json(join(DATA, 'recipe/' + name + '.json'),
   { type: 'minecraft:crafting_shaped', category: 'misc', key, pattern, result: { count: 1, id: 'bleep:' + name } });
+// the core, the expensive way: obsidian (the nearest thing to bedrock) round diamonds and a block of diamond, 13 in all
+shaped('bleep_core', ['ODO', 'DBD', 'ODO'], { O: 'minecraft:obsidian', D: 'minecraft:diamond', B: 'minecraft:diamond_block' });
 // a black screen in an iron frame, redstone to light it
 shaped('bleep_display', ['III', 'IGI', 'IRI'], { I: 'minecraft:iron_ingot', G: 'minecraft:black_stained_glass_pane', R: 'minecraft:redstone' });
 // rubber treads of dried kelp round iron wheels, redstone for the motor
@@ -433,7 +435,7 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'item.bleep.bleep_display': 'Bleep Display',
   'item.bleep.bleep_tracks': 'Bleep Tracks',
   'item.bleep.bleep_arms': 'Bleep Arms',
-  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in dungeons and abandoned mineshafts.',
+  'tooltip.bleep.bleep_core': 'The heart of a bleep, made of bedrock.\nUse it on the ground with a display,\ntracks and arms in your inventory.\nFound in dungeons and abandoned mineshafts,\nor crafted, at a price.',
   'tooltip.bleep.bleep_display': 'A bleep\'s face.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nOne of the three parts a core needs.',
@@ -442,7 +444,7 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'jade.bleep.nobody_home': 'Nobody lives here yet',
   'config.jade.plugin_bleep.bleep': 'Bleep: battery, mood and bond',
   'config.jade.plugin_bleep.homebase': 'Bleep: who lives in a homebase',
-  'jei.bleep.bleep_core': 'The heart of a bleep, made of bedrock. Found in dungeon chests (one in four) and abandoned mineshaft chests (about one in seven).\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
+  'jei.bleep.bleep_core': 'The heart of a bleep, made of bedrock. Found in dungeon chests (one in four) and abandoned mineshaft chests (about one in seven), or crafted from thirteen diamonds and four obsidian.\n\nRight-click the ground with it, a Bleep Display, Bleep Tracks and Bleep Arms in your inventory: a bleep is put together there, part by part, and it is yours.',
   'jei.bleep.bleep_display': 'A bleep\'s face. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_tracks': 'What a bleep drives on. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_arms': 'Big enough to hold things, like its favourite item when it brings it to you. One of the three parts a Bleep Core needs.',

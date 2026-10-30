@@ -27,10 +27,10 @@ thing. A new bleep sometimes dawdles over what you ask; a best friend hardly eve
 
 ## The heart of it: build your own
 
-A bleep is made of four parts. Three you craft; the most important one you have to find: the core, made of bedrock,
-waiting deep down.
+A bleep is made of four parts. The most important one is the core, made of bedrock: find one deep down, or craft it
+if you can spare thirteen diamonds.
 
-1. Find a **Bleep Core** in the chest of a dungeon or an abandoned mineshaft.
+1. Find a **Bleep Core** in the chest of a dungeon or an abandoned mineshaft, or craft one.
 2. Craft its **Display**, its **Tracks** and its **Arms** from iron, redstone, black glass and dried kelp.
 3. Right-click the ground with the core, the other three in your inventory. Your bleep is put together part by part,
    clunk by clunk, until its screen comes on for the very first time.
@@ -62,7 +62,7 @@ grows with care, a favourite item, a dry remark about every mob in the game, and
 <img src=".github/readme/shelf-bleep.png" width="100%" alt="A bleep being put together, happy, excited, switched off and charging at home.">
 
 ### Parts and home
-The core you find and the three parts you craft, and the homebase: a charging pad it goes home to when it runs empty, and that Go
+The core and the three parts a bleep is built from, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.
 
 <img src=".github/readme/shelf-parts.png" width="100%" alt="Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase.">

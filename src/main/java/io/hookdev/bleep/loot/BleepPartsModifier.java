@@ -13,7 +13,7 @@ import net.neoforged.neoforge.common.loot.IGlobalLootModifier;
 
 /**
  * Puts the Bleep Core in chests around the world: in dungeons and abandoned mineshafts, deep down where the bedrock is
- * (the owner, 30 Oct 2026: easy enough to find early on; the other parts are crafted). The places and chances live here
+ * (the owner, 30 Oct 2026: easy enough to find early on; it can also be crafted, at a price, and the other parts are crafted). The places and chances live here
  * rather than in loot table files, because 26.3 and 26.1 read those differently.
  */
 public final class BleepPartsModifier implements IGlobalLootModifier {

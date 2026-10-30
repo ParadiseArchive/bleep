@@ -25,6 +25,11 @@ sourceSets.main.java.srcDir("versions/${mc}/java")
 
 repositories {
     mavenCentral()
+    // Modrinth's maven, for Jade and JEI (optional: Bleep shows extra info in them when a player has them)
+    exclusiveContent {
+        forRepository { maven { url = "https://api.modrinth.com/maven" } }
+        filter { includeGroup "maven.modrinth" }
+    }
 }
 
 base {
@@ -68,6 +73,19 @@ neoForge {
             sourceSet(sourceSets.main)
         }
     }
+}
+
+// Sets up localRuntime: mods in the dev client only, never required by or shipped with Bleep.
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // Jade and JEI: compile against them, run them in the dev client, but never require them
+    compileOnly "maven.modrinth:jade:${jade_version}"
+    localRuntime "maven.modrinth:jade:${jade_version}"
+    compileOnly "maven.modrinth:jei:${jei_version}"
+    localRuntime "maven.modrinth:jei:${jei_version}"
 }
 
 // Fills in the mod metadata (neoforge.mods.toml) from gradle.properties and versions/<mc>/gradle.properties.

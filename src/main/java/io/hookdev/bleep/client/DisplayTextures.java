@@ -60,6 +60,8 @@ public final class DisplayTextures {
             case WANT -> "want" + ((int) (state.ageInTicks / 10) % 2);
             case NEWS -> "news" + ((int) (state.ageInTicks / 8) % 2);
             case BALL -> "ball" + ((int) (state.ageInTicks / 10) % 2);
+            case TALK -> "talk" + ((int) (state.ageInTicks / 6) % 4);
+            case HI -> "hi" + ((int) (state.ageInTicks / 10) % 2);
             default -> "face";
         };
     }
@@ -72,6 +74,8 @@ public final class DisplayTextures {
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
             case NEWS -> news(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case BALL -> ball(image, (int) (state.ageInTicks / 10) % 2 == 0);
+            case TALK -> talk(image, (int) (state.ageInTicks / 6) % 4);
+            case HI -> hi(image, (int) (state.ageInTicks / 10) % 2 == 0);
             default -> {}
         }
     }
@@ -196,6 +200,25 @@ public final class DisplayTextures {
             String glyph = FONT.get('?');
             for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') set(image, 13 + g % 3, 2 + g / 3, AMBER);
         }
+    }
+
+    // ---------- talking to another bleep, saying hi ----------
+
+    /** A speech bubble, its dots coming one by one. */
+    private static void talk(NativeImage image, int dots) {
+        for (int x = 4; x <= 15; x++) { set(image, x, 1, GLOW); set(image, x, 6, GLOW); }
+        for (int y = 2; y <= 5; y++) { set(image, 3, y, GLOW); set(image, 16, y, GLOW); }
+        set(image, 6, 7, GLOW); set(image, 5, 8, GLOW); // its tail
+        for (int i = 0; i < Math.min(dots, 3); i++) set(image, 7 + i * 3, 4, AMBER);
+    }
+
+    private static void hi(NativeImage image, boolean beat) {
+        for (int i = 0; i < 2; i++) {
+            String glyph = FONT.get("HI".charAt(i));
+            for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') set(image, 3 + i * 4 + g % 3, 2 + g / 3, GLOW);
+        }
+        String[] heart = beat ? new String[] {".#.#.", "#####", "#####", ".###.", "..#.."} : new String[] {".....", ".#.#.", ".###.", "..#..", "....."};
+        for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++) if (heart[y].charAt(x) == '#') set(image, 12 + x, 2 + y, PINK);
     }
 
     // ---------- news in the Bleepedia ----------

@@ -184,6 +184,13 @@ public class BleepEntity extends TamableAnimal {
     private int comforts;
     private long comfortDay = -1;
     public static final int COMFORT_BED = 1, COMFORT_TOY = 2, COMFORT_SIGN = 4;
+    /** Bleeps it saw lately (id: game time): one it has not seen for a while it greets. */
+    private final Map<java.util.UUID, Long> lastSeen = new java.util.HashMap<>();
+    public static final int GREET_AFTER = 6000, CHATS = 8, CHAT_LINES = 4, CHAT_STEP = 40;
+    /** Who it is saying hi to, talking with or fighting; whose turn; tag: whether it is "it". */
+    private @Nullable BleepEntity greeting, talkingTo, fightingWith;
+    private int greetTicks, talkTicks, fightTicks, tagCooldown, chat, ballPasses;
+    private boolean leads, it, ballDecided;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -229,6 +236,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
+        this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
         this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
@@ -574,6 +582,10 @@ public class BleepEntity extends TamableAnimal {
     public void pet() {
         today();
         feel(Emotion.EXCITED, 60);
+        if (fightingWith != null) { // break it up
+            endFight("thought.bleep.fight.stopped");
+            return;
+        }
         if (getOwner() instanceof Player owner) { // the others saw that
             for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && b.isOwnedBy(owner) && !b.asleep())) other.jealous();
         }
@@ -1356,7 +1368,11 @@ public class BleepEntity extends TamableAnimal {
         boolean loved = favourite != null && favourite.matches().test(item.getItem()), ball = isBall(item.getItem());
         for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(12), b -> b != this && b.fetching == item)) other.lostTo(this);
         setItemSlot(EquipmentSlot.MAINHAND, item.getItem().split(loved || ball ? 1 : item.getItem().getCount()));
-        if (ball) feel(Emotion.EXCITED, 30);
+        if (ball) {
+            feel(Emotion.EXCITED, 30);
+            ballDecided = false;
+            ballPasses = 0;
+        }
         if (item.getItem().isEmpty()) item.discard();
         fetching = null;
         if (loved) {
@@ -1393,10 +1409,42 @@ public class BleepEntity extends TamableAnimal {
 
     /** A ball thrown at it: caught, and it brings it back. */
     public boolean catchBall(ItemStack ball) {
+        return catchBall(ball, 0, null);
+    }
+
+    public boolean catchBall(ItemStack ball, int passes, net.minecraft.world.entity.@Nullable Entity thrower) {
         if (!getMainHandItem().isEmpty() || asleep() || abandoned()) return false;
         setItemSlot(EquipmentSlot.MAINHAND, ball);
         feel(Emotion.EXCITED, 40);
-        pinThought("thought.bleep.ball.caught");
+        ballPasses = passes;
+        ballDecided = false;
+        if (thrower instanceof BleepEntity mate) { // a pass from a friend
+            say("thought.bleep.ball.nice");
+            befriend(this, mate, 1);
+        } else {
+            pinThought("thought.bleep.ball.caught");
+        }
+        return true;
+    }
+
+    /** Holding the ball: now and then it passes it to another bleep first (three passes at most), then it brings it back. */
+    private boolean maybePassBall() {
+        if (ballDecided || !isBall(getMainHandItem())) return false;
+        ballDecided = true;
+        if (ballPasses >= 3 || getRandom().nextFloat() >= 0.5f) return false;
+        BleepEntity mate = level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(10), b -> b != this && b.free() && b.getMainHandItem().isEmpty() && hasLineOfSight(b))
+                .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+        if (mate == null) return false;
+        BallEntity ball = new BallEntity(level(), this, getMainHandItem().copy());
+        setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        ball.setPos(getX(), getEyeY() - 0.3, getZ());
+        double dx = mate.getX() - getX(), dz = mate.getZ() - getZ(), dy = mate.getY() + 0.6 - ball.getY(), d = Math.sqrt(dx * dx + dz * dz);
+        ball.shoot(dx, dy + d * 0.2, dz, (float) (0.35 + d * 0.06), 2);
+        ball.passes = ballPasses + 1;
+        level().addFreshEntity(ball);
+        io.hookdev.bleep.McVersion.swing(this);
+        getLookControl().setLookAt(mate);
+        say("thought.bleep.ball.pass");
         return true;
     }
 
@@ -1427,6 +1475,7 @@ public class BleepEntity extends TamableAnimal {
         pinThought("thought.bleep.together.mine." + getRandom().nextInt(3));
         rememberFirst("squabble", "diary.bleep.squabble", winner.getName().getString());
         winner.pinThought("thought.bleep.together.won");
+        if (getRandom().nextFloat() < 0.35f) startFight(winner);
     }
 
     /** Its owner petted another bleep. */
@@ -1442,29 +1491,189 @@ public class BleepEntity extends TamableAnimal {
         return playTicks > 0 && partner != null;
     }
 
-    /** Starts playing with another bleep (tests). */
+    /** Starts a game of tag with another bleep: this one is "it" (tests). */
     public boolean playWith(BleepEntity other) {
-        if (other == this || playing() || other.playing() || !free() || !other.free()) return false;
+        if (other == this || playing() || other.playing() || !free() || !other.free() || fightingWith != null || other.fightingWith != null) return false;
         for (BleepEntity b : List.of(this, other)) {
             b.partner = b == this ? other : this;
-            b.playTicks = 200;
+            b.playTicks = 240;
             b.playCooldown = 1200;
+            b.it = b == this;
+            b.tagCooldown = 0;
             b.pinThought("thought.bleep.play." + b.getRandom().nextInt(3));
             b.rememberFirst("friend", "diary.bleep.friend", b.partner.getName().getString());
+        }
+        say("thought.bleep.tag.start");
+        return true;
+    }
+
+    /** Whether it is "it" in a game of tag. */
+    public boolean it() {
+        return playing() && it;
+    }
+
+    // ---------- friends ----------
+
+    /** How good friends it is with another bleep (below 0: not at all). */
+    public int friendship(BleepEntity other) {
+        Memory.Friend friend = memory.friends.get(other.getUUID().toString());
+        return friend == null ? 0 : friend.points();
+    }
+
+    /** Better (or worse) friends, both ways; a new best friend or a new rival goes in the diary. */
+    private static void befriend(BleepEntity a, BleepEntity b, int points) {
+        for (BleepEntity self : List.of(a, b)) {
+            BleepEntity other = self == a ? b : a;
+            String id = other.getUUID().toString(), name = other.getName().getString();
+            int before = self.friendship(other);
+            Memory.Friend now = self.memory.befriend(id, name, points);
+            if (before < Memory.Friend.BEST && now.points() >= Memory.Friend.BEST) self.rememberFirst("best_friend_" + id, "diary.bleep.best_friend", name);
+            if (before > Memory.Friend.RIVAL && now.points() <= Memory.Friend.RIVAL) self.rememberFirst("rival_" + id, "diary.bleep.rival", name);
+        }
+    }
+
+    /** Its best friend, if it is close by. */
+    public @Nullable BleepEntity bestFriendNear(double range) {
+        var best = memory.bestFriend();
+        if (best == null) return null;
+        return level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(range), b -> b.getUUID().toString().equals(best.getKey())).stream().findFirst().orElse(null);
+    }
+
+    /** Says something: a thought, a blip, and its owner close by reads it above the hotbar. */
+    private void say(String key) {
+        pinThought(key);
+        talk(emotion() == Emotion.ASLEEP ? Emotion.HAPPY : emotion());
+        if (getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24) {
+            owner.sendOverlayMessage(Component.translatable("message.bleep.thinks", getDisplayName(), Component.translatable(key)));
+        }
+    }
+
+    /** Happy, excited or just bored: a sad, angry or scared bleep does not say hi. */
+    private boolean inTheMood() {
+        Emotion emotion = currentEmotion(); // as it is now, not as it was shown last tick
+        return emotion == Emotion.HAPPY || emotion == Emotion.EXCITED || emotion == Emotion.BORED;
+    }
+
+    /** Both say hi: HI and a heart on their screens, arms in the air. */
+    private void greet(BleepEntity other) {
+        for (BleepEntity b : List.of(this, other)) {
+            b.greeting = b == this ? other : this;
+            b.greetTicks = 60;
+            b.feel(Emotion.EXCITED, 60);
+            b.showDisplay(Display.HI, 60);
+            b.rememberFirst("greet", "diary.bleep.greet", b.greeting.getName().getString());
+        }
+        say("thought.bleep.greet." + getRandom().nextInt(3));
+        other.pinThought("thought.bleep.greet.back");
+        befriend(this, other, 1);
+    }
+
+    /** A little chat, four lines, taking turns (tests: which chat). */
+    public boolean startChat(BleepEntity other, int which) {
+        if (other == this || talkingTo != null || other.talkingTo != null || fightingWith != null || other.fightingWith != null) return false;
+        for (BleepEntity b : List.of(this, other)) {
+            b.talkingTo = b == this ? other : this;
+            b.talkTicks = CHAT_LINES * CHAT_STEP + 20;
+            b.chat = which;
+            b.leads = b == this;
         }
         return true;
     }
 
-    /** Playing with another bleep now and then; a happy bleep cheers up a sad or bored one close by. */
+    public boolean talking() {
+        return talkingTo != null;
+    }
+
+    /** A fight: angry faces, thunder clouds over their heads, and a few hits (tests). */
+    public boolean startFight(BleepEntity other) {
+        if (other == this || fightingWith != null || other.fightingWith != null || slept || other.slept || abandoned() || other.abandoned()) return false;
+        for (BleepEntity b : List.of(this, other)) {
+            b.fightingWith = b == this ? other : this;
+            b.fightTicks = 120;
+            b.talkingTo = null;
+            b.playTicks = 0;
+            b.partner = null;
+            b.feel(Emotion.ANGRY, 120);
+            b.rememberFirst("bleep_fight", "diary.bleep.bleep_fight", b.fightingWith.getName().getString());
+        }
+        say("thought.bleep.fight.start." + getRandom().nextInt(3));
+        other.pinThought("thought.bleep.fight.start." + other.getRandom().nextInt(3));
+        if (getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24) {
+            owner.sendOverlayMessage(Component.translatable("message.bleep.fighting", getDisplayName(), other.getDisplayName()));
+        }
+        befriend(this, other, -3);
+        return true;
+    }
+
+    public boolean fighting() {
+        return fightingWith != null;
+    }
+
+    /** The fight is over: both a little sad, and sorry. */
+    private void endFight(String thought) {
+        BleepEntity other = fightingWith;
+        for (BleepEntity b : other == null ? List.of(this) : List.of(this, other)) {
+            b.fightingWith = null;
+            b.fightTicks = 0;
+            b.feel(Emotion.SAD, 60);
+        }
+        say(thought);
+        if (other != null) other.pinThought("thought.bleep.fight.after." + other.getRandom().nextInt(3));
+    }
+
+    /**
+     * Life with other bleeps: saying hi to one it has not seen for a while, chats, tag, now and then a fight, cheering
+     * up a sad one, and looking for its best friend when it is bored.
+     */
     private void tickTogether() {
         if (playCooldown > 0) playCooldown--;
         if (cheerTicks > 0) cheerTicks--;
         if (jealousTicks > 0) jealousTicks--;
+        if (tagCooldown > 0) tagCooldown--;
+        if (greetTicks > 0 && --greetTicks == 0) greeting = null;
         if (playTicks > 0 && (--playTicks == 0 || partner == null || !partner.isAlive() || partner.slept)) {
+            if (playTicks == 0 && partner != null && getId() < partner.getId()) befriend(this, partner, 2); // a good game
             playTicks = 0;
             partner = null;
         }
+        if (playing() && it && tagCooldown == 0 && distanceToSqr(partner) < 1.4 * 1.4) { // tag! you are it
+            it = false;
+            partner.it = true;
+            partner.tagCooldown = 30;
+            feel(Emotion.EXCITED, 30);
+            say("thought.bleep.tag.tagged");
+            partner.pinThought("thought.bleep.tag.it");
+        }
+        if (talkingTo != null) tickChat();
+        if (fightingWith != null) tickFight();
         if (slept) return;
+        if (tickCount % 20 == 0) { // who is about: one not seen for a while gets a hi
+            long now = level().getGameTime();
+            for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(12), b -> b != this && !b.slept && !b.abandoned())) {
+                Long last = lastSeen.put(other.getUUID(), now);
+                if ((last == null || now - last > GREET_AFTER) && greetTicks == 0 && other.greetTicks == 0 && free() && other.free() && fightingWith == null && !abandoned()
+                        && inTheMood() && other.inTheMood()) greet(other);
+            }
+        }
+        if (tickCount % 200 == 0 && talkingTo == null && fightingWith == null && quietTicks > 100 && mayBeNaughty()) { // a chat
+            BleepEntity best = bestFriendNear(8);
+            float chance = best != null ? 0.5f : 0.2f;
+            if (getRandom().nextFloat() < chance) {
+                BleepEntity other = best != null && best.free() && best.talkingTo == null ? best
+                        : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && b.free() && b.talkingTo == null && !b.playing() && friendship(b) > Memory.Friend.RIVAL)
+                                .stream().findFirst().orElse(null);
+                if (other != null) startChat(other, getRandom().nextInt(CHATS));
+            }
+        }
+        if (tickCount % 400 == 200 && fightingWith == null && quietTicks > 200 && mayBeNaughty()) { // rivals, and now and then strangers, fall out
+            level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(8), b -> b != this && b.free() && !b.slept && !b.abandoned()
+                    && (friendship(b) <= Memory.Friend.RIVAL ? getRandom().nextFloat() < 0.3f : friendship(b) <= 0 && getRandom().nextFloat() < 0.05f))
+                    .stream().findFirst().ifPresent(this::startFight);
+        }
+        if (tickCount % 100 == 25 && quietTicks > 400 && free() && !playing() && talkingTo == null) { // bored: where is my best friend?
+            BleepEntity best = bestFriendNear(24);
+            if (best != null && distanceToSqr(best) > 5 * 5) getNavigation().moveTo(best, 1.0);
+        }
         if (tickCount % 200 == 100 && playTicks == 0 && playCooldown == 0 && quietTicks > 200 && mayBeNaughty() && getRandom().nextFloat() < 0.25f) {
             level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(10), b -> b != this && !b.slept && !b.abandoned() && b.playCooldown == 0)
                     .stream().findFirst().ifPresent(this::playWith);
@@ -1482,6 +1691,44 @@ public class BleepEntity extends TamableAnimal {
     }
 
     // ---------- home comforts ----------
+
+    /** The chat: every CHAT_STEP ticks the next line, taking turns (the one who started says the first). */
+    private void tickChat() {
+        if (talkingTo == null || !talkingTo.isAlive() || slept || --talkTicks <= 0) {
+            if (talkingTo != null && leads && talkTicks <= 0) befriend(this, talkingTo, 1);
+            talkingTo = null;
+            return;
+        }
+        if (!leads || distanceToSqr(talkingTo) > 4 * 4) return;
+        int elapsed = CHAT_LINES * CHAT_STEP + 20 - talkTicks;
+        if (elapsed % CHAT_STEP != 0 || elapsed / CHAT_STEP >= CHAT_LINES) return;
+        int line = elapsed / CHAT_STEP;
+        BleepEntity speaker = line % 2 == 0 ? this : talkingTo;
+        speaker.say("chat.bleep." + chat + "." + line);
+        speaker.showDisplay(Display.TALK, CHAT_STEP - 10);
+    }
+
+    /** The fight: thunder clouds over their heads; now and then one hits the other (a shove and a buzz, a little battery). */
+    private void tickFight() {
+        if (fightingWith == null || !fightingWith.isAlive() || slept || fightingWith.slept || --fightTicks <= 0) {
+            if (fightingWith != null && fightTicks <= 0 && getId() < fightingWith.getId()) endFight("thought.bleep.fight.after." + getRandom().nextInt(3));
+            else if (fightingWith == null || !fightingWith.isAlive()) fightingWith = null;
+            return;
+        }
+        if (level() instanceof ServerLevel server && tickCount % 5 == 0) {
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.6, getZ(), 1, 0.2, 0.1, 0.2, 0);
+        }
+        getLookControl().setLookAt(fightingWith);
+        if ((fightTicks + (getId() % 2) * 10) % 20 == 0 && distanceToSqr(fightingWith) < 2.2 * 2.2) {
+            io.hookdev.bleep.McVersion.swing(this);
+            var shove = fightingWith.position().subtract(position()).multiply(1, 0, 1).normalize().scale(0.35);
+            fightingWith.push(shove.x, 0.15, shove.z);
+            fightingWith.needsSync = true;
+            fightingWith.playSound(BleepContent.HURT.get(), VOLUME, fightingWith.getVoicePitch());
+            fightingWith.setBattery(fightingWith.battery() - 0.5f);
+            talk(Emotion.ANGRY);
+        }
+    }
 
     /** A home with comforts charges a quarter faster for each one. */
     private float homeCharge() {
@@ -1527,7 +1774,8 @@ public class BleepEntity extends TamableAnimal {
     private Emotion currentEmotion() {
         if (slept || bedside) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
-        if (danceTicks > 0 || playing()) return Emotion.EXCITED;
+        if (fightingWith != null) return Emotion.ANGRY;
+        if (danceTicks > 0 || playing() || greetTicks > 0) return Emotion.EXCITED;
         if (overchargeTicks > 0) return (overchargeTicks / 10) % 2 == 0 ? Emotion.GLITCH : Emotion.EXCITED;
         if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
@@ -1540,6 +1788,8 @@ public class BleepEntity extends TamableAnimal {
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
+        if (fightingWith != null) return Activity.SQUABBLING;
+        if (talkingTo != null) return Activity.CHATTING;
         if (playing()) return Activity.PLAYING;
         if (dawdleTicks > 0) return Activity.DAWDLING;
         if (digTicks > 0) return Activity.DIGGING;
@@ -1842,7 +2092,39 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
-    /** Playing tag with another bleep: round and round each other, on the other side of a circle. */
+    /** Saying hi, chatting or fighting: close to the other bleep, looking at it. */
+    private class SocialGoal extends Goal {
+        private int ticks;
+
+        SocialGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        private @Nullable BleepEntity other() {
+            return fightingWith != null ? fightingWith : talkingTo != null ? talkingTo : greetTicks > 0 ? greeting : null;
+        }
+
+        @Override
+        public boolean canUse() {
+            BleepEntity other = other();
+            return other != null && other.isAlive() && !slept && getTarget() == null && !isOrderedToSit() && !goingHome;
+        }
+
+        @Override
+        public void tick() {
+            BleepEntity other = other();
+            if (other == null) return;
+            getLookControl().setLookAt(other);
+            double close = fightingWith != null ? 1.5 : 2.5;
+            if (distanceToSqr(other) > close * close) {
+                if (ticks++ % 5 == 0) getNavigation().moveTo(other, fightingWith != null ? 1.2 : 1.0);
+            } else {
+                getNavigation().stop();
+            }
+        }
+    }
+
+    /** Playing tag with another bleep: the one who is "it" chases, the other runs; a touch and it is the other's turn. */
     private class PlayGoal extends Goal {
         private int ticks;
 
@@ -1860,9 +2142,14 @@ public class BleepEntity extends TamableAnimal {
             if (partner == null) return;
             getLookControl().setLookAt(partner);
             if (ticks++ % 5 != 0) return;
-            double angle = tickCount * 0.12 + (getId() < partner.getId() ? 0 : Math.PI);
-            double x = (getX() + partner.getX()) / 2 + Math.cos(angle) * 2.5, z = (getZ() + partner.getZ()) / 2 + Math.sin(angle) * 2.5;
-            getNavigation().moveTo(x, getY(), z, 1.25);
+            if (it) { // after it!
+                getNavigation().moveTo(partner, tagCooldown > 0 ? 0.8 : 1.3);
+            } else { // away from it, a little to the side
+                var away = position().subtract(partner.position()).multiply(1, 0, 1);
+                if (away.lengthSqr() < 0.01) away = new net.minecraft.world.phys.Vec3(1, 0, 0);
+                away = away.normalize().yRot((getRandom().nextFloat() - 0.5f) * 1.2f).scale(5);
+                getNavigation().moveTo(getX() + away.x, getY(), getZ() + away.z, 1.2);
+            }
         }
     }
 
@@ -1937,7 +2224,9 @@ public class BleepEntity extends TamableAnimal {
                 bedside = true;
                 rememberFirst("bedside", "diary.bleep.bedside", "");
             } else if (ticks % 5 == 1) {
-                getNavigation().moveTo(bed.getX() + 0.5, bed.getY(), bed.getZ() + 0.5, 1.0);
+                BleepEntity best = bestFriendNear(16);
+                if (best != null && best.bedside) getNavigation().moveTo(best.getX() + 0.9, best.getY(), best.getZ(), 1.0); // next to its best friend
+                else getNavigation().moveTo(bed.getX() + 0.5, bed.getY(), bed.getZ() + 0.5, 1.0);
             }
         }
     }
@@ -2009,6 +2298,7 @@ public class BleepEntity extends TamableAnimal {
                     getNavigation().moveTo(fetching, 1.1);
                 }
             } else if (getOwner() instanceof Player owner) {
+                if (maybePassBall()) return;
                 if (distanceToSqr(owner) < 2.0 * 2.0) {
                     handOver(owner);
                 } else if (ticks++ % 5 == 0) {

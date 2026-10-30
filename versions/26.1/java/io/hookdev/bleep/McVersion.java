@@ -14,4 +14,9 @@ public final class McVersion {
         }
         return text.toString();
     }
+
+    /** Swings its arm, for everyone to see. */
+    public static void swing(net.minecraft.world.entity.LivingEntity entity) {
+        entity.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+    }
 }

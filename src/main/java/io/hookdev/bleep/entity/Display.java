@@ -18,7 +18,11 @@ public enum Display {
     /** Something new in its Bleepedia that its owner has not seen yet: a ! now and then. */
     NEWS,
     /** Its owner has a ball with them: it would like to play. */
-    BALL;
+    BALL,
+    /** Talking with another bleep: a speech bubble. */
+    TALK,
+    /** Meeting another bleep again: HI, and a heart. */
+    HI;
 
     private static final Display[] VALUES = values();
 

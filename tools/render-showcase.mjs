@@ -440,6 +440,18 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     ['.###.', '#####', '##o##', '#o###', '####o', '.###.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(5 + x, 2 + y, c === 'o' ? CHIP : BROWN); }));
     [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') set(13 + g % 3, 2 + Math.floor(g / 3), GLOW); });
   });
+  screen('trick_talk', (set) => { // chatting with another bleep (client/DisplayTextures.talk)
+    for (let x = 4; x <= 15; x++) { set(x, 1, GLOW); set(x, 6, GLOW); }
+    for (let y = 2; y <= 5; y++) { set(3, y, GLOW); set(16, y, GLOW); }
+    set(6, 7, GLOW); set(5, 8, GLOW);
+    for (let i = 0; i < 3; i++) set(7 + i * 3, 4, AMBER);
+  });
+  screen('trick_hi', (set) => { // saying hi (client/DisplayTextures.hi)
+    const I = '###.#..#..#.###';
+    [...'#.##.#####.##.#'].forEach((p, g) => { if (p === '#') set(3 + g % 3, 2 + Math.floor(g / 3), GLOW); });
+    [...I].forEach((p, g) => { if (p === '#') set(7 + g % 3, 2 + Math.floor(g / 3), GLOW); });
+    ['.#.#.', '#####', '#####', '.###.', '..#..'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(12 + x, 2 + y, PINK); }));
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

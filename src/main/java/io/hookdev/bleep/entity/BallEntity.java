@@ -25,6 +25,8 @@ public class BallEntity extends ThrowableItemProjectile {
     private static final double REST = 0.12;
     private static final int MAX_BOUNCES = 8;
     private int bounces;
+    /** How often bleeps have passed it to each other (they bring it back after a few). */
+    public int passes;
 
     public BallEntity(EntityType<? extends BallEntity> type, Level level) {
         super(type, level);
@@ -60,7 +62,7 @@ public class BallEntity extends ThrowableItemProjectile {
     protected void onHitEntity(EntityHitResult hit) {
         super.onHitEntity(hit);
         if (!(level() instanceof ServerLevel server)) return;
-        if (hit.getEntity() instanceof BleepEntity bleep && bleep.catchBall(getItem().copy())) { // caught!
+        if (hit.getEntity() instanceof BleepEntity bleep && bleep.catchBall(getItem().copy(), passes, getOwner())) { // caught!
             discard();
             return;
         }

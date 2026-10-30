@@ -108,6 +108,12 @@ public final class BleepGameTests {
         test("llama_spit_makes_it_glitch", BleepGameTests::llamaSpitMakesItGlitch, 20);
         test("a_bed_by_its_home_is_a_comfort", BleepGameTests::aBedByItsHomeIsAComfort, 20);
         test("ten_bleeps_is_plenty", BleepGameTests::tenBleepsIsPlenty, 20);
+        test("two_bleeps_say_hi", BleepGameTests::twoBleepsSayHi, 60);
+        test("two_bleeps_have_a_chat", BleepGameTests::twoBleepsHaveAChat, 260);
+        test("tag_has_one_who_is_it", BleepGameTests::tagHasOneWhoIsIt, 20);
+        test("bleeps_fight_with_thunder_clouds", BleepGameTests::bleepsFightWithThunderClouds, 140);
+        test("petting_stops_a_fight", BleepGameTests::pettingStopsAFight, 20);
+        test("two_fights_make_rivals", BleepGameTests::twoFightsMakeRivals, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -823,6 +829,69 @@ public final class BleepGameTests {
         useCore(helper, player);
         helper.assertTrue(player.getMainHandItem().is(BleepContent.BLEEP_CORE.get()), "with ten bleeps the core stays in your hand");
         helper.assertTrue(helper.getLevel().getEntitiesOfClass(BleepEntity.class, new net.minecraft.world.phys.AABB(helper.absolutePos(SPOT)).inflate(8)).isEmpty(), "no eleventh bleep");
+        helper.succeed();
+    }
+
+    /** Two bleeps of one owner, side by side. */
+    private static BleepEntity[] pair(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity one = helper.spawn(BleepContent.BLEEP.get(), SPOT), two = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        one.tame(owner);
+        two.tame(owner);
+        return new BleepEntity[] {one, two};
+    }
+
+    private static void twoBleepsSayHi(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(b[0].friendship(b[1]) >= 1 && b[1].friendship(b[0]) >= 1, "meeting, they say hi and know each other now");
+            helper.assertTrue(b[0].memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.greet")), "written in its diary");
+        });
+    }
+
+    private static void twoBleepsHaveAChat(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        helper.runAfterDelay(80, () -> helper.assertTrue(b[0].startChat(b[1], 4), "two bleeps start a chat")); // after saying hi
+        helper.succeedWhen(() -> {
+            helper.assertTrue(b[1].thought().equals("chat.bleep.4.3"), "the other one has the last word, it thinks " + b[1].thought());
+            helper.assertTrue(b[0].activity() == Activity.CHATTING || !b[0].talking(), "chatting while it lasts");
+        });
+    }
+
+    private static void tagHasOneWhoIsIt(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        helper.assertTrue(b[0].playWith(b[1]), "they play tag");
+        helper.assertTrue(b[0].it() && !b[1].it(), "the one who started is it");
+        helper.succeed();
+    }
+
+    private static void bleepsFightWithThunderClouds(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        helper.assertTrue(b[0].startFight(b[1]), "they start a fight");
+        helper.assertTrue(b[0].friendship(b[1]) < 0, "fighting is bad for a friendship");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(b[1].battery() < BleepEntity.FULL || b[0].battery() < BleepEntity.FULL, "a hit costs a little battery");
+            helper.assertTrue(b[0].activity() == Activity.SQUABBLING || !b[0].fighting(), "squabbling, it is " + b[0].activity());
+        });
+    }
+
+    private static void pettingStopsAFight(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        b[0].startFight(b[1]);
+        b[0].pet();
+        helper.assertFalse(b[0].fighting() || b[1].fighting(), "petting one breaks it up");
+        helper.succeed();
+    }
+
+    private static void twoFightsMakeRivals(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        b[0].startFight(b[1]);
+        b[0].pet();
+        b[0].startFight(b[1]);
+        b[0].pet();
+        var friends = io.hookdev.bleep.network.BleepediaData.of(b[0]).friends();
+        helper.assertTrue(friends.size() == 1 && friends.getFirst().startsWith("rival\t"), "two fights: rivals, in its Bleepedia, it has " + friends);
+        helper.assertTrue(b[0].memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.rival")), "and in its diary");
         helper.succeed();
     }
 

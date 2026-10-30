@@ -137,6 +137,13 @@ public class BleepediaScreen extends Screen {
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.bond"), Component.translatable(data.bond()), true, false));
         about.add(new Row(null, null, 0, Component.translatable("screen.bleep.favourite"),
                 data.favourite().isEmpty() ? Component.literal("???") : Component.translatable(data.favourite()), true, false));
+        if (data.friends().isEmpty()) {
+            about.add(new Row(null, null, 0, Component.translatable("screen.bleep.about.friends"), Component.translatable("screen.bleep.about.no_friends"), true, false));
+        }
+        for (String friend : data.friends()) { // best friend, friend or rival, and its name
+            String[] parts = friend.split("\t", 2);
+            about.add(new Row(null, null, 0, Component.translatable("friend.bleep." + parts[0]), Component.literal(parts.length > 1 ? parts[1] : ""), true, false));
+        }
         pages.add(about);
         counts[3] = "";
 

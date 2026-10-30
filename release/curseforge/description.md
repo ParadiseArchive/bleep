@@ -62,7 +62,8 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 ## Play and company
 
 - **A ball.** Craft one and throw it: it bounces, and your bleep brings it back. Throw it at your bleep and it catches it.
-- **Bleeps together.** They play tag, squabble over a find, get jealous when you pet another one, and cheer each other up.
+- **Bleeps together.** They say hi, chat (you read along above your hotbar), play tag, pass the ball, squabble and fight with thunder clouds over their heads, get jealous when you pet another one, and cheer each other up.
+- **Friends and rivals.** They remember each other: best friends chat more and sleep side by side, rivals fall out more often. All in the Bleepedia.
 - **Home comforts.** A bed, a toy and its name on a sign by its homebase make it charge faster, and happier.
 - **Llama spit** gets in its circuits: its screen glitches.
 - **Ten bleeps** per player at most. Any more and it really turns into a fight.

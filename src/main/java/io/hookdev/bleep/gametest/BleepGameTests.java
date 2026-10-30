@@ -114,6 +114,7 @@ public final class BleepGameTests {
         test("bleeps_fight_with_thunder_clouds", BleepGameTests::bleepsFightWithThunderClouds, 140);
         test("petting_stops_a_fight", BleepGameTests::pettingStopsAFight, 20);
         test("two_fights_make_rivals", BleepGameTests::twoFightsMakeRivals, 20);
+        test("staying_bleeps_still_chat", BleepGameTests::stayingBleepsStillChat, 60);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -893,6 +894,15 @@ public final class BleepGameTests {
         helper.assertTrue(friends.size() == 1 && friends.getFirst().startsWith("rival\t"), "two fights: rivals, in its Bleepedia, it has " + friends);
         helper.assertTrue(b[0].memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.rival")), "and in its diary");
         helper.succeed();
+    }
+
+    private static void stayingBleepsStillChat(GameTestHelper helper) {
+        BleepEntity[] b = pair(helper);
+        b[0].stay();
+        b[1].stay();
+        helper.assertTrue(b[0].stayAt() != null && !b[0].parked(), "staying, it has a spot to potter about near, and is not parked");
+        helper.runAfterDelay(30, () -> helper.assertTrue(b[0].startChat(b[1], 1), "staying bleeps chat too"));
+        helper.succeedWhen(() -> helper.assertTrue(b[0].activity() == Activity.CHATTING, "chatting while staying, it is " + b[0].activity()));
     }
 
     private static Player withCore(GameTestHelper helper) {

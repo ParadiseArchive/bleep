@@ -44,7 +44,6 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.equine.Llama;
@@ -191,6 +190,9 @@ public class BleepEntity extends TamableAnimal {
     private @Nullable BleepEntity greeting, talkingTo, fightingWith;
     private int greetTicks, talkTicks, fightTicks, tagCooldown, chat, ballPasses;
     private boolean leads, it, ballDecided;
+    /** Told to stay: the spot it potters about near (STAY_RADIUS); null while parked on its homebase, where it keeps still. */
+    private @Nullable BlockPos stayAt;
+    public static final int STAY_RADIUS = 6;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -239,7 +241,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
-        this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
+        this.goalSelector.addGoal(3, new StayGoal());
         // bleeps are afraid of llamas, for reasons nobody knows
         this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Llama.class, 10, 1.0, 1.3));
         naughty = new NaughtyGoal(this);
@@ -813,7 +815,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Free to get up to something: not in a fight, not in danger, not told to stay or go home. */
     public boolean mayBeNaughty() {
-        return !slept && !isOrderedToSit() && !goingHome && getTarget() == null && dawdleTicks == 0 && !inDanger() && assembly() == 0;
+        return !slept && !parked() && !goingHome && getTarget() == null && dawdleTicks == 0 && !inDanger() && assembly() == 0;
     }
 
     /** Where it last put a torch it moved (tests). */
@@ -872,19 +874,44 @@ public class BleepEntity extends TamableAnimal {
     public void follow() {
         goingHome = false;
         setOrderedToSit(false);
+        stayHere(null);
         getNavigation().stop();
     }
 
+    /** Stays around here: it potters about within a few blocks, and may play and chat with other bleeps. */
     public void stay() {
         goingHome = false;
         setOrderedToSit(true);
+        stayHere(blockPosition());
         getNavigation().stop();
+    }
+
+    /** The spot it stays near, or null (following, or parked). */
+    private void stayHere(@Nullable BlockPos at) {
+        stayAt = at;
+        if (at == null) clearHome();
+        else setHomeTo(at, STAY_RADIUS);
+    }
+
+    public @Nullable BlockPos stayAt() {
+        return stayAt;
+    }
+
+    /** Parked on its homebase (or told to stay before it could potter about): it keeps still. */
+    public boolean parked() {
+        return isOrderedToSit() && stayAt == null;
+    }
+
+    /** Busy with another bleep, a game or a find: staying can wait a moment. */
+    private boolean busyWithOthers() {
+        return talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
     public boolean goHome() {
         if (!homeHere()) return false;
         setOrderedToSit(false);
+        stayHere(null);
         goingHome = true;
         return true;
     }
@@ -913,6 +940,7 @@ public class BleepEntity extends TamableAnimal {
         setYBodyRot(yaw);
         goingHome = false;
         setOrderedToSit(true);
+        stayHere(null); // on its pad it keeps still, to charge
     }
 
     /** Too far to drive (or stuck): it beams itself home, with a little flash. */
@@ -994,6 +1022,7 @@ public class BleepEntity extends TamableAnimal {
         }
         tickMagnet();
         tickHands();
+        if (tickCount % 20 == 0 && isOrderedToSit() && stayAt == null && !home && !goingHome) stayHere(blockPosition());
         tickTogether();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
@@ -1650,9 +1679,15 @@ public class BleepEntity extends TamableAnimal {
         if (tickCount % 20 == 0) { // who is about: one not seen for a while gets a hi
             long now = level().getGameTime();
             for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(12), b -> b != this && !b.slept && !b.abandoned())) {
-                Long last = lastSeen.put(other.getUUID(), now);
-                if ((last == null || now - last > GREET_AFTER) && greetTicks == 0 && other.greetTicks == 0 && free() && other.free() && fightingWith == null && !abandoned()
-                        && inTheMood() && other.inTheMood()) greet(other);
+                Long last = lastSeen.get(other.getUUID());
+                if (last != null && now - last <= GREET_AFTER) { // seen it lately: no need to say hi again
+                    lastSeen.put(other.getUUID(), now);
+                } else if (greetTicks == 0 && other.greetTicks == 0 && free() && other.free() && fightingWith == null && !abandoned()
+                        && inTheMood() && other.inTheMood()) { // not seen for a while: hi! (a busy one gets its hi a moment later)
+                    lastSeen.put(other.getUUID(), now);
+                    other.lastSeen.put(getUUID(), now);
+                    greet(other);
+                }
             }
         }
         if (tickCount % 200 == 0 && talkingTo == null && fightingWith == null && quietTicks > 100 && mayBeNaughty()) { // a chat
@@ -2015,6 +2050,7 @@ public class BleepEntity extends TamableAnimal {
         output.putBoolean("armed", armed);
         output.putInt("show", showTicks);
         output.putInt("plays_today", playsToday);
+        if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
     }
@@ -2051,13 +2087,14 @@ public class BleepEntity extends TamableAnimal {
         armed = input.getBooleanOr("armed", false);
         showTicks = input.getIntOr("show", 0);
         playsToday = input.getIntOr("plays_today", 0);
+        input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
         comfortDay = input.getLongOr("comfort_day", -1);
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !isOrderedToSit() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0;
+        return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0;
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -2092,6 +2129,49 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
+    /**
+     * Staying: parked on its homebase it keeps still; anywhere else it potters about (its wander goal keeps to
+     * STAY_RADIUS of its spot) and drives back when something took it further, once that is done.
+     */
+    private class StayGoal extends Goal {
+        private int ticks;
+
+        StayGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
+        }
+
+        private boolean away(double margin) {
+            return distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(stayAt)) > margin * margin;
+        }
+
+        @Override
+        public boolean canUse() {
+            if (!isOrderedToSit() || slept) return false;
+            return stayAt == null || (away(STAY_RADIUS + 2) && !busyWithOthers());
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            if (!isOrderedToSit() || slept) return false;
+            return stayAt == null || (away(2) && !busyWithOthers());
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            if (stayAt == null) {
+                getNavigation().stop();
+            } else if (ticks++ % 10 == 0) {
+                getNavigation().moveTo(stayAt.getX() + 0.5, stayAt.getY(), stayAt.getZ() + 0.5, 1.0);
+            }
+        }
+    }
+
     /** Saying hi, chatting or fighting: close to the other bleep, looking at it. */
     private class SocialGoal extends Goal {
         private int ticks;
@@ -2107,7 +2187,7 @@ public class BleepEntity extends TamableAnimal {
         @Override
         public boolean canUse() {
             BleepEntity other = other();
-            return other != null && other.isAlive() && !slept && getTarget() == null && !isOrderedToSit() && !goingHome;
+            return other != null && other.isAlive() && !slept && getTarget() == null && !parked() && !goingHome;
         }
 
         @Override

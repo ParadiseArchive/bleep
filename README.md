@@ -45,7 +45,7 @@ every new kind of mob for a good look, and drives off in a hurry when it sees a 
 ## Talk to it
 
 Right-click your bleep for its info screen: its face as on its display, its mood and what it is doing, its battery,
-your bond, its favourite item (??? until you find out what it is), what it is thinking, and the Follow, Stay and Go
+your bond, its favourite item (??? until you find out what it is), what it is thinking, and the Follow, Stay (it potters about near the spot) and Go
 Home buttons. Sneak-right-click to pet it. It talks back in cute robot chirps, a few for every mood.
 
 <p align="center">

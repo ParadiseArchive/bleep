@@ -37,7 +37,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## A bond you build
 
-- **The info screen.** Right-click your bleep: its face, mood and what it is doing, its battery, your bond, its favourite item, what it is thinking, Follow, Stay and Go Home, and a book that opens its Bleepedia.
+- **The info screen.** Right-click your bleep: its face, mood and what it is doing, its battery, your bond, its favourite item, what it is thinking, Follow, Stay (it potters about near the spot, and keeps other bleeps company) and Go Home, and a book that opens its Bleepedia.
 - **The bond.** From New to Friend, Buddy and Best friend. Petting, treats, its favourite item, days together and fights won together raise it; hitting it, leaving it alone or breaking its home lower it.
 - **It learns.** A Friend carries a torch that lights the way where it drives. A Buddy fights the monsters that go for you, and brings you what lies about after a fight.
 - **It does not always listen.** It never refuses: it dawdles. A stubborn face, a turn on the spot, and then it does it anyway. In danger it always listens.

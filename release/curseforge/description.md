@@ -65,6 +65,8 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Bleeps together.** They say hi, chat (you read along above your hotbar), play tag, pass the ball, squabble and fight with thunder clouds over their heads, get jealous when you pet another one, and cheer each other up.
 - **Friends and rivals.** They remember each other: best friends chat more and sleep side by side, rivals fall out more often. All in the Bleepedia.
 - **Home comforts.** A bed, a toy and its name on a sign by its homebase make it charge faster, and happier.
+- **Welcome home.** Back after a while, and it races over, bouncing with joy.
+- **Birthdays.** Every thirty days: a party hat, confetti and HAPPY BIRTHDAY across its screen. A cake makes its day.
 - **Llama spit** gets in its circuits: its screen glitches.
 - **Ten bleeps** per player at most. Any more and it really turns into a fight.
 

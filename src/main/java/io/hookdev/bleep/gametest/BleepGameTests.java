@@ -115,6 +115,8 @@ public final class BleepGameTests {
         test("petting_stops_a_fight", BleepGameTests::pettingStopsAFight, 20);
         test("two_fights_make_rivals", BleepGameTests::twoFightsMakeRivals, 20);
         test("staying_bleeps_still_chat", BleepGameTests::stayingBleepsStillChat, 60);
+        test("it_welcomes_its_owner_back", BleepGameTests::itWelcomesItsOwnerBack, 60);
+        test("a_birthday_with_cake", BleepGameTests::aBirthdayWithCake, 160);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -903,6 +905,31 @@ public final class BleepGameTests {
         helper.assertTrue(b[0].stayAt() != null && !b[0].parked(), "staying, it has a spot to potter about near, and is not parked");
         helper.runAfterDelay(30, () -> helper.assertTrue(b[0].startChat(b[1], 1), "staying bleeps chat too"));
         helper.succeedWhen(() -> helper.assertTrue(b[0].activity() == Activity.CHATTING, "chatting while staying, it is " + b[0].activity()));
+    }
+
+    private static void itWelcomesItsOwnerBack(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        bleep.missedOwner(BleepEntity.WELCOME_AFTER + 100);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.welcoming() && bleep.activity() == Activity.WELCOMING, "its owner back after a long time: it should be over the moon, it is " + bleep.activity());
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.welcome")), "written in its diary");
+        });
+    }
+
+    private static void aBirthdayWithCake(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.assertTrue(BleepEntity.birthdayOn(31) && BleepEntity.birthdayOn(61) && !BleepEntity.birthdayOn(30) && !BleepEntity.birthdayOn(1), "a birthday every thirty days, from day 31");
+        bleep.birthday(31); // a new test world is too young for a real one
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.party(), "thirty days old: a birthday party");
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.birthday") && e.arg().equals("30")), "30 days old, in its diary");
+            int bond = bleep.bond();
+            helper.assertTrue(bleep.give(owner, new ItemStack(Items.CAKE)), "a birthday cake is very welcome");
+            helper.assertTrue(bleep.bond() > bond, "and raises the bond");
+        });
     }
 
     private static Player withCore(GameTestHelper helper) {

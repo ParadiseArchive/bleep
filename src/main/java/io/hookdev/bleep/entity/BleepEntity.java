@@ -86,6 +86,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -193,6 +194,13 @@ public class BleepEntity extends TamableAnimal {
     /** Told to stay: the spot it potters about near (STAY_RADIUS); null while parked on its homebase, where it keeps still. */
     private @Nullable BlockPos stayAt;
     public static final int STAY_RADIUS = 6;
+    /** Away from its owner this long (game ticks, or real milliseconds: logged out) and it is over the moon to see them again. */
+    public static final long WELCOME_AFTER = 6000, WELCOME_AFTER_REAL = 5 * 60 * 1000;
+    /** A birthday every so many days of its life. */
+    public static final int BIRTHDAY_EVERY = 30;
+    /** Long.MIN_VALUE: never with its owner yet. */
+    private long lastWithOwner = Long.MIN_VALUE, lastWithOwnerReal = Long.MIN_VALUE, lastBirthday = -1;
+    private int welcomeTicks, partyTicks;
     /** Ticks left of being overcharged by lightning. */
     private int overchargeTicks;
     /** Ticks left of what its display shows instead of its face. */
@@ -238,6 +246,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
+        this.goalSelector.addGoal(4, new WelcomeGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
@@ -278,6 +287,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(NEWS, false);
         builder.define(ABANDONED, false);
         builder.define(MAGNET, false);
+        builder.define(PARTY, false);
     }
 
     // ---------- what the info screen shows ----------
@@ -604,6 +614,13 @@ public class BleepEntity extends TamableAnimal {
      * day). Returns whether it took it.
      */
     public boolean give(Player player, ItemStack stack) {
+        if (stack.is(Items.CAKE) && party()) { // a birthday cake!
+            feel(Emotion.GLITCH, 40);
+            say("thought.bleep.birthday.cake");
+            remember("diary.bleep.cake", "");
+            changeBond(Bond.FAVOURITE / 2);
+            return true;
+        }
         var dye = stack.get(net.minecraft.core.component.DataComponents.DYE);
         if (dye != null) { // white dye washes it back to its own white
             int rgb = dye == net.minecraft.world.item.DyeColor.WHITE ? -1 : dye.getTextureDiffuseColor() & 0xFFFFFF;
@@ -904,7 +921,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return welcomeTicks > 0 || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1024,6 +1041,8 @@ public class BleepEntity extends TamableAnimal {
         tickHands();
         if (tickCount % 20 == 0 && isOrderedToSit() && stayAt == null && !home && !goingHome) stayHere(blockPosition());
         tickTogether();
+        tickWelcome();
+        tickBirthday();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
             io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
@@ -1765,6 +1784,74 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
+    // ---------- welcome home, birthdays ----------
+
+    /** Its owner back after a long time away (or logged in again): it races over, over the moon. */
+    private void tickWelcome() {
+        if (welcomeTicks > 0) welcomeTicks--;
+        if (tickCount % 10 != 0 || slept || abandoned() || assembly() > 0) return;
+        if (!(getOwner() instanceof Player owner) || distanceToSqr(owner) > 32 * 32) return;
+        long now = level().getGameTime(), real = System.currentTimeMillis();
+        if (lastWithOwner != Long.MIN_VALUE && (now - lastWithOwner > WELCOME_AFTER || real - lastWithOwnerReal > WELCOME_AFTER_REAL)) welcome();
+        lastWithOwner = now;
+        lastWithOwnerReal = real;
+    }
+
+    private void welcome() {
+        welcomeTicks = 100;
+        feel(Emotion.EXCITED, 100);
+        showDisplay(Display.HI, 80);
+        say("thought.bleep.welcome." + getRandom().nextInt(3));
+        rememberFirst("welcome", "diary.bleep.welcome", "");
+    }
+
+    /** As if its owner was away this long (tests). */
+    public void missedOwner(long ticks) {
+        lastWithOwner = level().getGameTime() - ticks;
+        lastWithOwnerReal = System.currentTimeMillis();
+    }
+
+    public boolean welcoming() {
+        return welcomeTicks > 0;
+    }
+
+    /** Every BIRTHDAY_EVERY days of its life: a party hat, confetti, HAPPY BIRTHDAY across its screen. A cake is very welcome. */
+    private void tickBirthday() {
+        if (partyTicks > 0) {
+            if (level() instanceof ServerLevel server && tickCount % 8 == 0) {
+                int[] colours = {0xFF4F8B, 0x2DE2E6, 0xFFB547, 0xEEF1F4};
+                server.sendParticles(new net.minecraft.core.particles.DustParticleOptions(colours[getRandom().nextInt(colours.length)], 1.2f),
+                        getX(), getY() + 1.5, getZ(), 6, 0.5, 0.3, 0.5, 0.02);
+            }
+            if (--partyTicks == 0) this.entityData.set(PARTY, false);
+        }
+        if (tickCount % 100 != 50 || memory.born < 0 || slept || abandoned()) return;
+        long day = memory.day(level().getGameTime());
+        if (birthdayOn(day) && lastBirthday != day) birthday(day);
+    }
+
+    /** Whether this day of its life is a birthday: day 31, 61, 91 ... */
+    public static boolean birthdayOn(long day) {
+        return day > 1 && (day - 1) % BIRTHDAY_EVERY == 0;
+    }
+
+    /** Its birthday party (public for the tests). */
+    public void birthday(long day) {
+        lastBirthday = day;
+        partyTicks = 2400;
+        this.entityData.set(PARTY, true);
+        showDisplay(Display.BIRTHDAY, 240);
+        feel(Emotion.EXCITED, 100);
+        say("thought.bleep.birthday");
+        remember("diary.bleep.birthday", String.valueOf(day - 1));
+        if (getOwner() instanceof Player owner) owner.sendSystemMessage(Component.translatable("message.bleep.birthday", getDisplayName(), day - 1));
+    }
+
+    /** Its birthday party is on. */
+    public boolean party() {
+        return this.entityData.get(PARTY);
+    }
+
     /** A home with comforts charges a quarter faster for each one. */
     private float homeCharge() {
         return HOME_CHARGE * (1 + 0.25f * Integer.bitCount(comforts));
@@ -1810,7 +1897,7 @@ public class BleepEntity extends TamableAnimal {
         if (slept || bedside) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
         if (fightingWith != null) return Emotion.ANGRY;
-        if (danceTicks > 0 || playing() || greetTicks > 0) return Emotion.EXCITED;
+        if (danceTicks > 0 || playing() || greetTicks > 0 || welcomeTicks > 0) return Emotion.EXCITED;
         if (overchargeTicks > 0) return (overchargeTicks / 10) % 2 == 0 ? Emotion.GLITCH : Emotion.EXCITED;
         if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
@@ -1823,6 +1910,7 @@ public class BleepEntity extends TamableAnimal {
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
+        if (welcomeTicks > 0) return Activity.WELCOMING;
         if (fightingWith != null) return Activity.SQUABBLING;
         if (talkingTo != null) return Activity.CHATTING;
         if (playing()) return Activity.PLAYING;
@@ -2050,6 +2138,10 @@ public class BleepEntity extends TamableAnimal {
         output.putBoolean("armed", armed);
         output.putInt("show", showTicks);
         output.putInt("plays_today", playsToday);
+        output.putLong("last_with_owner", lastWithOwner);
+        output.putLong("last_with_owner_real", lastWithOwnerReal);
+        output.putLong("last_birthday", lastBirthday);
+        output.putInt("party", partyTicks);
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2087,6 +2179,11 @@ public class BleepEntity extends TamableAnimal {
         armed = input.getBooleanOr("armed", false);
         showTicks = input.getIntOr("show", 0);
         playsToday = input.getIntOr("plays_today", 0);
+        lastWithOwner = input.getLongOr("last_with_owner", Long.MIN_VALUE);
+        lastWithOwnerReal = input.getLongOr("last_with_owner_real", Long.MIN_VALUE);
+        lastBirthday = input.getLongOr("last_birthday", -1);
+        partyTicks = input.getIntOr("party", 0);
+        this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
         comfortDay = input.getLongOr("comfort_day", -1);
@@ -2168,6 +2265,32 @@ public class BleepEntity extends TamableAnimal {
                 getNavigation().stop();
             } else if (ticks++ % 10 == 0) {
                 getNavigation().moveTo(stayAt.getX() + 0.5, stayAt.getY(), stayAt.getZ() + 0.5, 1.0);
+            }
+        }
+    }
+
+    /** Its owner is back: it races over and bounces about in front of them. */
+    private class WelcomeGoal extends Goal {
+        private int ticks;
+
+        WelcomeGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return welcomeTicks > 0 && getOwner() instanceof Player && !parked() && !slept && getTarget() == null;
+        }
+
+        @Override
+        public void tick() {
+            if (!(getOwner() instanceof Player owner)) return;
+            getLookControl().setLookAt(owner);
+            if (distanceToSqr(owner) > 2.5 * 2.5) {
+                if (ticks++ % 5 == 0) getNavigation().moveTo(owner, 1.4);
+            } else {
+                getNavigation().stop();
+                if (ticks++ % 12 == 0 && onGround()) getJumpControl().jump(); // bouncing with joy
             }
         }
     }

@@ -452,6 +452,11 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     [...I].forEach((p, g) => { if (p === '#') set(7 + g % 3, 2 + Math.floor(g / 3), GLOW); });
     ['.#.#.', '#####', '#####', '.###.', '..#..'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(12 + x, 2 + y, PINK); }));
   });
+  screen('trick_birthday', (set) => { // HAPPY BIRTHDAY, halfway across (client/DisplayTextures: ticker)
+    const F = { H: '#.##.#####.##.#', A: '####.#####.##.#', P: '####.#####..#..', Y: '#.##.#.#..#..#.' };
+    [...'HAPPY'].forEach((ch, i) => [...F[ch]].forEach((p, g) => { if (p === '#') set(1 + i * 4 + g % 3, 2 + Math.floor(g / 3), GLOW); }));
+    for (let x = 0; x < 20; x++) set(x, 8, DIM);
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

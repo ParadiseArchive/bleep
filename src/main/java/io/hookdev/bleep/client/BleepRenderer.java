@@ -67,7 +67,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         state.carrying = !bleep.getMainHandItem().isEmpty();
         state.assembly = bleep.assembly();
         state.color = bleep.color() == -1 ? -1 : 0xFF000000 | bleep.color();
-        state.hat = bleep.hat();
+        state.hat = bleep.hat() != null ? bleep.hat() : bleep.party() ? io.hookdev.bleep.entity.Accessory.PARTY_HAT : null; // its birthday
         state.sticker = bleep.sticker();
         state.display = bleep.display();
         state.dancing = bleep.activity() == io.hookdev.bleep.entity.Activity.DANCING;

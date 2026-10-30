@@ -22,7 +22,9 @@ public enum Display {
     /** Talking with another bleep: a speech bubble. */
     TALK,
     /** Meeting another bleep again: HI, and a heart. */
-    HI;
+    HI,
+    /** Its birthday: HAPPY BIRTHDAY, scrolling across. */
+    BIRTHDAY;
 
     private static final Display[] VALUES = values();
 

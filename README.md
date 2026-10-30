@@ -87,7 +87,8 @@ fights with it. Its name is Bleep until you type a new one on its info screen.
 
 ### Play and company
 Throw a ball and it brings it back. Have more than one bleep and they say hi, chat, play tag, pass the ball, fight
-(thunder clouds and all), get jealous and cheer each other up, and become friends, best friends or rivals. A bed, a toy and its name on a sign make its home cosy. Ten bleeps per player.
+(thunder clouds and all), get jealous and cheer each other up, and become friends, best friends or rivals. A bed, a toy and its name on a sign make its home cosy. It welcomes you home, and every thirty days it has a
+birthday (a cake makes its day). Ten bleeps per player.
 
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go

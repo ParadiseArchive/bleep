@@ -62,6 +62,7 @@ public final class DisplayTextures {
             case BALL -> "ball" + ((int) (state.ageInTicks / 10) % 2);
             case TALK -> "talk" + ((int) (state.ageInTicks / 6) % 4);
             case HI -> "hi" + ((int) (state.ageInTicks / 10) % 2);
+            case BIRTHDAY -> "birthday" + step;
             default -> "face";
         };
     }
@@ -69,6 +70,7 @@ public final class DisplayTextures {
     private static void draw(NativeImage image, BleepRenderState state) {
         switch (state.display) {
             case NAME -> ticker(image, state.name, (int) (state.ageInTicks / 3));
+            case BIRTHDAY -> ticker(image, "HAPPY BIRTHDAY", (int) (state.ageInTicks / 3));
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);

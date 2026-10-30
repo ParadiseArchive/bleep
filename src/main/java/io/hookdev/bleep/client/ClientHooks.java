@@ -10,6 +10,10 @@ public final class ClientHooks {
         McVersionClient.setScreen(new BleepScreen(bleep));
     }
 
+    public static void openBleepedia(io.hookdev.bleep.network.BleepediaData data) {
+        McVersionClient.setScreen(new BleepediaScreen(data));
+    }
+
     public static void forgetDisplay(int id) {
         DisplayTextures.forget(id);
     }

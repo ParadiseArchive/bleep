@@ -24,6 +24,9 @@ public class BleepClient {
         });
         modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.BLEEP.get(), BleepRenderer::new));
         NeoForge.EVENT_BUS.addListener(BleepClient::tooltip);
+        // the Bleepedia arrives when its owner opens it
+        modEventBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event) ->
+                event.register(io.hookdev.bleep.network.BleepediaData.TYPE, (data, context) -> ClientHooks.openBleepedia(data)));
     }
 
     /** Every Bleep item says what it is and where to find it (tooltip.bleep.<name>). */

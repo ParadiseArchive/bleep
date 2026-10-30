@@ -29,7 +29,8 @@ public class Bleep {
         BleepContent.register(modEventBus);
         BleepGameTests.register(modEventBus);
         modEventBus.addListener((EntityAttributeCreationEvent event) -> event.put(BleepContent.BLEEP.get(), BleepEntity.createAttributes().build()));
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle));
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle)
+                .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC));
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
         LOGGER.info("Bleep loaded. Bleep bloop.");

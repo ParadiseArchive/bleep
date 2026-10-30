@@ -27,7 +27,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch;
+    private Button goHome, torch, book;
 
     public BleepScreen(BleepEntity bleep) {
         super(bleep.getDisplayName());
@@ -42,6 +42,9 @@ public class BleepScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.bleep.follow"), b -> send(BleepCommand.FOLLOW)).bounds(left + 10, y, w, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.bleep.stay"), b -> send(BleepCommand.STAY)).bounds(left + 82, y, w, 20).build());
         goHome = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.go_home"), b -> send(BleepCommand.GO_HOME)).bounds(left + 154, y, w, 20).build());
+        // its Bleepedia: a book in the corner, with a ! while there is news
+        book = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.OPEN_BOOK)).bounds(left + W - 32, top + 8, 22, 22)
+                .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.bleepedia"))).build());
         // only while it carries a torch: take it back
         torch = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.take_torch"), b -> send(BleepCommand.TAKE_TORCH)).bounds(left + W - 78, top + 92, 68, 16).build());
     }
@@ -108,6 +111,8 @@ public class BleepScreen extends Screen {
         }
 
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
+        g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), book.getX() + 3, book.getY() + 3);
+        if (bleep.news() && (bleep.tickCount / 10) % 2 == 0) g.text(font, "!", book.getX() + 16, book.getY() + 1, AMBER, true);
     }
 
     /** A labelled bar: the label, the bar filled this far (0 to 1), and a value after it. */

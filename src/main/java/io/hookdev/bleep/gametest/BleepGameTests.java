@@ -86,6 +86,10 @@ public final class BleepGameTests {
         test("it_wears_a_hat_and_a_sticker", BleepGameTests::itWearsAHatAndASticker, 20);
         test("its_name_scrolls_across", BleepGameTests::itsNameScrollsAcross, 20);
         test("an_arrow_points_home", BleepGameTests::anArrowPointsHome, 40);
+        test("its_diary_starts_the_day_it_was_built", BleepGameTests::itsDiaryStartsTheDayItWasBuilt, 20);
+        test("a_new_mob_goes_in_the_bleepedia", BleepGameTests::aNewMobGoesInTheBleepedia, 120);
+        test("a_special_block_is_a_find", BleepGameTests::aSpecialBlockIsAFind, 100);
+        test("opening_the_bleepedia_reads_the_news", BleepGameTests::openingTheBleepediaReadsTheNews, 20);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -541,6 +545,49 @@ public final class BleepGameTests {
             helper.assertTrue(bleep.display() == Display.HOME, "on its way home its display shows the way, it shows " + bleep.display());
             helper.succeed();
         });
+    }
+
+    private static void itsDiaryStartsTheDayItWasBuilt(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        bleep.boot();
+        var diary = bleep.memory().diary;
+        helper.assertTrue(!diary.isEmpty() && diary.getFirst().key().equals("diary.bleep.born") && diary.getFirst().day() == 1, "its diary starts on day 1, the day it was built");
+        helper.assertTrue(bleep.news(), "and that is news for its owner");
+        helper.succeed();
+    }
+
+    private static void aNewMobGoesInTheBleepedia(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> cow = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("cow"));
+        helper.spawnWithNoFreeWill(cow, FAR);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.memory().mobs.containsKey("minecraft:cow"), "the cow should be in its Bleepedia");
+            helper.assertTrue(bleep.news(), "with a ! for its owner");
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.first_mob")), "and its first creature in its diary");
+        });
+    }
+
+    private static void aSpecialBlockIsAFind(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.setBlock(new BlockPos(5, 0, 1), Blocks.BEACON);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.memory().finds.containsKey("minecraft:beacon"), "a beacon should be a find");
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.find")), "written in its diary");
+        });
+    }
+
+    private static void openingTheBleepediaReadsTheNews(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(1.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.boot();
+        helper.assertTrue(bleep.news(), "something new to read");
+        helper.assertTrue(BleepCommand.obey(owner, bleep, BleepCommand.OPEN_BOOK, 1), "its owner opens the Bleepedia");
+        helper.assertFalse(bleep.news(), "the news is read");
+        helper.assertTrue(bleep.memory().lastOpened == helper.getLevel().getGameTime(), "and it remembers when");
+        helper.succeed();
     }
 
     private static void aNameAlwaysShows(GameTestHelper helper) {

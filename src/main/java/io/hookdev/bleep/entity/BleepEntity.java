@@ -84,6 +84,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Integer> HAT = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> STICKER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DISPLAY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** The orders from the info screen. */
     public static final int FOLLOW = 0, STAY = 1, GO_HOME = 2;
@@ -139,6 +140,8 @@ public class BleepEntity extends TamableAnimal {
             Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3), Map.entry("overcharged", 3), Map.entry("storm", 2));
     /** What it says about a kind of mob it has no line for (another mod's). */
     public static final String UNKNOWN_MOB = "Never seen one of those. Filing it under weird.";
+    /** Mobs worth a line in its diary. */
+    private static final Set<String> SPECIAL_MOBS = Set.of("minecraft:warden", "minecraft:ender_dragon", "minecraft:wither", "minecraft:llama", "minecraft:iron_golem", "minecraft:allay");
 
     /** A short feeling (petted, hit, booting) that shows for a while over the usual face. */
     private Emotion mood = Emotion.HAPPY;
@@ -157,8 +160,8 @@ public class BleepEntity extends TamableAnimal {
     /** The day the counters below are for, and what happened that day. */
     private long bondDay = -1, favouriteDay = -1, lastTogetherDay = -1;
     private int petsToday, giftsToday, fightsToday;
-    /** The kinds of mob and the biomes it has seen. */
-    private final Set<String> seenMobs = new LinkedHashSet<>(), seenBiomes = new LinkedHashSet<>();
+    /** What it remembers: the mobs, biomes and special blocks it found, its diary and its stats (the Bleepedia). */
+    private final Memory memory = new Memory();
     /** A new kind of mob it is having a look at. */
     private @Nullable Mob scanning;
     private int scanTicks;
@@ -223,6 +226,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(HAT, -1);
         builder.define(STICKER, -1);
         builder.define(DISPLAY, 0);
+        builder.define(NEWS, false);
     }
 
     // ---------- what the info screen shows ----------
@@ -238,6 +242,8 @@ public class BleepEntity extends TamableAnimal {
             sleptTicks = 0;
             followAfterSleep = !isOrderedToSit();
             changeBond(Bond.SWITCHED_OFF);
+            memory.timesEmpty++;
+            rememberFirst("empty", "diary.bleep.first_empty", "");
         }
     }
 
@@ -269,6 +275,7 @@ public class BleepEntity extends TamableAnimal {
 
     public void setHome(@Nullable GlobalPos home) {
         if (home == null && goingHome) goingHome = false;
+        if (home != null && !home.equals(home()) && !level().isClientSide()) remember("diary.bleep.home", "");
         setCharging(false);
         this.entityData.set(HOME, Optional.ofNullable(home));
     }
@@ -288,7 +295,35 @@ public class BleepEntity extends TamableAnimal {
     }
 
     public Set<String> seenMobs() {
-        return seenMobs;
+        return memory.mobs.keySet();
+    }
+
+    public Memory memory() {
+        return memory;
+    }
+
+    /** Something new for its Bleepedia: its owner gets a ! until they have looked. */
+    public boolean news() {
+        return this.entityData.get(NEWS);
+    }
+
+    private void remember(String key, String arg) {
+        memory.write(level().getGameTime(), key, arg);
+        this.entityData.set(NEWS, true);
+    }
+
+    private void rememberFirst(String what, String key, String arg) {
+        if (memory.first(level().getGameTime(), what, key, arg)) this.entityData.set(NEWS, true);
+    }
+
+    /** Its owner opens its Bleepedia: everything it remembers goes to them, and the news is read. */
+    public void openBleepedia(net.minecraft.server.level.ServerPlayer player) {
+        // only to a player whose game can show it (not a test player, nor one without Bleep)
+        if (player.connection.hasChannel(io.hookdev.bleep.network.BleepediaData.TYPE)) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, io.hookdev.bleep.network.BleepediaData.of(this));
+        }
+        memory.lastOpened = level().getGameTime();
+        this.entityData.set(NEWS, false);
     }
 
     /** Switched off after running empty, until it is charged full again. */
@@ -308,6 +343,8 @@ public class BleepEntity extends TamableAnimal {
         feel(Emotion.BOOT, 50);
         shown = Emotion.BOOT;
         talk(Emotion.BOOT);
+        if (memory.born < 0) memory.born = level().getGameTime();
+        rememberFirst("born", "diary.bleep.born", "");
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size()));
     }
 
@@ -400,6 +437,7 @@ public class BleepEntity extends TamableAnimal {
                 owner.sendOverlayMessage(Component.translatable("message.bleep.level_up", getDisplayName(), Component.translatable(Bond.key(bond()))));
             }
             learn(Bond.level(bond()));
+            remember("diary.bleep.level", Bond.key(bond()));
         }
         if (bond() > before) level().broadcastEntityEvent(this, (byte) 7); // hearts
     }
@@ -408,8 +446,9 @@ public class BleepEntity extends TamableAnimal {
     private void learn(int level) {
         if (level <= learned) return;
         for (Skill skill : Skill.values()) {
-            if (skill.level > learned && skill.level <= level && getOwner() instanceof Player owner) {
-                owner.sendSystemMessage(Component.translatable(skill.key(), getDisplayName()));
+            if (skill.level > learned && skill.level <= level) {
+                if (getOwner() instanceof Player owner) owner.sendSystemMessage(Component.translatable(skill.key(), getDisplayName()));
+                remember("diary.bleep.learned." + skill.name().toLowerCase(java.util.Locale.ROOT), "");
             }
         }
         learned = level;
@@ -514,7 +553,10 @@ public class BleepEntity extends TamableAnimal {
     /** Its owner won a fight near it. */
     public void foughtTogether() {
         today();
-        if (slept || fightsToday >= Bond.FIGHTS_PER_DAY) return;
+        if (slept) return;
+        memory.fightsWon++;
+        rememberFirst("fight", "diary.bleep.first_fight", "");
+        if (fightsToday >= Bond.FIGHTS_PER_DAY) return;
         fightsToday++;
         changeBond(Bond.FIGHT);
     }
@@ -523,6 +565,7 @@ public class BleepEntity extends TamableAnimal {
     public void reveal(@Nullable Player player) {
         if (revealed() || obsession() == null) return;
         this.entityData.set(REVEALED, true);
+        remember("diary.bleep.favourite", obsession().nameKey());
         if (player != null) {
             player.sendOverlayMessage(Component.translatable("message.bleep.loves", getDisplayName(), Component.translatable(obsession().nameKey())));
         }
@@ -570,6 +613,7 @@ public class BleepEntity extends TamableAnimal {
         }
         overchargeTicks = OVERCHARGE_TICKS;
         setRemainingFireTicks(0);
+        remember("diary.bleep.lightning", "");
         level.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.7, getZ(), 30, 0.4, 0.6, 0.4, 0.2);
     }
 
@@ -775,11 +819,14 @@ public class BleepEntity extends TamableAnimal {
             return;
         }
         boolean moving = getDeltaMovement().horizontalDistanceSqr() > 1.0e-4;
+        if (moving) memory.distance += Math.sqrt(getDeltaMovement().horizontalDistanceSqr());
+        if (memory.born < 0) memory.born = level().getGameTime(); // a bleep from before it remembered
         // a homebase that was broken: homeless, and sad about it
         if (tickCount % 20 == 0 && homeHere() && level().isLoaded(home().pos()) && !HomebaseBlock.is(level().getBlockState(home().pos()))) {
             setHome(null);
             feel(Emotion.SAD, 80);
             changeBond(Bond.HOMEBASE_BROKEN);
+            remember("diary.bleep.homeless", "");
         }
         boolean home = onHome();
         if (slept) {
@@ -808,6 +855,7 @@ public class BleepEntity extends TamableAnimal {
         if (tickCount % 20 == 0 && !slept && !level().getEntitiesOfClass(Llama.class, getBoundingBox().inflate(8)).isEmpty()) {
             if (llamaTicks == 0 && moodTicks == 0) feel(Emotion.SURPRISED, 30);
             llamaTicks = 40;
+            rememberFirst("llama", "diary.bleep.llama", "");
         }
         lightTheWay();
         tickDisplay(moving);
@@ -826,6 +874,7 @@ public class BleepEntity extends TamableAnimal {
             lookForNewMobs();
             if (tickCount % 40 == 0) lookForFavourite();
             if (tickCount % 40 == 0) noticeBiome();
+            if (tickCount % 40 == 20) lookForFinds();
         }
         if (tickCount % 100 == 0) countDaysTogether();
         Emotion emotion = currentEmotion();
@@ -859,6 +908,10 @@ public class BleepEntity extends TamableAnimal {
         if (displayTicks > 0 && --displayTicks == 0) display = Display.FACE;
         if (goingHome) display = Display.HOME;
         else if (display == Display.HOME) display = Display.FACE;
+        if (display == Display.FACE && !slept && news() && tickCount % 600 == 300) { // news: a ! now and then, not all the time
+            showDisplay(Display.NEWS, 40);
+            return;
+        }
         if (display == Display.FACE && !slept && tickCount % 200 == 0) {
             if (emotion() == Emotion.BORED && getRandom().nextFloat() < 0.3f) {
                 showDisplay(Display.GAME, 240);
@@ -902,7 +955,7 @@ public class BleepEntity extends TamableAnimal {
         }
         if (tickCount % 20 != 0 || dawdleTicks > 0) return;
         scanning = level().getEntitiesOfClass(Mob.class, getBoundingBox().inflate(SCAN_RANGE),
-                        m -> !(m instanceof BleepEntity) && m.isAlive() && !seenMobs.contains(mobId(m)) && hasLineOfSight(m))
+                        m -> !(m instanceof BleepEntity) && m.isAlive() && !memory.mobs.containsKey(mobId(m)) && hasLineOfSight(m))
                 .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
         scanTicks = 0;
         if (scanning != null) feel(Emotion.SURPRISED, 20);
@@ -922,7 +975,11 @@ public class BleepEntity extends TamableAnimal {
     private void finishScan(Mob mob) {
         scanning = null;
         String id = mobId(mob);
-        if (!seenMobs.add(id)) return;
+        if (memory.mobs.containsKey(id)) return;
+        memory.mobs.put(id, level().getGameTime());
+        this.entityData.set(NEWS, true);
+        if (memory.mobs.size() == 1) remember("diary.bleep.first_mob", mob.getType().getDescriptionId());
+        if (SPECIAL_MOBS.contains(id)) remember("diary.bleep.big_mob", mob.getType().getDescriptionId());
         String key = mobThought(id);
         pinThought(key);
         if (getOwner() instanceof Player owner && distanceToSqr(owner) < TOGETHER * TOGETHER) {
@@ -931,11 +988,28 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
-    /** A new biome, found together with its owner. */
+    /** A new biome (for its Bleepedia), found together with its owner (a little bond). */
     private void noticeBiome() {
         String biome = level().getBiome(blockPosition()).unwrapKey().map(k -> k.identifier().toString()).orElse("");
-        if (biome.isEmpty() || !seenBiomes.add(biome) || seenBiomes.size() == 1) return;
+        if (biome.isEmpty() || memory.biomes.containsKey(biome)) return;
+        memory.biomes.put(biome, level().getGameTime());
+        if (memory.biomes.size() == 1) return; // where it was built is no discovery
+        this.entityData.set(NEWS, true);
         if (getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER) changeBond(Bond.DISCOVERY);
+    }
+
+    /** Special blocks close by (Memory.FINDS): a find for its Bleepedia, and a line in its diary. */
+    private void lookForFinds() {
+        BlockPos here = blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(here.offset(-5, -3, -5), here.offset(5, 3, 5))) {
+            var id = BuiltInRegistries.BLOCK.getKey(level().getBlockState(pos).getBlock());
+            if (!id.getNamespace().equals("minecraft") || !Memory.FINDS.contains(id.getPath()) || memory.finds.containsKey(id.toString())) continue;
+            memory.finds.put(id.toString(), level().getGameTime());
+            remember("diary.bleep.find", level().getBlockState(pos).getBlock().getDescriptionId());
+            pinThought("find.bleep." + id.getPath());
+            feel(Emotion.SURPRISED, 30);
+            return; // one at a time
+        }
     }
 
     /** A day together: a little more bond; days it did not see its owner: a little less. */
@@ -949,6 +1023,7 @@ public class BleepEntity extends TamableAnimal {
         }
         if (day <= lastTogetherDay) return;
         long apart = Math.min(day - lastTogetherDay - 1, Bond.DAYS_APART_COUNTED);
+        memory.daysTogether++;
         changeBond((int) apart * Bond.DAY_APART + Bond.DAY_TOGETHER);
         lastTogetherDay = day;
     }
@@ -1183,8 +1258,8 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("fights_today", fightsToday);
         output.putLong("favourite_day", favouriteDay);
         output.putLong("last_together_day", lastTogetherDay);
-        output.store("seen_mobs", Codec.STRING.listOf(), List.copyOf(seenMobs));
-        output.store("seen_biomes", Codec.STRING.listOf(), List.copyOf(seenBiomes));
+        memory.save(output);
+        output.putBoolean("news", news());
     }
 
     @Override
@@ -1210,10 +1285,8 @@ public class BleepEntity extends TamableAnimal {
         fightsToday = input.getIntOr("fights_today", 0);
         favouriteDay = input.getLongOr("favourite_day", -1);
         lastTogetherDay = input.getLongOr("last_together_day", -1);
-        seenMobs.clear();
-        input.read("seen_mobs", Codec.STRING.listOf()).ifPresent(seenMobs::addAll);
-        seenBiomes.clear();
-        input.read("seen_biomes", Codec.STRING.listOf()).ifPresent(seenBiomes::addAll);
+        memory.load(input);
+        this.entityData.set(NEWS, input.getBooleanOr("news", false));
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */

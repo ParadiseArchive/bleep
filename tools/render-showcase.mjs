@@ -464,6 +464,15 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     STARS.forEach(([x, y], i) => { const bright = i % 4 === 0; set(x, y, bright ? [255, 255, 255] : GLOW); if (bright) { set(x - 1, y, DIM); set(x + 1, y, DIM); set(x, y - 1, DIM); set(x, y + 1, DIM); } });
     for (let x = 3; x < 6; x++) set(x, 4, DIM);
   });
+  const RED = [0xff, 0x3b, 0x4e];
+  screen('trick_care', (set) => { // its owner hurt or hungry: a red heart (client/DisplayTextures.care)
+    ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(7 + x, 2 + y, RED); }));
+  });
+  screen('trick_alert', (set) => { // look out! (client/DisplayTextures.alert)
+    for (let y = 1; y <= 6; y++) { set(9, y, RED); set(10, y, RED); }
+    set(9, 8, RED); set(10, 8, RED);
+    for (let y = 2; y <= 7; y++) { set(3, y, DIM); set(16, y, DIM); }
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);

@@ -128,6 +128,9 @@ public final class BleepGameTests {
         test("it_saw_a_star_fall", BleepGameTests::itSawAStarFall, 20);
         test("a_fallen_star_holds_shards", BleepGameTests::aFallenStarHoldsShards, 20);
         test("a_homebase_drops_itself", BleepGameTests::aHomebaseDropsItself, 20);
+        test("it_guards_your_things", BleepGameTests::itGuardsYourThings, 200);
+        test("it_brings_food_when_you_are_hurt", BleepGameTests::itBringsFoodWhenYouAreHurt, 300);
+        test("it_warns_for_a_creeper", BleepGameTests::itWarnsForACreeper, 40);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -1072,6 +1075,39 @@ public final class BleepGameTests {
         var drops = net.minecraft.world.level.block.Block.getDrops(BleepContent.HOMEBASE.get().defaultBlockState(), helper.getLevel(), helper.absolutePos(HOME), null);
         helper.assertTrue(drops.stream().anyMatch(d -> d.is(BleepContent.HOMEBASE_ITEM.get())), "a broken homebase drops itself (26.1 and 26.3 read its loot table), it gave " + drops);
         helper.succeed();
+    }
+
+    private static void itGuardsYourThings(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        helper.spawnItem(Items.DIAMOND, new Vec3(5.5, 0.2, 1.5));
+        bleep.guardGrave(helper.absolutePos(FAR));
+        helper.runAfterDelay(60, () -> {
+            helper.assertTrue(bleep.kept().stream().anyMatch(s -> s.is(Items.DIAMOND)) && bleep.activity() == Activity.GUARDING, "it keeps the diamond safe at the grave");
+            Vec3 near = helper.absoluteVec(new Vec3(5.5, 0, 1.5));
+            owner.snapTo(near.x, near.y, near.z); // its owner is back
+        });
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.DIAMOND)) && bleep.kept().isEmpty() && bleep.guarding() == null, "and gives it back"));
+    }
+
+    private static void itBringsFoodWhenYouAreHurt(GameTestHelper helper) {
+        Player owner = owner(helper, 0.5);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        bleep.storage().addItem(new ItemStack(Items.BREAD, 3));
+        owner.setHealth(5);
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.BREAD)) && bleep.storage().countItem(Items.BREAD) == 2, "it brings one bread to its hurt owner"));
+    }
+
+    private static void itWarnsForACreeper(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity bleep = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), FAR);
+        bleep.tame(owner);
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> creeper = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("creeper"));
+        helper.spawnWithNoFreeWill(creeper, new BlockPos(2, 0, 1));
+        helper.succeedWhen(() -> helper.assertTrue(bleep.display() == io.hookdev.bleep.entity.Display.ALERT, "a creeper right by its owner: a big red ! on its screen, it shows " + bleep.display()));
     }
 
     private static Player withCore(GameTestHelper helper) {

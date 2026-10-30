@@ -86,6 +86,12 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Falling stars.** On a clear night, very rarely, a star falls nearby: a crater of glowing starstone, a fallen star at the bottom with star shards and, half the time, a Bleep Core.
 - **A mystery.** Bleeps look up at the stars at night, sing together at full moon, and fill a page of their Bleepedia with signs nobody can read. Hints, never an answer.
 
+## It looks after you
+
+- **Your things, safe.** When you die, your bleeps go to the spot, gather up everything you dropped and wait for you.
+- **Something to eat.** Low on health or food, and it brings you something from its storage.
+- **Look out!** A creeper about to go off behind you, and it sounds the alarm.
+
 ## The Bleepedia
 
 - **A book of all it has seen.** The book on its info screen opens its Bleepedia: every mob it met, with its face and what it thinks of it (the rest are ???), every biome it drove through, and the special blocks it spotted.

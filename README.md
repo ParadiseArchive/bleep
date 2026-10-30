@@ -104,6 +104,10 @@ Where do bleeps come from? On a clear night, very rarely, a star falls: a crater
 in the middle, sometimes with a core inside. Bleeps look up at night, sing together at full moon, and fill a page of
 their Bleepedia with signs nobody can read. Hints, never an answer.
 
+### It looks after you
+When you die, it gathers up your things where you fell and gives them back when you return. Low on health or food, it
+brings you something to eat from its storage, and it warns you when a creeper is about to go off behind you.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

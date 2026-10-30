@@ -209,6 +209,11 @@ public class BleepEntity extends TamableAnimal {
     /** Looking up at the night sky; and the nights it last did that, and sang at full moon. */
     private int gazeTicks;
     private long gazeNight = -1, chorusNight = -1;
+    /** Care: where its owner died (it guards their things there), the things it kept for them, and how long before it fusses again. */
+    private @Nullable BlockPos guardAt;
+    private final List<ItemStack> kept = new java.util.ArrayList<>();
+    private int careCooldown, warnCooldown, guardTicks;
+    public static final int GUARD_RANGE = 8, GUARD_TIME = 24000;
     public static final int JOB_FARMER = 1, JOB_GUARD = 2, JOB_TIDY = 4, MIN_RADIUS = 2, MAX_RADIUS = 16;
     /** Where its work takes it next (a ripe crop, a chest), and how long before it sounds the alarm again. */
     private @Nullable BlockPos workAt;
@@ -265,6 +270,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
+        this.goalSelector.addGoal(2, new GuardGoal());
         this.goalSelector.addGoal(4, new WelcomeGoal());
         this.goalSelector.addGoal(4, new HideAndSeekGoal());
         this.goalSelector.addGoal(6, new WorkGoal());
@@ -840,6 +846,7 @@ public class BleepEntity extends TamableAnimal {
         if (!level().isClientSide() && reason == RemovalReason.KILLED) {
             stow();
             net.minecraft.world.Containers.dropContents(level(), this, storage);
+            if (level() instanceof ServerLevel server) kept.forEach(stack -> spawnAtLocation(server, stack));
         }
         super.remove(reason);
     }
@@ -954,7 +961,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1079,6 +1086,7 @@ public class BleepEntity extends TamableAnimal {
         tickWork();
         tickTrick();
         tickStars();
+        tickCare();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
             io.hookdev.bleep.BleepOwners.get(server).add(owner.getUUID(), getUUID());
@@ -1469,13 +1477,14 @@ public class BleepEntity extends TamableAnimal {
     /** ...and gives it to its owner anyway. */
     private void handOver(Player owner) {
         ItemStack stack = getMainHandItem().copy();
-        boolean ball = isBall(stack); // before it goes: adding it to an inventory empties the stack
+        boolean ball = isBall(stack), food = stack.has(net.minecraft.core.component.DataComponents.FOOD); // before it goes: adding it to an inventory empties the stack
         setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         if (!owner.getInventory().add(stack)) {
             level().addFreshEntity(new ItemEntity(level(), owner.getX(), owner.getY(), owner.getZ(), stack));
         }
         feel(Emotion.EXCITED, 40);
         if (ball) played();
+        if (food) pinThought("thought.bleep.care.eat");
     }
 
     // ---------- the ball ----------
@@ -2123,6 +2132,95 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- care ----------
+
+    /** Its owner died: it goes to the spot and keeps their things safe until they come back. */
+    public void guardGrave(BlockPos where) {
+        if (abandoned() || assembly() > 0) return;
+        guardAt = where.immutable();
+        guardTicks = GUARD_TIME;
+        slept = false;
+        stopOtherThings();
+        say("thought.bleep.grave.go");
+    }
+
+    public @Nullable BlockPos guarding() {
+        return guardAt;
+    }
+
+    public List<ItemStack> kept() {
+        return kept;
+    }
+
+    /**
+     * Care for its owner: at a grave it gathers their things (and gives them back when they come); low on health or
+     * food, it brings something to eat from its storage; a creeper about to go off close to them, and it sounds the alarm.
+     */
+    private void tickCare() {
+        if (careCooldown > 0) careCooldown--;
+        if (warnCooldown > 0) warnCooldown--;
+        if (abandoned() || !(level() instanceof ServerLevel server)) return;
+        Player owner = getOwner() instanceof Player p && p.isAlive() ? p : null;
+        if (guardAt != null) {
+            if (tickCount % 5 == 0) { // its owner's things, all of them: into a safe place
+                for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(guardAt).inflate(GUARD_RANGE), ItemEntity::isAlive)) {
+                    if (distanceToSqr(item) < 2.0 * 2.0) {
+                        kept.add(item.getItem().copy());
+                        item.discard();
+                    } else {
+                        var pull = position().add(0, 0.4, 0).subtract(item.position()).normalize().scale(0.35);
+                        item.setDeltaMovement(item.getDeltaMovement().scale(0.5).add(pull));
+                        item.needsSync = true;
+                    }
+                }
+            }
+            if (owner != null && distanceToSqr(owner) < 4 * 4 && tickCount % 10 == 0) giveBack(owner);
+            else if (--guardTicks <= 0) guardAt = null; // a day, and it gives up waiting there (it still has their things)
+        } else if (!kept.isEmpty() && owner != null && distanceToSqr(owner) < 4 * 4) {
+            giveBack(owner);
+        }
+        if (owner == null || slept || distanceToSqr(owner) > 24 * 24) return;
+        if (tickCount % 5 == 0 && warnCooldown == 0) { // look out!
+            boolean danger = !level().getEntitiesOfClass(net.minecraft.world.entity.monster.Creeper.class, owner.getBoundingBox().inflate(7),
+                    c -> c.isAlive() && (c.getSwellDir() > 0 || c.isIgnited() || c.distanceToSqr(owner) < 3 * 3)).isEmpty();
+            if (danger) {
+                warnCooldown = 200;
+                showDisplay(Display.ALERT, 50);
+                feel(Emotion.SURPRISED, 40);
+                for (int i = 0; i < 2; i++) playSound(BleepContent.VOICE.get(Emotion.SURPRISED).get(), 1.6f, 1.8f + i * 0.2f);
+                say("thought.bleep.care.creeper");
+                rememberFirst("creeper_warning", "diary.bleep.creeper_warning", "");
+            }
+        }
+        if (tickCount % 40 == 20 && careCooldown == 0 && guardAt == null && hideMode == 0) { // hurt or hungry?
+            boolean hurt = owner.getHealth() <= 8, hungry = owner.getFoodData().getFoodLevel() <= 6;
+            if (!hurt && !hungry) return;
+            careCooldown = 1200;
+            showDisplay(Display.CARE, 100);
+            int food = -1;
+            for (int i = 0; i < storage.getContainerSize() && food < 0; i++) if (storage.getItem(i).has(net.minecraft.core.component.DataComponents.FOOD)) food = i;
+            if (food >= 0 && getMainHandItem().isEmpty() && !ownHand) { // it brings something to eat (FetchGoal hands it over)
+                setItemSlot(EquipmentSlot.MAINHAND, storage.removeItem(food, 1));
+                say("thought.bleep.care.food");
+                rememberFirst("nurse", "diary.bleep.nurse", "");
+            } else {
+                say(hurt ? "thought.bleep.care.hurt" : "thought.bleep.care.hungry");
+            }
+        }
+    }
+
+    /** Its owner is back: everything it kept goes into their hands. */
+    private void giveBack(Player owner) {
+        if (!kept.isEmpty()) {
+            for (ItemStack stack : kept) if (!owner.getInventory().add(stack) && level() instanceof ServerLevel server) spawnAtLocation(server, stack);
+            kept.clear();
+            say("thought.bleep.grave.back");
+            feel(Emotion.EXCITED, 60);
+            rememberFirst("grave", "diary.bleep.grave", "");
+        }
+        guardAt = null;
+    }
+
     // ---------- the stars ----------
 
     /** A new strange sign on the ??? page of its Bleepedia (or a few). */
@@ -2309,6 +2407,7 @@ public class BleepEntity extends TamableAnimal {
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
+        if (guardAt != null) return Activity.GUARDING;
         if (welcomeTicks > 0) return Activity.WELCOMING;
         if (hideMode != 0) return Activity.HIDE_AND_SEEK;
         if (gazeTicks > 0) return Activity.STARGAZING;
@@ -2550,6 +2649,9 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("chips", chips());
         output.putLong("gaze_night", gazeNight);
         output.putLong("chorus_night", chorusNight);
+        if (guardAt != null) output.store("guard_at", BlockPos.CODEC, guardAt);
+        output.putInt("guard_ticks", guardTicks);
+        if (!kept.isEmpty()) output.store("kept", ItemStack.CODEC.listOf(), kept);
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
@@ -2596,6 +2698,10 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(CHIPS, input.getIntOr("chips", 0));
         gazeNight = input.getLongOr("gaze_night", -1);
         chorusNight = input.getLongOr("chorus_night", -1);
+        guardAt = input.read("guard_at", BlockPos.CODEC).orElse(null);
+        guardTicks = input.getIntOr("guard_ticks", 0);
+        kept.clear();
+        input.read("kept", ItemStack.CODEC.listOf()).ifPresent(kept::addAll);
         this.entityData.set(PARTY, partyTicks > 0);
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
@@ -2778,6 +2884,39 @@ public class BleepEntity extends TamableAnimal {
                     }
                 }
                 default -> {}
+            }
+        }
+    }
+
+    /** Guarding its owner's things: to the spot where they died (beaming there if it is far), and waiting there. */
+    private class GuardGoal extends Goal {
+        private int ticks;
+
+        GuardGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
+        }
+
+        @Override
+        public boolean canUse() {
+            return guardAt != null && !abandoned();
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(guardAt)) > 48 * 48) { // too far to drive: a little flash, and it is there
+                if (level() instanceof ServerLevel server) server.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.5, getZ(), 12, 0.3, 0.4, 0.3, 0.1);
+                snapTo(guardAt.getX() + 0.5, guardAt.getY(), guardAt.getZ() + 0.5, getYRot(), 0);
+            }
+        }
+
+        @Override
+        public void tick() {
+            if (guardAt == null) return;
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(guardAt)) > 2 * 2) {
+                if (ticks++ % 10 == 0) getNavigation().moveTo(guardAt.getX() + 0.5, guardAt.getY(), guardAt.getZ() + 0.5, 1.3);
+            } else {
+                getNavigation().stop();
             }
         }
     }

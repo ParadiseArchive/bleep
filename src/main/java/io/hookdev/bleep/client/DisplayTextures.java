@@ -64,6 +64,8 @@ public final class DisplayTextures {
             case HI -> "hi" + ((int) (state.ageInTicks / 10) % 2);
             case BIRTHDAY -> "birthday" + step;
             case STARS -> "stars" + ((int) (state.ageInTicks / 5) % 4);
+            case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
+            case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
             default -> "face";
         };
     }
@@ -73,6 +75,8 @@ public final class DisplayTextures {
             case NAME -> ticker(image, state.name, (int) (state.ageInTicks / 3));
             case BIRTHDAY -> ticker(image, "HAPPY BIRTHDAY", (int) (state.ageInTicks / 3));
             case STARS -> stars(image, (int) (state.ageInTicks / 5) % 4);
+            case CARE -> care(image, (int) (state.ageInTicks / 10) % 2 == 0);
+            case ALERT -> alert(image, (int) (state.ageInTicks / 4) % 2 == 0);
             case GAME -> ticTacToe(image, (int) (state.ageInTicks / 15), state.id);
             case HOME -> arrow(image, arrow(state.homeAngle));
             case WANT -> cookie(image, (int) (state.ageInTicks / 10) % 2 == 0);
@@ -236,6 +240,22 @@ public final class DisplayTextures {
             if (bright) { set(image, x - 1, y, DIM); set(image, x + 1, y, DIM); set(image, x, y - 1, DIM); set(image, x, y + 1, DIM); }
         }
         for (int x = 3; x < 6; x++) set(image, x, 4, DIM); // a line between two of them
+    }
+
+    // ---------- care: a red heart (beating); look out: a big red ! (flashing) ----------
+
+    private static final int RED = 0xFFFF3B4E;
+
+    private static void care(NativeImage image, boolean beat) {
+        String[] heart = beat ? new String[] {".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."} : new String[] {".......", ".##.##.", ".#####.", "..###..", "...#...", "......."};
+        for (int y = 0; y < heart.length; y++) for (int x = 0; x < 7; x++) if (heart[y].charAt(x) == '#') set(image, 7 + x, 2 + y, RED);
+    }
+
+    private static void alert(NativeImage image, boolean on) {
+        int colour = on ? RED : AMBER;
+        for (int y = 1; y <= 6; y++) { set(image, 9, y, colour); set(image, 10, y, colour); }
+        set(image, 9, 8, colour); set(image, 10, 8, colour);
+        if (on) for (int y = 2; y <= 7; y++) { set(image, 3, y, DIM); set(image, 16, y, DIM); }
     }
 
     // ---------- news in the Bleepedia ----------

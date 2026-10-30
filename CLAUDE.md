@@ -39,7 +39,7 @@ A Minecraft mod by Hook Development: small robots on tracks with a display for a
   - Lore (owner, 30 Oct 2026): a bleep is something mystical, a gift from the stars. The core is no longer bedrock but something alien (new material name, docs text changes). On clear nights, very rarely, a falling star lands nearby: a small crater of strange, softly glowing rock, a warm humming Bleep Core in the middle (dungeon chests stay a second place). Bleeps do not know where they come from: now and then they stare at the night sky, a thought or diary line hints at it; at full moon all bleeps nearby beep in the same rhythm; strange signs in the crater; a Bleepedia page of question marks that fills very slowly. Hints only, never an answer.
   Backlog: holidays (pumpkin face, Christmas hat), weather (umbrella hat, a snowman). Far backlog: a mini bleep. Not: map maker.
 - [ ] Brainstorm 2 (30 Oct 2026), the owner's choices, in this order:
-  1. Care: grave keeper (to your death spot, keeps your things, gives them back), nurse (food from its storage when you are low), creeper warning.
+  1. [x] Care (30 Oct 2026): guardGrave on its owner's death (Bleep.guardTheGrave, owned bleeps within 64; GuardGoal beams if over 48 blocks), kept list (saved) given back within 4 blocks, a day of waiting; respawn does not call guards home. Nurse: health <= 8 or food <= 6, food from storage via FetchGoal, cooldown a minute. Creeper warning: swelling or within 3 of its owner, Display.ALERT. Display.CARE.
   2. More work: fisher, smelter, gardener; the Work screen with icons.
   3. Hobbies (grow from what it does most), and a Milestones tab (badges, not stickers on its body).
   4. Emoji reactions on its display.

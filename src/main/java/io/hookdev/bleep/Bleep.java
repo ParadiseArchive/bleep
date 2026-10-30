@@ -34,6 +34,7 @@ public class Bleep {
                 .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC));
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
+        NeoForge.EVENT_BUS.addListener(Bleep::guardTheGrave);
         // now and then an abandoned bleep somewhere out of sight of a player
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) -> {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.Abandoned.EVERY == 0 && player.tickCount > 0) {
@@ -54,8 +55,16 @@ public class Bleep {
     private static void comeHomeAfterRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.isEndConquered() || !(event.getEntity().level() instanceof ServerLevel level)) return;
         var player = event.getEntity();
-        for (BleepEntity bleep : level.getEntities(BleepContent.BLEEP.get(), b -> b.isOwnedBy(player) && b.homeHere())) {
+        for (BleepEntity bleep : level.getEntities(BleepContent.BLEEP.get(), b -> b.isOwnedBy(player) && b.homeHere() && b.guarding() == null)) {
             if (bleep.home().pos().closerToCenterThan(player.position(), 32)) bleep.beamHome();
+        }
+    }
+
+    /** A player died: their bleeps (within 64 blocks) go to the spot and keep their things safe for them. */
+    private static void guardTheGrave(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) || !(player.level() instanceof ServerLevel level)) return;
+        for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(64), b -> b.isOwnedBy(player))) {
+            bleep.guardGrave(player.blockPosition());
         }
     }
 

@@ -26,7 +26,11 @@ public enum Display {
     /** Its birthday: HAPPY BIRTHDAY, scrolling across. */
     BIRTHDAY,
     /** Stars: at full moon, at midnight, all bleeps sing together. */
-    STARS;
+    STARS,
+    /** Its owner is hurt or hungry: a red heart. */
+    CARE,
+    /** Look out! (a creeper behind its owner) */
+    ALERT;
 
     private static final Display[] VALUES = values();
 

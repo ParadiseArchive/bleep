@@ -317,6 +317,7 @@ const THOUGHTS = {
   llama: ['It is watching. It knows. Do not move.', 'Llama. LLAMA. Hiding now.'],
   stubborn: ['Yes, yes. In a minute.', 'I heard you. I am choosing to finish my turn first.', 'Fine. FINE.'],
   glitch: ['BL33P B00P!!1', 'TOO MUCH HAPPY. REBOOTING HAPPY.'],
+  fighting: ['Bleep. Bleep. BLEEP.', 'Stay behind me. I have tracks.', 'This is for scratching my paint.'],
 };
 // the favourite items (Obsession in Java): their names, and the hints in its thoughts until its owner finds out
 const FAVOURITES = {
@@ -441,6 +442,16 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nOne of the three parts a core needs.',
   'tooltip.bleep.homebase': 'Place it near your bleep: it moves in\nand charges here.',
   'message.bleep.missing_parts': 'Still missing: %s',
+  'message.bleep.learned.torch': '%s learned to carry a torch: give it one, and it lights the way.',
+  'message.bleep.learned.fight': '%s will fight at your side now.',
+  'message.bleep.learned.fetch': '%s will bring you what it finds lying about.',
+  'message.bleep.not_yet': '%s will do that once it is your %s.',
+  'screen.bleep.take_torch': 'Take torch',
+  'activity.bleep.fighting': 'Fighting', 'activity.bleep.naughty': 'Up to something',
+  'thought.bleep.torch': 'A torch! I am a lighthouse now.',
+  'thought.bleep.naughty.cookie': 'Cookie acquired. Mine now. Crunch.',
+  'thought.bleep.naughty.pot': 'You cannot see me. I am a plant now.',
+  'thought.bleep.naughty.torch': 'This torch looks better over here.',
   'jade.bleep.nobody_home': 'Nobody lives here yet',
   'config.jade.plugin_bleep.bleep': 'Bleep: battery, mood and bond',
   'config.jade.plugin_bleep.homebase': 'Bleep: who lives in a homebase',

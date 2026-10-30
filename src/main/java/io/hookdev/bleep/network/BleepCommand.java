@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A button on a bleep's info screen: Follow, Stay or Go Home. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -40,6 +40,7 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
     /** With the dice already thrown: below the bleep's dawdle chance it dawdles. True if it will do as it was told. */
     public static boolean obey(Player player, @Nullable Entity target, int command, float roll) {
         if (!(target instanceof BleepEntity bleep) || !bleep.isOwnedBy(player) || bleep.distanceToSqr(player) > REACH * REACH) return false;
+        if (command == TAKE_TORCH) return bleep.takeTorch(player);
         if (bleep.order(command, roll)) return true;
         if (command == GO_HOME) player.sendOverlayMessage(Component.translatable("message.bleep.no_home", bleep.getDisplayName()));
         return false;

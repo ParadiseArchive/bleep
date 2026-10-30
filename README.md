@@ -57,7 +57,9 @@ Home buttons. Sneak-right-click to pet it. It talks back in blips, a sound for e
 ### The bleep
 Eleven faces on a display that glows in the dark, arms and a head that move with its mood, and a voice of its own. A
 battery instead of health: driving and damage drain it, and an empty bleep switches off with a sleepy face. A bond that
-grows with care, a favourite item, a dry remark about every mob in the game, and a fear of llamas nobody can explain.
+grows with care and teaches it new things: a Friend carries a torch that lights the way, a Buddy fights at your side and
+brings you what it finds. A favourite item, a dry remark about every mob in the game, naughty tricks when it is bored,
+and a fear of llamas nobody can explain.
 
 <img src=".github/readme/shelf-bleep.png" width="100%" alt="A bleep being put together, happy, excited, switched off and charging at home.">
 

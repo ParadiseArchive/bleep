@@ -7,6 +7,7 @@ import io.hookdev.bleep.entity.Activity;
 import io.hookdev.bleep.entity.BleepEntity;
 import io.hookdev.bleep.entity.Bond;
 import io.hookdev.bleep.entity.Emotion;
+import io.hookdev.bleep.entity.NaughtyGoal;
 import io.hookdev.bleep.entity.Obsession;
 import io.hookdev.bleep.item.BleepCoreItem;
 import io.hookdev.bleep.network.BleepCommand;
@@ -69,6 +70,12 @@ public final class BleepGameTests {
         test("it_brings_its_favourite_to_its_owner", BleepGameTests::itBringsItsFavouriteToItsOwner, 300);
         test("it_fetches_a_thrown_music_disc", BleepGameTests::itFetchesAThrownMusicDisc, 400);
         test("a_name_always_shows", BleepGameTests::aNameAlwaysShows, 20);
+        test("a_torch_needs_a_friend", BleepGameTests::aTorchNeedsAFriend, 20);
+        test("its_torch_lights_the_way", BleepGameTests::itsTorchLightsTheWay, 40);
+        test("it_fights_for_its_owner", BleepGameTests::itFightsForItsOwner, 100);
+        test("a_buddy_brings_what_it_finds", BleepGameTests::aBuddyBringsWhatItFinds, 300);
+        test("a_bored_bleep_steals_a_cookie", BleepGameTests::aBoredBleepStealsACookie, 300);
+        test("a_bored_bleep_moves_a_torch", BleepGameTests::aBoredBleepMovesATorch, 400);
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
@@ -345,6 +352,84 @@ public final class BleepGameTests {
         });
         helper.runAfterDelay(41, () -> helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.MUSIC_DISC_CAT)),
                 "it should fetch the thrown disc and bring it back; it holds " + bleep.getMainHandItem() + ", doing " + bleep.activity() + ", at " + helper.relativeVec(bleep.position()))));
+    }
+
+    private static void aTorchNeedsAFriend(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.assertFalse(bleep.give(owner, new ItemStack(Items.TORCH)), "a new bleep does not carry a torch yet");
+        bleep.setBond(30);
+        helper.assertTrue(bleep.give(owner, new ItemStack(Items.TORCH)), "a Friend carries a torch");
+        helper.assertTrue(bleep.getOffhandItem().is(Items.TORCH), "in its left hand");
+        helper.succeed();
+    }
+
+    private static void itsTorchLightsTheWay(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setBond(30);
+        bleep.give(owner, new ItemStack(Items.TORCH));
+        helper.runAfterDelay(5, () -> {
+            BlockPos light = bleep.light();
+            helper.assertTrue(light != null && helper.getLevel().getBlockState(light).is(Blocks.LIGHT), "its torch should light the block over it");
+            helper.assertTrue(bleep.takeTorch(owner), "its owner can take the torch back");
+            helper.assertTrue(helper.getLevel().getBlockState(light).isAir(), "without the torch the light goes out");
+            helper.succeed();
+        });
+    }
+
+    /** Its owner goes for a monster: a Buddy joins in. (Hitting back for its owner needs real damage, which the test player cannot take.) */
+    private static void itFightsForItsOwner(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(1.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity buddy = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        buddy.tame(owner);
+        buddy.setBond(60);
+        @SuppressWarnings("unchecked")
+        EntityType<net.minecraft.world.entity.Mob> zombieType = (EntityType<net.minecraft.world.entity.Mob>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("zombie"));
+        var zombie = helper.spawnWithNoFreeWill(zombieType, FAR);
+        owner.tickCount = 100; // the test player does not tick: give its hit a moment of its own
+        owner.setLastHurtMob(zombie); // its owner hit the zombie
+        helper.succeedWhen(() -> helper.assertTrue(buddy.getTarget() == zombie, "a Buddy should go for the zombie its owner hit"));
+    }
+
+    /** From Buddy it brings what lies about; what its owner threw away it leaves. */
+    private static void aBuddyBringsWhatItFinds(GameTestHelper helper) {
+        Player owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(0.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        bleep.setBond(60);
+        bleep.setObsession(COMPASS);
+        helper.spawnItem(Items.STRING, new Vec3(5.5, 0.2, 1.5));
+        helper.succeedWhen(() -> helper.assertTrue(owner.getInventory().contains(new ItemStack(Items.STRING)), "a Buddy should bring the string to its owner"));
+    }
+
+    private static void aBoredBleepStealsACookie(GameTestHelper helper) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(player(helper));
+        BlockPos chestPos = new BlockPos(6, 0, 1);
+        helper.setBlock(chestPos, Blocks.CHEST);
+        var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity) helper.getBlockEntity(chestPos, net.minecraft.world.level.block.entity.ChestBlockEntity.class);
+        chest.setItem(0, new ItemStack(Items.COOKIE, 3));
+        helper.assertTrue(bleep.beNaughty(NaughtyGoal.Trick.COOKIE), "there is a cookie to steal");
+        helper.succeedWhen(() -> helper.assertTrue(chest.getItem(0).getCount() == 2, "it should take one cookie, the chest has " + chest.getItem(0)));
+    }
+
+    private static void aBoredBleepMovesATorch(GameTestHelper helper) {
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(player(helper));
+        BlockPos torch = new BlockPos(5, 0, 1);
+        helper.setBlock(torch, Blocks.TORCH);
+        helper.assertTrue(bleep.beNaughty(NaughtyGoal.Trick.TORCH), "there is a torch to move");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(helper.getBlockState(torch).isAir(), "the torch should be gone from where it stood");
+            // it may stand outside the bench, where the tests next door tidy up: look the moment it is put down
+            BlockPos moved = bleep.movedTorch();
+            helper.assertTrue(moved != null && helper.getLevel().getBlockState(moved).is(Blocks.TORCH), "and stand somewhere else, nothing broken");
+        });
     }
 
     private static void aNameAlwaysShows(GameTestHelper helper) {

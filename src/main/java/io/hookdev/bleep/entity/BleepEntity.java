@@ -40,6 +40,9 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.FollowOwnerGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -50,6 +53,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -94,6 +99,14 @@ public class BleepEntity extends TamableAnimal {
     public static final int GOES_HOME_AFTER = 40;
     /** Further from home than this (blocks), it does not drive but beams home. */
     public static final double BEAM_HOME_FROM = 32;
+    /** Battery per blow it lands in a fight. */
+    public static final float FIGHT_COST = 1.5f;
+    /** How bright its torch lights the way. */
+    public static final int TORCH_LIGHT = 14;
+    /** How far it notices loot lying about (Buddy and up). */
+    public static final double LOOT_RANGE = 6;
+    /** Ticks with nothing to do before it may get up to something. */
+    public static final int NAUGHTY_AFTER = 1200;
     /** Ticks it takes to be put together: tracks, body, arms, head, a quarter each. */
     public static final int ASSEMBLE_TICKS = 60, ASSEMBLE_STEP = 15;
     /** How loud it talks, and how often it says something by itself (ticks, on average). */
@@ -115,7 +128,7 @@ public class BleepEntity extends TamableAnimal {
     public static final Map<String, Integer> THOUGHTS = Map.ofEntries(
             Map.entry("happy", 5), Map.entry("excited", 3), Map.entry("sad", 3), Map.entry("angry", 3), Map.entry("bored", 4),
             Map.entry("surprised", 2), Map.entry("tired", 3), Map.entry("asleep", 3), Map.entry("charging", 3), Map.entry("llama", 2),
-            Map.entry("stubborn", 3), Map.entry("glitch", 2));
+            Map.entry("stubborn", 3), Map.entry("glitch", 2), Map.entry("fighting", 3));
     /** What it says about a kind of mob it has no line for (another mod's). */
     public static final String UNKNOWN_MOB = "Never seen one of those. Filing it under weird.";
 
@@ -141,15 +154,23 @@ public class BleepEntity extends TamableAnimal {
     /** A new kind of mob it is having a look at. */
     private @Nullable Mob scanning;
     private int scanTicks;
-    /** Its favourite item, lying about, that it is going to fetch. */
+    /** Its favourite item (or, from Buddy, anything) lying about, that it is going to fetch. */
     private @Nullable ItemEntity fetching;
+    /** The highest bond level it ever reached: what it has learned (Skill) stays learned. */
+    private int learned;
+    /** Where its torch's light is now. */
+    private @Nullable BlockPos lit;
+    /** Ticks it has had nothing to do; a bored bleep gets up to something (NaughtyGoal). */
+    private int quietTicks;
+    /** Made in registerGoals, which Minecraft calls from the constructor, before field initialisers run: no initialiser here. */
+    private NaughtyGoal naughty;
 
     public BleepEntity(EntityType<? extends BleepEntity> type, Level level) {
         super(type, level);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return Animal.createAnimalAttributes().add(Attributes.MAX_HEALTH, 20).add(Attributes.MOVEMENT_SPEED, 0.25);
+        return Animal.createAnimalAttributes().add(Attributes.MAX_HEALTH, 20).add(Attributes.MOVEMENT_SPEED, 0.25).add(Attributes.ATTACK_DAMAGE, 3);
     }
 
     @Override
@@ -159,13 +180,19 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(3, new SitWhenOrderedToGoal(this));
         // bleeps are afraid of llamas, for reasons nobody knows
         this.goalSelector.addGoal(4, new AvoidEntityGoal<>(this, Llama.class, 10, 1.0, 1.3));
-        this.goalSelector.addGoal(5, new FetchGoal());
-        this.goalSelector.addGoal(5, new CircleOwnerGoal());
-        this.goalSelector.addGoal(6, new ScanGoal());
-        this.goalSelector.addGoal(7, new FollowOwnerGoal(this, 1.0, 6, 2));
-        this.goalSelector.addGoal(8, new WaterAvoidingRandomStrollGoal(this, 0.8));
+        naughty = new NaughtyGoal(this);
+        this.goalSelector.addGoal(5, new MeleeAttackGoal(this, 1.2, true));
+        this.goalSelector.addGoal(6, new FetchGoal());
+        this.goalSelector.addGoal(6, new CircleOwnerGoal());
+        this.goalSelector.addGoal(6, naughty);
+        this.goalSelector.addGoal(7, new ScanGoal());
+        this.goalSelector.addGoal(8, new FollowOwnerGoal(this, 1.0, 6, 2));
+        this.goalSelector.addGoal(9, new WaterAvoidingRandomStrollGoal(this, 0.8));
         this.goalSelector.addGoal(10, new LookAtPlayerGoal(this, Player.class, 8));
         this.goalSelector.addGoal(10, new RandomLookAroundGoal(this));
+        // from Buddy: it fights what goes for its owner, and what its owner goes for (wantsToAttack says which)
+        this.targetSelector.addGoal(1, new OwnerHurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new OwnerHurtTargetGoal(this));
     }
 
     @Override
@@ -303,8 +330,25 @@ public class BleepEntity extends TamableAnimal {
             if (getOwner() instanceof Player owner) {
                 owner.sendOverlayMessage(Component.translatable("message.bleep.level_up", getDisplayName(), Component.translatable(Bond.key(bond()))));
             }
+            learn(Bond.level(bond()));
         }
         if (bond() > before) level().broadcastEntityEvent(this, (byte) 7); // hearts
+    }
+
+    /** A new bond level: what goes with it is learned for good, and its owner hears about it. */
+    private void learn(int level) {
+        if (level <= learned) return;
+        for (Skill skill : Skill.values()) {
+            if (skill.level > learned && skill.level <= level && getOwner() instanceof Player owner) {
+                owner.sendSystemMessage(Component.translatable(skill.key(), getDisplayName()));
+            }
+        }
+        learned = level;
+    }
+
+    /** Whether it has learned this. */
+    public boolean can(Skill skill) {
+        return Math.max(learned, Bond.level(bond())) >= skill.level;
     }
 
     /** The counters are per Minecraft day. */
@@ -334,6 +378,17 @@ public class BleepEntity extends TamableAnimal {
      * day). Returns whether it took it.
      */
     public boolean give(Player player, ItemStack stack) {
+        if (stack.is(Items.TORCH)) {
+            if (!can(Skill.TORCH)) {
+                player.sendOverlayMessage(Component.translatable("message.bleep.not_yet", getDisplayName(), Component.translatable(Bond.key(Skill.TORCH.level * 25))));
+                return false;
+            }
+            if (!getOffhandItem().isEmpty()) return false;
+            setItemSlot(EquipmentSlot.OFFHAND, stack.copyWithCount(1));
+            feel(Emotion.EXCITED, 40);
+            pinThought("thought.bleep.torch");
+            return true;
+        }
         long day = today();
         Obsession favourite = obsession();
         if (favourite != null && favourite.matches().test(stack)) {
@@ -372,6 +427,81 @@ public class BleepEntity extends TamableAnimal {
         if (player != null) {
             player.sendOverlayMessage(Component.translatable("message.bleep.loves", getDisplayName(), Component.translatable(obsession().nameKey())));
         }
+    }
+
+    /** Gives its torch back. */
+    public boolean takeTorch(Player player) {
+        ItemStack torch = getOffhandItem();
+        if (torch.isEmpty()) return false;
+        setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        if (!player.getInventory().add(torch)) level().addFreshEntity(new ItemEntity(level(), player.getX(), player.getY(), player.getZ(), torch));
+        removeLight();
+        return true;
+    }
+
+    /** The light of its torch moves along with it: an invisible light block over it, taken away where it was. */
+    private void lightTheWay() {
+        boolean torch = !slept && getOffhandItem().is(Items.TORCH);
+        BlockPos here = blockPosition().above();
+        if (!torch) {
+            removeLight();
+            return;
+        }
+        if (here.equals(lit)) return;
+        removeLight();
+        if (level().getBlockState(here).isAir()) {
+            level().setBlock(here, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, TORCH_LIGHT), 3);
+            lit = here;
+        }
+    }
+
+    private void removeLight() {
+        if (lit != null && level().getBlockState(lit).is(Blocks.LIGHT)) level().setBlock(lit, Blocks.AIR.defaultBlockState(), 3);
+        lit = null;
+    }
+
+    public @Nullable BlockPos light() {
+        return lit;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!level().isClientSide()) removeLight();
+        super.remove(reason);
+    }
+
+    // ---------- fighting ----------
+
+    /** It only fights monsters, never a creeper (it learned that the hard way), and not with a low battery. */
+    @Override
+    public boolean wantsToAttack(LivingEntity target, LivingEntity owner) {
+        return can(Skill.FIGHT) && battery() >= TIRED && target instanceof net.minecraft.world.entity.monster.Enemy
+                && !(target instanceof net.minecraft.world.entity.monster.Creeper);
+    }
+
+    /** Every blow costs battery. */
+    @Override
+    public boolean doHurtTarget(ServerLevel level, net.minecraft.world.entity.Entity target) {
+        boolean hit = super.doHurtTarget(level, target);
+        if (hit) setBattery(battery() - FIGHT_COST);
+        return hit;
+    }
+
+    // ---------- naughty ----------
+
+    /** Free to get up to something: not in a fight, not in danger, not told to stay or go home. */
+    public boolean mayBeNaughty() {
+        return !slept && !isOrderedToSit() && !goingHome && getTarget() == null && dawdleTicks == 0 && !inDanger() && assembly() == 0;
+    }
+
+    /** Where it last put a torch it moved (tests). */
+    public @Nullable BlockPos movedTorch() {
+        return naughty.movedTo();
+    }
+
+    /** Starts a trick now, if it can (tests). */
+    public boolean beNaughty(NaughtyGoal.Trick trick) {
+        return naughty.start(trick);
     }
 
     // ---------- orders ----------
@@ -524,6 +654,15 @@ public class BleepEntity extends TamableAnimal {
             if (llamaTicks == 0 && moodTicks == 0) feel(Emotion.SURPRISED, 30);
             llamaTicks = 40;
         }
+        lightTheWay();
+        if (getTarget() != null && (battery() < TIRED || !getTarget().isAlive())) setTarget(null);
+        boolean quiet = !moving && fetching == null && scanning == null && getTarget() == null && getMainHandItem().isEmpty();
+        quietTicks = quiet ? quietTicks + 1 : 0;
+        if (tickCount % 200 == 0 && quietTicks > NAUGHTY_AFTER && !naughty.busy() && mayBeNaughty()
+                && getRandom().nextFloat() < 0.05f + 0.3f * (1 - bond() / (float) Bond.MAX)) {
+            naughty.startAny();
+            quietTicks = 0;
+        }
         if (!slept) {
             lookForNewMobs();
             if (tickCount % 40 == 0) lookForFavourite();
@@ -632,21 +771,32 @@ public class BleepEntity extends TamableAnimal {
         lastTogetherDay = day;
     }
 
-    /** Its favourite item lying about: it is going to get it (FetchGoal). */
+    /**
+     * Its favourite item lying about: it is going to get it (FetchGoal). From Buddy it also brings what else lies about
+     * (loot, drops), but not what its owner threw away on purpose.
+     */
     private void lookForFavourite() {
         Obsession favourite = obsession();
-        if (favourite == null || fetching != null || !getMainHandItem().isEmpty()) return;
+        if (favourite == null || fetching != null || !getMainHandItem().isEmpty() || naughty.busy()) return;
         fetching = level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(FETCH_RANGE), item -> favourite.matches().test(item.getItem()))
+                .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+        if (fetching != null || !can(Skill.FETCH) || getOwner() == null) return;
+        LivingEntity owner = getOwner();
+        fetching = level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(LOOT_RANGE), item -> item.getOwner() != owner && item.isAlive())
                 .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
     }
 
-    /** Picks up its favourite item: so excited it glitches. */
+    /** Picks up its favourite item (so excited it glitches), or a whole stack of anything else. */
     private void pickUp(ItemEntity item) {
-        setItemSlot(EquipmentSlot.MAINHAND, item.getItem().split(1));
+        Obsession favourite = obsession();
+        boolean loved = favourite != null && favourite.matches().test(item.getItem());
+        setItemSlot(EquipmentSlot.MAINHAND, item.getItem().split(loved ? 1 : item.getItem().getCount()));
         if (item.getItem().isEmpty()) item.discard();
         fetching = null;
-        feel(Emotion.GLITCH, 40);
-        reveal(getOwner() instanceof Player owner ? owner : null);
+        if (loved) {
+            feel(Emotion.GLITCH, 40);
+            reveal(getOwner() instanceof Player owner ? owner : null);
+        }
     }
 
     /** ...and gives it to its owner anyway. */
@@ -662,6 +812,7 @@ public class BleepEntity extends TamableAnimal {
     private Emotion currentEmotion() {
         if (slept) return Emotion.ASLEEP;
         if (moodTicks > 0) return mood;
+        if (getTarget() != null) return Emotion.ANGRY;
         if (battery() < TIRED) return Emotion.TIRED;
         if (idleTicks > (home() == null ? BORED_AFTER / 2 : BORED_AFTER)) return Emotion.BORED;
         return Emotion.HAPPY;
@@ -672,6 +823,8 @@ public class BleepEntity extends TamableAnimal {
         if (home) return battery() < FULL ? Activity.CHARGING : slept ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (dawdleTicks > 0) return Activity.DAWDLING;
+        if (getTarget() != null) return Activity.FIGHTING;
+        if (naughty.busy()) return Activity.NAUGHTY;
         if (goingHome) return Activity.GOING_HOME;
         if (llamaTicks > 0) return Activity.HIDING;
         if (!getMainHandItem().isEmpty() || fetching != null) return Activity.FETCHING;
@@ -680,7 +833,7 @@ public class BleepEntity extends TamableAnimal {
     }
 
     /** Keeps this thought on its screen for a while, whatever else happens. */
-    private void pinThought(String key) {
+    public void pinThought(String key) {
         this.entityData.set(THOUGHT, key);
         pinTicks = THINK_EVERY;
     }
@@ -695,7 +848,7 @@ public class BleepEntity extends TamableAnimal {
             return;
         }
         String kind = emotion == Emotion.ASLEEP ? "asleep" : activity == Activity.CHARGING ? "charging"
-                : activity == Activity.HIDING ? "llama" : emotion == Emotion.BOOT ? "excited" : emotion.texture();
+                : activity == Activity.HIDING ? "llama" : activity == Activity.FIGHTING ? "fighting" : emotion == Emotion.BOOT ? "excited" : emotion.texture();
         if (kind.equals(thoughtKind) && ++thinkTicks < THINK_EVERY) return;
         thoughtKind = kind;
         thinkTicks = 0;
@@ -824,6 +977,7 @@ public class BleepEntity extends TamableAnimal {
         output.putInt("obsession", this.entityData.get(OBSESSION));
         output.putBoolean("revealed", revealed());
         output.putInt("assembly", assembly());
+        output.putInt("learned", learned);
         output.putLong("bond_day", bondDay);
         output.putInt("pets_today", petsToday);
         output.putInt("gifts_today", giftsToday);
@@ -846,6 +1000,7 @@ public class BleepEntity extends TamableAnimal {
         setObsession(input.getIntOr("obsession", -1));
         this.entityData.set(REVEALED, input.getBooleanOr("revealed", false));
         this.entityData.set(ASSEMBLY, input.getIntOr("assembly", 0));
+        learned = input.getIntOr("learned", 0);
         bondDay = input.getLongOr("bond_day", -1);
         petsToday = input.getIntOr("pets_today", 0);
         giftsToday = input.getIntOr("gifts_today", 0);
@@ -860,7 +1015,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
-        return !slept && !isOrderedToSit() && !goingHome && dawdleTicks == 0;
+        return !slept && !isOrderedToSit() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy();
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */

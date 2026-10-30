@@ -27,7 +27,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome;
+    private Button goHome, torch;
 
     public BleepScreen(BleepEntity bleep) {
         super(bleep.getDisplayName());
@@ -42,6 +42,8 @@ public class BleepScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.bleep.follow"), b -> send(BleepCommand.FOLLOW)).bounds(left + 10, y, w, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.bleep.stay"), b -> send(BleepCommand.STAY)).bounds(left + 82, y, w, 20).build());
         goHome = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.go_home"), b -> send(BleepCommand.GO_HOME)).bounds(left + 154, y, w, 20).build());
+        // only while it carries a torch: take it back
+        torch = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.take_torch"), b -> send(BleepCommand.TAKE_TORCH)).bounds(left + W - 78, top + 92, 68, 16).build());
     }
 
     private void send(int command) {
@@ -54,6 +56,7 @@ public class BleepScreen extends Screen {
         var player = minecraft.player;
         if (bleep.isRemoved() || player == null || bleep.distanceToSqr(player) > 16 * 16) onClose();
         goHome.active = bleep.home() != null;
+        torch.visible = bleep.getOffhandItem().is(net.minecraft.world.item.Items.TORCH);
     }
 
     @Override

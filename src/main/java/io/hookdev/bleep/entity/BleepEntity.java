@@ -88,6 +88,8 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Boolean> NEWS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     /** What it dreams of: "mob:" and a name key, "scene:" and a kind of place, "star" or "strange". */
     private static final EntityDataAccessor<String> DREAM = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.STRING);
+    /** The question it is waiting for an answer to (its id in QUESTIONS), or empty. */
+    private static final EntityDataAccessor<String> QUESTION = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
@@ -260,6 +262,11 @@ public class BleepEntity extends TamableAnimal {
     private boolean wayToBed;
     private long wayUntil;
     private long dreamtOn = -1;
+    /** Questions: yes or no, asked now and then, answered on its info screen; it comes back to the answer later (owner, 30 Oct 2026). */
+    public static final List<String> QUESTIONS = List.of("pigs", "moon", "dark", "llamas", "creepers", "tidy", "sleep", "robot");
+    /** Ticks between questions (10 to 20 minutes), how long one waits for an answer, and at least a day between coming back to the same answer. */
+    public static final int QUESTION_EVERY = 12000, QUESTION_WAITS = 3600, RECALL_AFTER = 24000;
+    private long nextQuestion = Long.MIN_VALUE, askedAt;
     private long treasureStart, treasureUntil, lidCloses;
     private ItemStack treasureItem = ItemStack.EMPTY;
     private @Nullable Object hidden; // what its owner hid: an ItemEntity they tossed, or the BlockPos of a container they opened
@@ -348,6 +355,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(HOME, Optional.empty());
         builder.define(TREASURE, Optional.empty());
         builder.define(DREAM, "");
+        builder.define(QUESTION, "");
         builder.define(OBSESSION, -1);
         builder.define(REVEALED, false);
         builder.define(ASSEMBLY, 0);
@@ -694,6 +702,7 @@ public class BleepEntity extends TamableAnimal {
     public void pet() {
         today();
         feel(Emotion.EXCITED, 60);
+        recall("robot");
         if (fightingWith != null) { // break it up
             endFight("thought.bleep.fight.stopped");
             return;
@@ -1140,6 +1149,7 @@ public class BleepEntity extends TamableAnimal {
         if (llamaTicks > 0) llamaTicks--;
         if (tickCount % 20 == 0 && !slept && !level().getEntitiesOfClass(Llama.class, getBoundingBox().inflate(8)).isEmpty()) {
             if (llamaTicks == 0 && moodTicks == 0) feel(Emotion.SURPRISED, 30);
+            if (llamaTicks == 0) recall("llamas");
             llamaTicks = 40;
             rememberFirst("llama", "diary.bleep.llama", "");
         }
@@ -1163,6 +1173,7 @@ public class BleepEntity extends TamableAnimal {
         tickAdventure();
         tickTreasure();
         tickDreams();
+        tickQuestions();
         if (tickCount % 100 == 70 && isTame()) checkMilestones();
         if (home && tickCount % 200 == 0) checkComforts();
         if (tickCount % 200 == 0 && getOwner() instanceof Player owner && level() instanceof ServerLevel server) { // bleeps from before the limit, too
@@ -2515,6 +2526,64 @@ public class BleepEntity extends TamableAnimal {
         if (fun) played();
     }
 
+    // ---------- questions ----------
+
+    public String question() {
+        return entityData.get(QUESTION);
+    }
+
+    /** Now and then, with its owner close by and nothing going on: a question it has not asked yet. */
+    private void tickQuestions() {
+        long now = level().getGameTime();
+        if (!question().isEmpty()) {
+            if (now - askedAt > QUESTION_WAITS) entityData.set(QUESTION, ""); // no answer: another time
+            else if (display() == Display.FACE && tickCount % 200 == 0) showDisplay(Display.QUESTION, 60);
+            return;
+        }
+        if (tickCount % 100 != 51 || slept || abandoned() || !(getOwner() instanceof Player owner) || distanceToSqr(owner) > 8 * 8 || !free() || busyWithOthers()) return;
+        if (nextQuestion == Long.MIN_VALUE) nextQuestion = now + QUESTION_EVERY / 2 + getRandom().nextInt(QUESTION_EVERY); // a new bleep, or one from before questions
+        if (now >= nextQuestion) ask();
+    }
+
+    /** Asks a question it has not asked before (none left: it stops asking). */
+    public boolean ask() {
+        List<String> left = QUESTIONS.stream().filter(q -> !memory.answers.containsKey(q)).toList();
+        if (left.isEmpty() || !question().isEmpty()) return false;
+        String q = left.get(getRandom().nextInt(left.size()));
+        entityData.set(QUESTION, q);
+        askedAt = level().getGameTime();
+        nextQuestion = askedAt + QUESTION_EVERY + getRandom().nextInt(QUESTION_EVERY);
+        pinThought("question.bleep." + q);
+        showDisplay(Display.QUESTION, 80);
+        playSound(BleepContent.VOICE.get(Emotion.SURPRISED).get(), VOLUME, getVoicePitch());
+        if (getOwner() instanceof Player owner) owner.sendOverlayMessage(Component.translatable("message.bleep.question", getDisplayName()));
+        return true;
+    }
+
+    /** Its owner answered (Yes or No on its info screen): it remembers, and says what it thinks of that. */
+    public boolean answer(boolean yes) {
+        String q = question();
+        if (q.isEmpty()) return false;
+        entityData.set(QUESTION, "");
+        memory.answers.put(q, yes);
+        memory.recalled.put(q, level().getGameTime()); // not straight back to it
+        say("question.bleep." + q + (yes ? ".yes" : ".no"));
+        feel(yes ? Emotion.HAPPY : Emotion.SURPRISED, 40);
+        rememberFirst("question", "diary.bleep.question", "");
+        return true;
+    }
+
+    /** Something reminds it of an answer: now and then (not more than once a day for each), it brings it up. */
+    public boolean recall(String q) {
+        Boolean yes = memory.answers.get(q);
+        if (yes == null || slept || abandoned()) return false;
+        long now = level().getGameTime();
+        if (now - memory.recalled.getOrDefault(q, Long.MIN_VALUE / 2) < RECALL_AFTER || getRandom().nextFloat() > 0.6f) return false;
+        memory.recalled.put(q, now);
+        say("question.bleep." + q + ".recall." + (yes ? "yes" : "no"));
+        return true;
+    }
+
     // ---------- show the way ----------
 
     /** Off it goes, ahead of its owner: to its homebase, or (none in this world) to their bed. */
@@ -2821,6 +2890,7 @@ public class BleepEntity extends TamableAnimal {
         BlockPos at = owner.blockPosition();
         boolean underground = !level().canSeeSky(at) && at.getY() < level().getSeaLevel();
         if (!underground) return;
+        if (tickCount % 600 == 3) recall("dark");
         if (caveCooldown == 0) {
             boolean lava = false, drop = false;
             for (BlockPos pos : BlockPos.betweenClosed(at.offset(-3, -2, -3), at.offset(3, 1, 3))) {
@@ -3062,6 +3132,7 @@ public class BleepEntity extends TamableAnimal {
                 if (chorusNight != night) {
                     chorusNight = night;
                     pinThought("thought.bleep.chorus");
+                    recall("moon");
                     rememberFirst("chorus", "diary.bleep.chorus", "");
                     addSigns(2);
                 }
@@ -4099,6 +4170,7 @@ public class BleepEntity extends TamableAnimal {
                 getNavigation().stop();
                 bedside = true;
                 rememberFirst("bedside", "diary.bleep.bedside", "");
+                recall("sleep");
             } else if (ticks % 5 == 1) {
                 BleepEntity best = bestFriendNear(16);
                 if (best != null && best.bedside) getNavigation().moveTo(best.getX() + 0.9, best.getY(), best.getZ(), 1.0); // next to its best friend

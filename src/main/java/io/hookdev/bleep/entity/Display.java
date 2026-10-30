@@ -38,7 +38,9 @@ public enum Display {
     /** Treasure hunt: warm and cold bars (how close its owner is to what it buried), an arrow when they are far off. */
     TREASURE,
     /** A dream, asleep on its homebase at night: a mob it saw (its name), a place (a little scene), a falling star, or something strange. */
-    DREAM;
+    DREAM,
+    /** It has a question for its owner: a big blinking question mark. */
+    QUESTION;
 
     private static final Display[] VALUES = values();
 

@@ -28,7 +28,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet, play, work, chips, way;
+    private Button goHome, torch, book, chest, magnet, play, work, chips, way, yes, no;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -64,6 +64,9 @@ public class BleepScreen extends Screen {
         name.setTextColor(TEXT);
         name.setValue(currentName());
         name.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.rename")));
+        // only while it asks something: Yes and No, in the corner of the thought box
+        yes = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.yes"), b -> send(BleepCommand.ANSWER_YES)).bounds(left + 144, top + 132, 36, 14).build());
+        no = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.no"), b -> send(BleepCommand.ANSWER_NO)).bounds(left + 182, top + 132, 36, 14).build());
         // only while it carries a torch: take it back
         torch = addRenderableWidget(Button.builder(Component.translatable("screen.bleep.take_torch"), b -> send(BleepCommand.TAKE_TORCH)).bounds(left + W - 112, top + 92, 70, 16).build());
     }
@@ -106,6 +109,7 @@ public class BleepScreen extends Screen {
         if (bleep.isRemoved() || player == null || bleep.distanceToSqr(player) > 16 * 16) onClose();
         goHome.active = bleep.home() != null;
         torch.visible = bleep.getOffhandItem().is(net.minecraft.world.item.Items.TORCH);
+        yes.visible = no.visible = !bleep.question().isEmpty();
         net.minecraft.network.chat.MutableComponent installed = Component.translatable("screen.bleep.chips");
         for (io.hookdev.bleep.entity.Chip chip : io.hookdev.bleep.entity.Chip.values()) {
             if (bleep.has(chip)) installed.append("\n- ").append(Component.translatable("item.bleep." + chip.id()));
@@ -158,7 +162,9 @@ public class BleepScreen extends Screen {
         // what it is thinking
         int qy = oy + 22, qh = 34;
         g.fill(left + 10, qy, left + W - 38, qy + qh, 0xFF22262E);
-        if (!bleep.thought().isEmpty()) {
+        if (!bleep.question().isEmpty()) { // a question: room for the buttons
+            g.textWithWordWrap(font, Component.translatable("question.bleep." + bleep.question()), left + 16, qy + 4, 124, GLOW);
+        } else if (!bleep.thought().isEmpty()) {
             // a mob from another mod has no line of its own
             String key = Language.getInstance().has(bleep.thought()) ? bleep.thought() : "thought.bleep.unknown_mob";
             Component thought = Component.literal("“").append(Component.translatable(key)).append("”");

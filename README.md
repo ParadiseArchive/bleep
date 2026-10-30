@@ -137,6 +137,9 @@ one thing in each place, on top of its hat and sticker.
 Two more jobs while it stays: it shears sheep and feeds animals so they have young, and it fells real trees and
 plants a sapling where they stood.
 
+### Questions
+Now and then it asks you something, yes or no. It remembers, and brings it up again later.
+
 ### Parts and home
 The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
 Home sends it to. Its light burns while it charges.

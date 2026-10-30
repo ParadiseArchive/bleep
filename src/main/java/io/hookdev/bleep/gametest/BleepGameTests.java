@@ -136,6 +136,7 @@ public final class BleepGameTests {
         test("a_gardener_plants_flowers", BleepGameTests::aGardenerPlantsFlowers, 400);
         test("what_it_does_most_becomes_its_hobby", BleepGameTests::whatItDoesMostBecomesItsHobby, 20);
         test("a_kilometre_is_a_milestone", BleepGameTests::aKilometreIsAMilestone, 140);
+        test("it_asks_and_remembers", BleepGameTests::itAsksAndRemembers, 20);
         test("a_herder_shears_sheep", BleepGameTests::aHerderShearsSheep, 400);
         test("a_herder_feeds_the_herd", BleepGameTests::aHerderFeedsTheHerd, 400);
         test("a_lumberjack_fells_a_tree", BleepGameTests::aLumberjackFellsATree, 400);
@@ -1192,6 +1193,21 @@ public final class BleepGameTests {
     @SuppressWarnings("unchecked")
     private static <E extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<E> type(String name) {
         return (net.minecraft.world.entity.EntityType<E>) net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(name));
+    }
+
+    private static void itAsksAndRemembers(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.assertTrue(bleep.ask(), "it asks something");
+        String q = bleep.question();
+        helper.assertTrue(BleepEntity.QUESTIONS.contains(q), "one of its questions, it asks " + q);
+        helper.assertFalse(bleep.ask(), "one at a time");
+        helper.assertTrue(bleep.answer(true), "its owner says yes");
+        helper.assertTrue(bleep.question().isEmpty() && bleep.memory().answers.get(q), "it remembers the yes");
+        helper.assertFalse(bleep.recall(q), "and does not come straight back to it");
+        helper.assertFalse(bleep.recall("never_asked"), "nothing to come back to");
+        for (int i = 1; i < BleepEntity.QUESTIONS.size(); i++) { bleep.ask(); bleep.answer(false); }
+        helper.assertFalse(bleep.ask(), "every question asked: no more");
+        helper.succeed();
     }
 
     private static void aHerderShearsSheep(GameTestHelper helper) {

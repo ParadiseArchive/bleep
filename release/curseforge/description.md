@@ -108,6 +108,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Show the way.** Lost? It drives ahead to its homebase or your bed, leaving a glowing trail.
 - **Cool clothes.** Sunglasses, a leather jacket, a cape, a bow tie, a scarf and a crown.
 - **Herder and lumberjack.** It shears sheep and breeds animals, fells trees and plants new ones.
+- **Questions.** “Are llamas dangerous?” It remembers your answer, and brings it up again.
 
 ## The Bleepedia
 

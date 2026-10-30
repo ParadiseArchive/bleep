@@ -48,7 +48,10 @@ public class Bleep {
             if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player && event.getItem().has(net.minecraft.core.component.DataComponents.FOOD)) react(player, io.hookdev.bleep.entity.Display.YUM);
         });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerContainerEvent.Open event) -> {
-            if (event.getContainer() instanceof net.minecraft.world.inventory.ChestMenu) react(event.getEntity(), io.hookdev.bleep.entity.Display.CURIOUS);
+            if (event.getContainer() instanceof net.minecraft.world.inventory.ChestMenu) {
+                react(event.getEntity(), io.hookdev.bleep.entity.Display.CURIOUS);
+                recall(event.getEntity(), "tidy");
+            }
         });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.living.LivingFallEvent event) -> {
             if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player && event.getDistance() > 4) react(player, io.hookdev.bleep.entity.Display.SWEAT);
@@ -98,6 +101,12 @@ public class Bleep {
         for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(32), b -> b.isOwnedBy(player) && b.treasureMode() == BleepEntity.FIND_COUNTING)) bleep.sawHidden(what);
     }
 
+    /** Something its owner did reminds their bleeps close by of an answer they gave. */
+    private static void recall(net.minecraft.world.entity.player.Player player, String question) {
+        if (!(player.level() instanceof ServerLevel level)) return;
+        for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(16), b -> b.isOwnedBy(player))) bleep.recall(question);
+    }
+
     /** Its owner did something: their bleeps within 16 blocks react on their screens. */
     public static void react(net.minecraft.world.entity.player.Player player, io.hookdev.bleep.entity.Display reaction) {
         if (!(player.level() instanceof ServerLevel level)) return;
@@ -109,8 +118,10 @@ public class Bleep {
         if (event.getEntity() instanceof net.minecraft.world.entity.animal.Animal && !(event.getEntity() instanceof BleepEntity)
                 && event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player player) {
             react(player, io.hookdev.bleep.entity.Display.TEAR);
+            if (event.getEntity().getType() == net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.withDefaultNamespace("pig"))) recall(player, "pigs");
             return;
         }
+        if (event.getEntity() instanceof net.minecraft.world.entity.monster.Creeper && event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player player) recall(player, "creepers");
         if (!(event.getEntity() instanceof net.minecraft.world.entity.monster.Enemy) || !(event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player player)
                 || !(event.getEntity().level() instanceof ServerLevel level)) return;
         for (BleepEntity bleep : level.getEntitiesOfClass(BleepEntity.class, event.getEntity().getBoundingBox().inflate(BleepEntity.TOGETHER), b -> b.isOwnedBy(player))) {

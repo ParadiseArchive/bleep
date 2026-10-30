@@ -56,6 +56,9 @@ public final class Memory {
     public int daysTogether, fightsWon, timesEmpty;
     /** Strange signs on the ??? page of its Bleepedia: they come one by one, from the stars (SIGNS at most). */
     public int signs;
+    /** Its owner's answers to its questions (yes or no), and when it last came back to each. */
+    public final Map<String, Boolean> answers = new LinkedHashMap<>();
+    public final Map<String, Long> recalled = new LinkedHashMap<>();
     public static final int SIGNS = 64;
     /** How often it did things (its hobbies: stargazing, digging, collecting, dancing, chatting, playing; and catches, harvests). */
     public final Map<String, Integer> counts = new LinkedHashMap<>();
@@ -124,6 +127,8 @@ public final class Memory {
         output.putString("hobby", hobby);
         output.store("milestones", FOUND, milestones);
         output.store("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC), friends);
+        output.store("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL), answers);
+        output.store("recalled", FOUND, recalled);
     }
 
     public void load(ValueInput input) {
@@ -151,5 +156,9 @@ public final class Memory {
         input.read("milestones", FOUND).ifPresent(milestones::putAll);
         friends.clear();
         input.read("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC)).ifPresent(friends::putAll);
+        answers.clear();
+        input.read("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL)).ifPresent(answers::putAll);
+        recalled.clear();
+        input.read("recalled", FOUND).ifPresent(recalled::putAll);
     }
 }

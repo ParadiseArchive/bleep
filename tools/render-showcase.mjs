@@ -498,6 +498,11 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     for (const x of [4, 9]) { set(x, 3, GLOW); set(x + 1, 2, GLOW); set(x + 2, 3, GLOW); }
     ['.#.#.', '#####', '.###.', '..#..'].forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') set(13 + x, 4 + y, PINK); }));
   });
+  screen('trick_question', (set) => { // a question for you (client/DisplayTextures.question): a big ?, a Y and an N
+    const glyph = '###..#.##....#.', Y = '#.##.#.#..#..#.', N = '##.#.##.##.##.#';
+    [...glyph].forEach((p, g) => { if (p === '#') { const x = 7 + (g % 3) * 2, y = Math.floor(g / 3) * 2; set(x, y, AMBER); set(x + 1, y, AMBER); set(x, y + 1, AMBER); set(x + 1, y + 1, AMBER); } });
+    for (let g = 0; g < 15; g++) { if (Y[g] === '#') set(1 + g % 3, 3 + Math.floor(g / 3), GLOW); if (N[g] === '#') set(16 + g % 3, 3 + Math.floor(g / 3), GLOW); }
+  });
   screen('trick_curious', (set) => { // its owner opened a chest
     set(4, 3, GLOW); set(5, 3, GLOW); set(8, 4, GLOW); set(9, 4, GLOW);
     [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') { const x = 12 + (g % 3) * 2, y = Math.floor(g / 3) * 2; set(x, y, AMBER); set(x + 1, y, AMBER); set(x, y + 1, AMBER); set(x + 1, y + 1, AMBER); } });

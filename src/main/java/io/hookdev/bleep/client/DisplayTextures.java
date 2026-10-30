@@ -67,6 +67,7 @@ public final class DisplayTextures {
             case CARE -> "care" + ((int) (state.ageInTicks / 10) % 2);
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
             case YUM, CURIOUS, SWEAT, TEAR, SPARKLE, ORE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
+            case QUESTION -> "question" + ((int) (state.ageInTicks / 10) % 2);
             case DREAM -> "dream" + state.dream + (state.dream.startsWith("mob:") ? step : (int) (state.ageInTicks / 5));
             case TREASURE -> state.treasureDistance > FAR_OFF ? "treasure_arrow" + arrow(state.treasureAngle) : "treasure" + warmth(state.treasureDistance) + ((int) (state.ageInTicks / 6) % 2);
             default -> "face";
@@ -86,6 +87,7 @@ public final class DisplayTextures {
             case TEAR -> tear(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case ORE -> ore(image, (int) (state.ageInTicks / 8) % 2 == 0);
+            case QUESTION -> question(image, (int) (state.ageInTicks / 10) % 2 == 0);
             case DREAM -> dream(image, state.dream, state.dreamName, (int) (state.ageInTicks / 3), (int) (state.ageInTicks / 5), state.id);
             case TREASURE -> {
                 if (state.treasureDistance > FAR_OFF) arrow(image, arrow(state.treasureAngle));
@@ -328,6 +330,23 @@ public final class DisplayTextures {
         String[] gem = {"..###..", ".#####.", "#######", ".#####.", "..###..", "...#..."};
         for (int y = 0; y < gem.length; y++) for (int x = 0; x < 7; x++) if (gem[y].charAt(x) == '#') set(image, 7 + x, 2 + y, (x + y) % 3 == 0 ? WHITE : GLOW);
         if (glint) { set(image, 15, 1, WHITE); set(image, 16, 2, AMBER); set(image, 4, 6, AMBER); }
+    }
+
+    // ---------- a question ----------
+
+    /** A big question mark, twice the size of a letter, and a little Y and N under its arms. */
+    private static void question(NativeImage image, boolean lit) {
+        String glyph = FONT.get('?');
+        int colour = lit ? AMBER : DIM;
+        for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') {
+            int x = 7 + (g % 3) * 2, y = (g / 3) * 2;
+            set(image, x, y, colour); set(image, x + 1, y, colour); set(image, x, y + 1, colour); set(image, x + 1, y + 1, colour);
+        }
+        String y = FONT.get('Y'), n = FONT.get('N');
+        for (int g = 0; g < 15; g++) {
+            if (y != null && y.charAt(g) == '#') set(image, 1 + g % 3, 3 + g / 3, GLOW);
+            if (n != null && n.charAt(g) == '#') set(image, 16 + g % 3, 3 + g / 3, GLOW);
+        }
     }
 
     // ---------- dreams ----------

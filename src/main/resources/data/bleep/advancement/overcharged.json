@@ -1,0 +1,22 @@
+{
+  "parent": "bleep:hello_world",
+  "display": {
+    "icon": {
+      "id": "minecraft:lightning_rod"
+    },
+    "title": {
+      "translate": "advancements.bleep.overcharged.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.overcharged.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

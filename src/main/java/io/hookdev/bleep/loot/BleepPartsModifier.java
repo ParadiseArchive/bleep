@@ -31,6 +31,7 @@ public final class BleepPartsModifier implements IGlobalLootModifier {
 
     @Override
     public ObjectArrayList<ItemStack> apply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
+        if (!io.hookdev.bleep.BleepConfig.coreInChests()) return generatedLoot;
         Identifier table = context.getQueriedLootTableId();
         for (Find find : FINDS) {
             if (find.chest().equals(table) && context.getRandom().nextFloat() < find.chance()) generatedLoot.add(new ItemStack(find.part().get()));

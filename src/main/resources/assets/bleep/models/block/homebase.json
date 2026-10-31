@@ -4,7 +4,7 @@
     "particle": "bleep:block/homebase_side",
     "pad": "bleep:block/homebase_pad",
     "side": "bleep:block/homebase_side",
-    "post": "bleep:block/homebase_post"
+    "post": "bleep:block/homebase_post_4"
   },
   "elements": [
     {

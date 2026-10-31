@@ -1,33 +1,153 @@
 {
   "variants": {
-    "charging=false,facing=north": {
-      "model": "bleep:block/homebase"
+    "charging=false,facing=north,power=0": {
+      "model": "bleep:block/homebase_0"
     },
-    "charging=true,facing=north": {
-      "model": "bleep:block/homebase_charging"
+    "charging=false,facing=north,power=1": {
+      "model": "bleep:block/homebase_1"
     },
-    "charging=false,facing=east": {
-      "model": "bleep:block/homebase",
+    "charging=false,facing=north,power=2": {
+      "model": "bleep:block/homebase_2"
+    },
+    "charging=false,facing=north,power=3": {
+      "model": "bleep:block/homebase_3"
+    },
+    "charging=false,facing=north,power=4": {
+      "model": "bleep:block/homebase_4"
+    },
+    "charging=true,facing=north,power=0": {
+      "model": "bleep:block/homebase_0_charging"
+    },
+    "charging=true,facing=north,power=1": {
+      "model": "bleep:block/homebase_1_charging"
+    },
+    "charging=true,facing=north,power=2": {
+      "model": "bleep:block/homebase_2_charging"
+    },
+    "charging=true,facing=north,power=3": {
+      "model": "bleep:block/homebase_3_charging"
+    },
+    "charging=true,facing=north,power=4": {
+      "model": "bleep:block/homebase_4_charging"
+    },
+    "charging=false,facing=east,power=0": {
+      "model": "bleep:block/homebase_0",
       "y": 90
     },
-    "charging=true,facing=east": {
-      "model": "bleep:block/homebase_charging",
+    "charging=false,facing=east,power=1": {
+      "model": "bleep:block/homebase_1",
       "y": 90
     },
-    "charging=false,facing=south": {
-      "model": "bleep:block/homebase",
+    "charging=false,facing=east,power=2": {
+      "model": "bleep:block/homebase_2",
+      "y": 90
+    },
+    "charging=false,facing=east,power=3": {
+      "model": "bleep:block/homebase_3",
+      "y": 90
+    },
+    "charging=false,facing=east,power=4": {
+      "model": "bleep:block/homebase_4",
+      "y": 90
+    },
+    "charging=true,facing=east,power=0": {
+      "model": "bleep:block/homebase_0_charging",
+      "y": 90
+    },
+    "charging=true,facing=east,power=1": {
+      "model": "bleep:block/homebase_1_charging",
+      "y": 90
+    },
+    "charging=true,facing=east,power=2": {
+      "model": "bleep:block/homebase_2_charging",
+      "y": 90
+    },
+    "charging=true,facing=east,power=3": {
+      "model": "bleep:block/homebase_3_charging",
+      "y": 90
+    },
+    "charging=true,facing=east,power=4": {
+      "model": "bleep:block/homebase_4_charging",
+      "y": 90
+    },
+    "charging=false,facing=south,power=0": {
+      "model": "bleep:block/homebase_0",
       "y": 180
     },
-    "charging=true,facing=south": {
-      "model": "bleep:block/homebase_charging",
+    "charging=false,facing=south,power=1": {
+      "model": "bleep:block/homebase_1",
       "y": 180
     },
-    "charging=false,facing=west": {
-      "model": "bleep:block/homebase",
+    "charging=false,facing=south,power=2": {
+      "model": "bleep:block/homebase_2",
+      "y": 180
+    },
+    "charging=false,facing=south,power=3": {
+      "model": "bleep:block/homebase_3",
+      "y": 180
+    },
+    "charging=false,facing=south,power=4": {
+      "model": "bleep:block/homebase_4",
+      "y": 180
+    },
+    "charging=true,facing=south,power=0": {
+      "model": "bleep:block/homebase_0_charging",
+      "y": 180
+    },
+    "charging=true,facing=south,power=1": {
+      "model": "bleep:block/homebase_1_charging",
+      "y": 180
+    },
+    "charging=true,facing=south,power=2": {
+      "model": "bleep:block/homebase_2_charging",
+      "y": 180
+    },
+    "charging=true,facing=south,power=3": {
+      "model": "bleep:block/homebase_3_charging",
+      "y": 180
+    },
+    "charging=true,facing=south,power=4": {
+      "model": "bleep:block/homebase_4_charging",
+      "y": 180
+    },
+    "charging=false,facing=west,power=0": {
+      "model": "bleep:block/homebase_0",
       "y": 270
     },
-    "charging=true,facing=west": {
-      "model": "bleep:block/homebase_charging",
+    "charging=false,facing=west,power=1": {
+      "model": "bleep:block/homebase_1",
+      "y": 270
+    },
+    "charging=false,facing=west,power=2": {
+      "model": "bleep:block/homebase_2",
+      "y": 270
+    },
+    "charging=false,facing=west,power=3": {
+      "model": "bleep:block/homebase_3",
+      "y": 270
+    },
+    "charging=false,facing=west,power=4": {
+      "model": "bleep:block/homebase_4",
+      "y": 270
+    },
+    "charging=true,facing=west,power=0": {
+      "model": "bleep:block/homebase_0_charging",
+      "y": 270
+    },
+    "charging=true,facing=west,power=1": {
+      "model": "bleep:block/homebase_1_charging",
+      "y": 270
+    },
+    "charging=true,facing=west,power=2": {
+      "model": "bleep:block/homebase_2_charging",
+      "y": 270
+    },
+    "charging=true,facing=west,power=3": {
+      "model": "bleep:block/homebase_3_charging",
+      "y": 270
+    },
+    "charging=true,facing=west,power=4": {
+      "model": "bleep:block/homebase_4_charging",
       "y": 270
     }
   }

@@ -30,9 +30,8 @@ import org.jspecify.annotations.Nullable;
  * which may hold a Bleep Core. Nobody knows why. Bleeps close by saw it, and wonder.
  */
 public class FallingStar extends Entity {
-    /** How often a player's night sky gets the chance of one (ticks), and the chance. */
+    /** How often a player's night sky gets the chance of one (ticks); the chance is 1 in BleepConfig.fallingStars(). */
     public static final int EVERY = 1200;
-    public static final float CHANCE = 1 / 40f;
     private static final int FALL_TICKS = 50, NEAR = 32, FAR = 64, CRATER = 3;
     private BlockPos target = BlockPos.ZERO;
     private Vec3 start = Vec3.ZERO;
@@ -46,7 +45,7 @@ public class FallingStar extends Entity {
     /** Maybe a star falls near this player: night, clear, in the Overworld, on natural ground. */
     public static void maybeFall(ServerPlayer player) {
         if (!(player.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || !level.isDarkOutside() || level.isRaining()
-                || player.getRandom().nextFloat() >= CHANCE) return;
+                || io.hookdev.bleep.BleepConfig.fallingStars() == 0 || player.getRandom().nextInt(io.hookdev.bleep.BleepConfig.fallingStars()) != 0) return;
         BlockPos at = landing(level, player.blockPosition(), player.getRandom());
         if (at != null) fall(level, at);
     }

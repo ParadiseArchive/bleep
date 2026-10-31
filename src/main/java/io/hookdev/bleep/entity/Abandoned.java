@@ -39,7 +39,7 @@ public final class Abandoned {
 
     /** Maybe puts an abandoned bleep somewhere out of sight of this player, in the Overworld. */
     public static void maybeSpawn(ServerPlayer player) {
-        if (!(player.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || player.getRandom().nextFloat() >= CHANCE) return;
+        if (!(player.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || !io.hookdev.bleep.BleepConfig.abandonedBleeps() || player.getRandom().nextFloat() >= CHANCE) return;
         if (!level.getEntitiesOfClass(BleepEntity.class, new AABB(player.blockPosition()).inflate(NONE_WITHIN), BleepEntity::abandoned).isEmpty()) return;
         RandomSource random = player.getRandom();
         double angle = random.nextDouble() * Math.PI * 2, distance = NEAR + random.nextInt(FAR - NEAR);

@@ -28,14 +28,16 @@ import org.jspecify.annotations.Nullable;
  * A bleep's Bleepedia, opened from the book on its info screen: the mobs it met (their face, name and its remark; ???
  * for the ones it has not), the biomes it visited, the special blocks it found, its stats and its diary. Finds since
  * its owner last looked are marked NEW. A remark too long for its row ends in ...: click it to read it all, click again
- * to close it.
+ * to close it. Its photos are on a page of their own, six at a time: click one to see it big.
  */
 public class BleepediaScreen extends Screen {
-    private static final int W = 300, H = 214, ROW = 30, TOP = 52;
+    private static final int W = 336, H = 240, ROW = 30, TOP = 52;
     private static final int SHELL = 0xFFEEF1F4, SHELL_EDGE = 0xFFB7C0C9, PANEL = 0xFF15181E, CARD = 0xFF22262E, SCREEN = 0xFF08090C;
     private static final int TEXT = 0xFFEEF1F4, DIM = 0xFF8A93A0, GLOW = 0xFF8FF7FF, AMBER = 0xFFFFB547;
-    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary", "badges", "signs"};
-    private static final int SIGNS_TAB = 6, GLYPH_COLS = 8, GLYPH_W = 34, GLYPH_H = 18;
+    private static final String[] TABS = {"mobs", "biomes", "finds", "about", "diary", "badges", "signs", "photos"};
+    private static final int SIGNS_TAB = 6, PHOTOS_TAB = 7, GLYPH_COLS = 8, GLYPH_W = 34, GLYPH_H = 18;
+    /** Photos on their page: pixel for pixel, three by two; one opened up at three times. */
+    private static final int PHOTO_W = 96, PHOTO_H = 54, PHOTO_GAP = 10, PHOTO_ROW = PHOTO_H + 16, PHOTOS_A_PAGE = 6, BIG = 3;
 
     /** One line on a page: an icon (a mob, a block, a colour or nothing), a title, a text, and whether it is found and new. */
     private record Row(@Nullable EntityType<?> mob, @Nullable ItemStack item, int colour, Component title, Component text, boolean known, boolean fresh) {}
@@ -51,6 +53,9 @@ public class BleepediaScreen extends Screen {
     private int open = -1;
     private final List<int[]> drawn = new ArrayList<>();
     private int left, top;
+    /** The page of photos, the one opened up (or -1), and a texture for each photo. */
+    private int photoPage, bigPhoto = -1;
+    private final Map<Integer, Identifier> photoTextures = new HashMap<>();
 
     public BleepediaScreen(BleepediaData data) {
         super(Component.translatable("screen.bleep.bleepedia"));
@@ -63,8 +68,8 @@ public class BleepediaScreen extends Screen {
         top = (height - H) / 2;
         for (int i = 0; i < TABS.length; i++) {
             int t = i;
-            Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; open = -1; rebuildWidgets(); })
-                    .bounds(left + 8 + i * 41, top + 24, 39, 16).build();
+            Button button = Button.builder(Component.translatable("screen.bleep.tab." + TABS[i]), b -> { tab = t; first = 0; open = -1; bigPhoto = -1; rebuildWidgets(); })
+                    .bounds(left + 8 + i * 40, top + 24, 38, 16).build();
             button.active = i != tab;
             addRenderableWidget(button);
         }
@@ -179,6 +184,8 @@ public class BleepediaScreen extends Screen {
         counts[5] = data.milestones().size() + " / " + io.hookdev.bleep.entity.Milestone.values().length;
         pages.add(new ArrayList<>()); // the signs are drawn, not listed
         counts[SIGNS_TAB] = data.signs() + " / " + Memory.SIGNS;
+        pages.add(new ArrayList<>()); // so are the photos
+        counts[PHOTOS_TAB] = data.photos().size() + " / " + Memory.PHOTOS;
     }
 
     private static void stat(List<Row> rows, String key, String value) {
@@ -237,6 +244,12 @@ public class BleepediaScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
+        if (tab == PHOTOS_TAB) {
+            int pages = Math.max(1, (data.photos().size() + PHOTOS_A_PAGE - 1) / PHOTOS_A_PAGE);
+            photoPage = Math.max(0, Math.min(pages - 1, photoPage - (int) Math.signum(scrollY)));
+            bigPhoto = -1;
+            return true;
+        }
         first = Math.max(0, Math.min(lastFirst(), first - (int) Math.signum(scrollY)));
         return true;
     }
@@ -245,6 +258,18 @@ public class BleepediaScreen extends Screen {
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
+        if (tab == PHOTOS_TAB) { // a photo opens up; a click anywhere closes it again, a click on Print prints it
+            if (bigPhoto >= 0 && overPrint(event.x(), event.y())) {
+                net.neoforged.neoforge.client.network.ClientPacketDistributor.sendToServer(new io.hookdev.bleep.network.BleepCommand(data.entityId(), io.hookdev.bleep.network.BleepCommand.PRINT_PHOTO + bigPhoto));
+                minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1));
+                return true;
+            }
+            int clicked = bigPhoto >= 0 ? -1 : photoAt(event.x(), event.y());
+            if (bigPhoto < 0 && clicked < 0) return false;
+            bigPhoto = clicked;
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1));
+            return true;
+        }
         for (int[] row : drawn) {
             if (event.x() < left + 10 || event.x() >= left + W - 10 || event.y() < row[1] || event.y() >= row[2]) continue;
             int i = row[0];
@@ -274,6 +299,10 @@ public class BleepediaScreen extends Screen {
 
         if (tab == SIGNS_TAB) {
             drawSigns(g);
+            return;
+        }
+        if (tab == PHOTOS_TAB) {
+            drawPhotos(g, mouseX, mouseY);
             return;
         }
         List<Row> rows = pages.get(tab);
@@ -354,6 +383,105 @@ public class BleepediaScreen extends Screen {
             }
         }
         g.text(font, Component.translatable("screen.bleep.signs.hint"), left + 10, top + H - 11, DIM, false);
+    }
+
+    /** Where the photo at this place on its page is drawn: x, y. */
+    private int photoX(int slot) {
+        return left + 14 + (slot % 3) * (PHOTO_W + PHOTO_GAP);
+    }
+
+    private int photoY(int slot) {
+        return top + TOP + (slot / 3) * PHOTO_ROW;
+    }
+
+    /** The photo under the mouse, or -1. */
+    private int photoAt(double mx, double my) {
+        for (int slot = 0; slot < PHOTOS_A_PAGE; slot++) {
+            int i = photoPage * PHOTOS_A_PAGE + slot;
+            if (i >= data.photos().size()) break;
+            if (mx >= photoX(slot) && mx < photoX(slot) + PHOTO_W && my >= photoY(slot) && my < photoY(slot) + PHOTO_H) return i;
+        }
+        return -1;
+    }
+
+    /** The Print button under an opened photo: x, y, width, height. */
+    private int[] printButton() {
+        int w = Memory.Photo.W * BIG, h = Memory.Photo.H * BIG, x = left + (W - w) / 2, y = top + TOP - 4;
+        int bw = font.width(Component.translatable("screen.bleep.print")) + 12;
+        return new int[] {x + w - bw, y + h + 4, bw, 14};
+    }
+
+    private boolean overPrint(double mx, double my) {
+        int[] b = printButton();
+        return mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3];
+    }
+
+    /** A photo's texture, made the first time it is shown. */
+    private Identifier photoTexture(int i) {
+        return photoTextures.computeIfAbsent(i, n -> {
+            Memory.Photo photo = data.photos().get(n);
+            Identifier id = io.hookdev.bleep.Bleep.id("photo/" + data.entityId() + "_" + n + "_" + photo.time());
+            var texture = new net.minecraft.client.renderer.texture.DynamicTexture(() -> "Bleep photo " + id, Memory.Photo.W, Memory.Photo.H, false);
+            for (int y = 0; y < Memory.Photo.H; y++) for (int x = 0; x < Memory.Photo.W; x++) texture.getPixels().setPixel(x, y, photo.colour(x, y));
+            texture.upload();
+            minecraft.getTextureManager().register(id, texture);
+            return id;
+        });
+    }
+
+    /** What a photo shows, and its day. */
+    private Component caption(Memory.Photo photo) {
+        long day = data.born() < 0 ? 1 : (photo.time() - data.born()) / 24000 + 1;
+        return Component.translatable("screen.bleep.day", day).append(": ").append(BleepEntity.photoMoment(photo));
+    }
+
+    /** Its photos, six to a page with what each shows under it; one opened up fills the page. */
+    private void drawPhotos(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        var photos = data.photos();
+        if (photos.isEmpty()) {
+            int y = top + TOP + 4;
+            for (var line : font.split(Component.translatable("screen.bleep.no_photos"), W - 20)) {
+                g.text(font, line, left + 10, y, DIM, false);
+                y += 10;
+            }
+            return;
+        }
+        if (bigPhoto >= 0 && bigPhoto < photos.size()) {
+            int w = Memory.Photo.W * BIG, h = Memory.Photo.H * BIG, x = left + (W - w) / 2, y = top + TOP - 4;
+            g.fill(x - 3, y - 3, x + w + 3, y + h + 3, SHELL);
+            g.blit(photoTexture(bigPhoto), x, y, x + w, y + h, 0, 1, 0, 1);
+            g.text(font, caption(photos.get(bigPhoto)), x, y + h + 7, TEXT, false);
+            int[] b = printButton(); // Print: on an empty map, to hang in a frame
+            boolean hover = overPrint(mouseX, mouseY);
+            g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], hover ? GLOW : SHELL_EDGE);
+            g.fill(b[0] + 1, b[1] + 1, b[0] + b[2] - 1, b[1] + b[3] - 1, hover ? 0xFF2A2F38 : CARD);
+            g.text(font, Component.translatable("screen.bleep.print"), b[0] + 6, b[1] + 3, hover ? GLOW : TEXT, false);
+            return;
+        }
+        for (int slot = 0; slot < PHOTOS_A_PAGE; slot++) {
+            int i = photoPage * PHOTOS_A_PAGE + slot;
+            if (i >= photos.size()) break;
+            int x = photoX(slot), y = photoY(slot);
+            boolean hover = mouseX >= x && mouseX < x + PHOTO_W && mouseY >= y && mouseY < y + PHOTO_H;
+            g.fill(x - 2, y - 2, x + PHOTO_W + 2, y + PHOTO_H + 2, hover ? GLOW : SHELL); // a white frame, like a polaroid
+            g.blit(photoTexture(i), x, y, x + PHOTO_W, y + PHOTO_H, 0, 1, 0, 1);
+            Component caption = caption(photos.get(i));
+            String text = font.width(caption) > PHOTO_W ? font.substrByWidth(caption, PHOTO_W - font.width("...")).getString() + "..." : caption.getString();
+            g.text(font, text, x, y + PHOTO_H + 4, hover ? TEXT : DIM, false);
+        }
+        int pages = (photos.size() + PHOTOS_A_PAGE - 1) / PHOTOS_A_PAGE;
+        if (pages > 1) {
+            String page = (photoPage + 1) + " / " + pages;
+            g.text(font, page, left + W - 10 - font.width(page), top + H - 2 - 9, DIM, false);
+        }
+    }
+
+    /** The photos' textures go when the book closes. */
+    @Override
+    public void removed() {
+        photoTextures.values().forEach(id -> minecraft.getTextureManager().release(id));
+        photoTextures.clear();
+        super.removed();
     }
 
     /** The mob itself, drawn so its head fills the box. */

@@ -1,0 +1,22 @@
+{
+  "parent": "bleep:friends",
+  "display": {
+    "icon": {
+      "id": "bleep:party_hat"
+    },
+    "title": {
+      "translate": "advancements.bleep.birthday.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.birthday.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

@@ -36,6 +36,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
@@ -151,6 +152,25 @@ public final class BleepGameTests {
         test("the_core_needs_its_parts", BleepGameTests::theCoreNeedsItsParts, 20);
         test("the_core_puts_a_bleep_together", BleepGameTests::theCorePutsABleepTogether, 200);
         test("the_core_turns_up_in_chests", BleepGameTests::partsTurnUpInChests, 20);
+        test("an_empty_homebase_charges_nothing", BleepGameTests::anEmptyHomebaseChargesNothing, 40);
+        test("redstone_fills_the_homebase", BleepGameTests::redstoneFillsTheHomebase, 40);
+        test("cables_fill_the_homebase", BleepGameTests::cablesFillTheHomebase, 20);
+        test("a_homebase_keeps_its_charge", BleepGameTests::aHomebaseKeepsItsCharge, 20);
+        test("hoppers_reach_its_storage", BleepGameTests::hoppersReachItsStorage, 20);
+        test("the_whistle_calls_your_bleeps", BleepGameTests::theWhistleCallsYourBleeps, 120);
+        test("it_builds_a_snowman", BleepGameTests::itBuildsASnowman, 300);
+        test("it_sails_in_a_boat", BleepGameTests::itSailsInABoat, 120);
+        test("a_homebase_earns_an_advancement", BleepGameTests::aHomebaseEarnsAnAdvancement, 20);
+        test("it_takes_a_photo", BleepGameTests::itTakesAPhoto, 20);
+        test("it_keeps_twelve_photos", BleepGameTests::itKeepsTwelvePhotos, 20);
+        test("the_photos_reach_the_bleepedia", BleepGameTests::thePhotosReachTheBleepedia, 20);
+        test("a_photo_prints_on_a_map", BleepGameTests::aPhotoPrintsOnAMap, 20);
+        test("mute_and_home_are_quiet", BleepGameTests::muteAndHomeAreQuiet, 20);
+        test("it_forecasts_the_weather", BleepGameTests::itForecastsTheWeather, 20);
+        test("it_imitates_a_mob", BleepGameTests::itImitatesAMob, 100);
+        test("it_sleds_on_snow", BleepGameTests::itSledsOnSnow, 100);
+        test("the_tracker_lists_your_bleeps", BleepGameTests::theTrackerListsYourBleeps, 20);
+        test("it_fills_its_museum", BleepGameTests::itFillsItsMuseum, 300);
     }
 
     private static final BlockPos SPOT = new BlockPos(3, 0, 1), HOME = new BlockPos(0, 0, 1), FAR = new BlockPos(6, 0, 1);
@@ -232,10 +252,311 @@ public final class BleepGameTests {
         return player;
     }
 
-    /** A homebase in the bench, facing east, without anyone living in it yet. */
+    /** A homebase in the bench, facing east, its battery full, without anyone living in it yet. */
     private static BlockPos homebase(GameTestHelper helper, BlockPos pos) {
+        BlockPos home = emptyHomebase(helper, pos);
+        homebaseAt(helper, home).add(io.hookdev.bleep.block.HomebaseBlockEntity.capacity());
+        return home;
+    }
+
+    /** A homebase whose battery is empty, as a new one is. */
+    private static BlockPos emptyHomebase(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos, BleepContent.HOMEBASE.get().defaultBlockState().setValue(HomebaseBlock.FACING, Direction.EAST));
         return helper.absolutePos(pos);
+    }
+
+    private static io.hookdev.bleep.block.HomebaseBlockEntity homebaseAt(GameTestHelper helper, BlockPos absolute) {
+        return (io.hookdev.bleep.block.HomebaseBlockEntity) helper.getLevel().getBlockEntity(absolute);
+    }
+
+    /** A bleep parked on an empty homebase in the bench, half full. */
+    private static BleepEntity parkedOnEmptyHome(GameTestHelper helper, Player owner) {
+        BleepEntity bleep = bleep(helper, owner);
+        BlockPos home = emptyHomebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        bleep.setBattery(50);
+        bleep.dock();
+        return bleep;
+    }
+
+    private static void anEmptyHomebaseChargesNothing(GameTestHelper helper) {
+        BleepEntity bleep = parkedOnEmptyHome(helper, player(helper));
+        BlockPos home = helper.absolutePos(HOME);
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(Math.abs(bleep.battery() - 50) < 0.01f, "an empty homebase should give nothing, battery is " + bleep.battery());
+            helper.assertTrue(bleep.homeEmpty() && bleep.activity() == Activity.AT_HOME, "it knows its home is empty, it says " + bleep.activity());
+            helper.assertFalse(helper.getLevel().getBlockState(home).getValue(HomebaseBlock.CHARGING), "the light stays off");
+            helper.assertTrue(helper.getLevel().getBlockState(home).getValue(HomebaseBlock.POWER) == 0, "no bars on its post");
+            helper.succeed();
+        });
+    }
+
+    private static void redstoneFillsTheHomebase(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = parkedOnEmptyHome(helper, owner);
+        BlockPos home = helper.absolutePos(HOME);
+        var base = homebaseAt(helper, home);
+        owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.REDSTONE, 3));
+        BlockState state = helper.getLevel().getBlockState(home);
+        state.useItemOn(owner.getMainHandItem(), helper.getLevel(), owner, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(home), Direction.UP, home, false));
+        helper.assertTrue(base.stored() == io.hookdev.bleep.block.HomebaseBlockEntity.REDSTONE * io.hookdev.bleep.BleepConfig.fePerPercent(), "a dust is worth 10% of a charge, it holds " + base.stored());
+        helper.assertTrue(owner.getMainHandItem().getCount() == 2, "and the dust is used up");
+        helper.assertTrue(helper.getLevel().getBlockState(home).getValue(HomebaseBlock.POWER) == 1, "one bar on its post");
+        helper.assertTrue(base.signal() > 0, "a comparator sees it");
+        base.feed(new ItemStack(Items.REDSTONE_BLOCK));
+        int full = base.stored();
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(bleep.battery() > 50.3f, "now it charges, battery is " + bleep.battery());
+            helper.assertTrue(base.stored() < full, "from the homebase's battery");
+            helper.assertTrue(bleep.activity() == Activity.CHARGING, "and says so, it says " + bleep.activity());
+            helper.succeed();
+        });
+    }
+
+    private static void cablesFillTheHomebase(GameTestHelper helper) {
+        BlockPos home = emptyHomebase(helper, HOME);
+        var energy = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.BLOCK, home, Direction.WEST);
+        helper.assertTrue(energy != null, "a homebase takes FE from any mod's cables");
+        try (var transaction = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+            helper.assertTrue(energy.insert(5000, transaction) == 5000, "it takes 5000 FE");
+            transaction.commit();
+        }
+        helper.assertTrue(homebaseAt(helper, home).stored() == 5000, "and keeps them");
+        try (var transaction = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+            helper.assertTrue(energy.extract(1000, transaction) == 0, "but gives nothing back to cables");
+        }
+        helper.succeed();
+    }
+
+    private static void aHomebaseKeepsItsCharge(GameTestHelper helper) {
+        BlockPos home = emptyHomebase(helper, HOME);
+        homebaseAt(helper, home).add(30_000);
+        var drops = net.minecraft.world.level.block.Block.getDrops(helper.getLevel().getBlockState(home), helper.getLevel(), home, helper.getLevel().getBlockEntity(home));
+        helper.assertTrue(drops.stream().anyMatch(d -> d.is(BleepContent.HOMEBASE_ITEM.get()) && Integer.valueOf(30_000).equals(d.get(BleepContent.STORED_ENERGY.get()))),
+                "a broken homebase keeps its charge in the item, it gave " + drops);
+        helper.succeed();
+    }
+
+    private static void hoppersReachItsStorage(GameTestHelper helper) {
+        BleepEntity bleep = parkedOnEmptyHome(helper, player(helper));
+        BlockPos home = helper.absolutePos(HOME);
+        var items = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities.Capabilities.Item.BLOCK, home, Direction.UP);
+        helper.assertTrue(items != null, "hoppers and pipes reach a homebase");
+        try (var transaction = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+            helper.assertTrue(items.insert(net.neoforged.neoforge.transfer.item.ItemResource.of(Items.DIAMOND), 2, transaction) == 2, "diamonds go in");
+            helper.assertTrue(items.insert(net.neoforged.neoforge.transfer.item.ItemResource.of(Items.REDSTONE), 1, transaction) == 1, "and redstone");
+            transaction.commit();
+        }
+        helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 2, "the diamonds land in the parked bleep's storage");
+        helper.assertTrue(bleep.storage().countItem(Items.REDSTONE) == 0 && homebaseAt(helper, home).stored() > 0, "the redstone goes into the homebase's battery");
+        try (var transaction = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+            helper.assertTrue(items.extract(net.neoforged.neoforge.transfer.item.ItemResource.of(Items.DIAMOND), 1, transaction) == 1, "and a hopper below can take them out");
+            transaction.commit();
+        }
+        helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 1, "one diamond left");
+        helper.succeed();
+    }
+
+    private static void theWhistleCallsYourBleeps(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.stay();
+        owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(BleepContent.WHISTLE.get()));
+        BleepContent.WHISTLE.get().use(helper.getLevel(), owner, InteractionHand.MAIN_HAND);
+        helper.succeedWhen(() -> helper.assertFalse(bleep.isOrderedToSit(), "a whistle and it follows again (after dawdling, perhaps)"));
+    }
+
+    private static void itBuildsASnowman(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), new BlockPos(1, 0, 1));
+        bleep.tame(owner);
+        bleep.stay();
+        bleep.storage().addItem(new ItemStack(Items.CARVED_PUMPKIN));
+        BlockPos spot = helper.absolutePos(new BlockPos(4, 0, 1));
+        helper.runAfterDelay(20, () -> bleep.planSnowman(spot)); // on the ground first
+        helper.succeedWhen(() -> {
+            helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.snowman")), "it built a snowman and wrote it down");
+            helper.assertFalse(helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.animal.golem.SnowGolem.class, new net.minecraft.world.phys.AABB(spot).inflate(3)).isEmpty(),
+                    "with its pumpkin for a head the snowman came alive");
+            helper.assertTrue(bleep.storage().countItem(Items.CARVED_PUMPKIN) == 0, "the pumpkin came from its storage");
+        });
+    }
+
+    private static void itSailsInABoat(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        for (int x = 2; x <= 4; x++) helper.setBlock(new BlockPos(x, 0, 1), Blocks.WATER);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(bleep.boating() && bleep.activity() == Activity.BOATING, "in the water it sits in its boat"))
+                .thenExecute(() -> {
+                    for (int x = 2; x <= 4; x++) helper.setBlock(new BlockPos(x, 0, 1), Blocks.AIR);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(bleep.boating(), "back on land the boat folds away"))
+                .thenSucceed();
+    }
+
+    private static void itTakesAPhoto(GameTestHelper helper) {
+        Player owner = owner(helper, 1.5);
+        BleepEntity bleep = bleep(helper, owner);
+        helper.assertTrue(bleep.snap("sunset", ""), "with its owner close by it takes a photo");
+        helper.assertFalse(bleep.snap("star", ""), "but not two in a row");
+        helper.assertFalse(bleep.photoTaken(owner, new byte[10]), "a picture of the wrong size is refused");
+        byte[] pixels = new byte[io.hookdev.bleep.entity.Memory.Photo.BYTES];
+        pixels[0] = (byte) 0xFF; // one white pixel
+        pixels[1] = (byte) 0xFF;
+        helper.assertTrue(bleep.photoTaken(owner, pixels), "the picture from its owner's game goes in");
+        helper.assertFalse(bleep.photoTaken(owner, pixels), "only once: it asked for one");
+        var photo = bleep.memory().photos.getFirst();
+        helper.assertTrue(photo.moment().equals("sunset") && photo.colour(0, 0) == 0xFFFFFFFF && photo.colour(1, 0) == 0xFF000000, "a sunset, white in the corner, black next to it");
+        helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.photo")), "and in its diary");
+        var advancement = helper.getLevel().getServer().getAdvancements().get(Bleep.id("say_cheese"));
+        helper.assertTrue(advancement != null && ((net.minecraft.server.level.ServerPlayer) owner).getAdvancements().getOrStartProgress(advancement).isDone(), "Say Cheese!");
+        helper.succeed();
+    }
+
+    private static void itKeepsTwelvePhotos(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        for (int i = 0; i < 13; i++) bleep.memory().addPhoto(new io.hookdev.bleep.entity.Memory.Photo(i, "biome", "biome.minecraft.plains", new byte[io.hookdev.bleep.entity.Memory.Photo.BYTES]));
+        helper.assertTrue(bleep.memory().photos.size() == io.hookdev.bleep.entity.Memory.PHOTOS && bleep.memory().photos.getFirst().time() == 1, "twelve at most: the oldest goes");
+        helper.succeed();
+    }
+
+    private static void thePhotosReachTheBleepedia(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        byte[] pixels = new byte[io.hookdev.bleep.entity.Memory.Photo.BYTES];
+        pixels[5] = 21;
+        bleep.memory().addPhoto(new io.hookdev.bleep.entity.Memory.Photo(7, "friend", "Bolt", pixels));
+        var buf = new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(), helper.getLevel().registryAccess());
+        io.hookdev.bleep.network.BleepediaData.CODEC.encode(buf, io.hookdev.bleep.network.BleepediaData.of(bleep));
+        var data = io.hookdev.bleep.network.BleepediaData.CODEC.decode(buf);
+        helper.assertTrue(data.photos().size() == 1 && data.photos().getFirst().arg().equals("Bolt") && data.photos().getFirst().pixels()[5] == 21, "its photos go along to the Bleepedia");
+        helper.succeed();
+    }
+
+    private static void aPhotoPrintsOnAMap(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = bleep(helper, owner);
+        byte[] pixels = new byte[io.hookdev.bleep.entity.Memory.Photo.BYTES];
+        for (int i = 1; i < pixels.length; i += 2) pixels[i] = 0x1F; // all blue
+        bleep.memory().addPhoto(new io.hookdev.bleep.entity.Memory.Photo(0, "sunset", "", pixels));
+        helper.assertFalse(bleep.printPhoto(owner, 0), "no empty map: nothing to print on");
+        owner.getInventory().add(new ItemStack(Items.MAP));
+        helper.assertTrue(bleep.printPhoto(owner, 0), "with an empty map it prints");
+        helper.assertFalse(owner.getInventory().contains(new ItemStack(Items.MAP)), "the empty map is used up");
+        ItemStack print = ItemStack.EMPTY;
+        for (int i = 0; i < owner.getInventory().getContainerSize(); i++) if (owner.getInventory().getItem(i).is(Items.FILLED_MAP)) print = owner.getInventory().getItem(i);
+        var id = print.get(net.minecraft.core.component.DataComponents.MAP_ID);
+        var map = id == null ? null : helper.getLevel().getMapData(id);
+        helper.assertTrue(map != null && map.locked, "a locked map: it never draws the land");
+        int middle = net.minecraft.world.level.material.MapColor.getColorFromPackedId(map.colors[64 + 64 * 128]);
+        helper.assertTrue((middle & 255) > ((middle >> 16) & 255), "blue in the middle, it is " + Integer.toHexString(middle));
+        helper.succeed();
+    }
+
+    private static void muteAndHomeAreQuiet(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.assertFalse(bleep.isSilent(), "a bleep has a voice");
+        bleep.setMuted(true);
+        helper.assertTrue(bleep.isSilent(), "muted: not a sound");
+        bleep.setMuted(false);
+        BlockPos home = homebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        bleep.dock();
+        helper.assertTrue(bleep.isSilent(), "on its homebase it is quiet by itself");
+        helper.succeed();
+    }
+
+    private static void itForecastsTheWeather(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, owner(helper, 1.5));
+        var weather = helper.getLevel().getWeatherData();
+        int clear = weather.getClearWeatherTime(), rain = weather.getRainTime(), thunder = weather.getThunderTime();
+        boolean raining = weather.isRaining(), thundering = weather.isThundering();
+        try {
+            weather.setClearWeatherTime(0);
+            weather.setRaining(false);
+            weather.setThundering(false);
+            weather.setRainTime(600);
+            weather.setThunderTime(5000);
+            helper.assertTrue(BleepEntity.weatherAhead(helper.getLevel()) == 1, "rain in half a minute");
+            helper.assertTrue(bleep.forecastWeather() && bleep.display() == Display.RAIN, "a rain cloud on its display");
+            helper.assertFalse(bleep.forecastWeather(), "said once");
+            weather.setThunderTime(300);
+            helper.assertTrue(bleep.forecastWeather() && bleep.display() == Display.THUNDER, "and thunder: a bolt");
+        } finally {
+            weather.setClearWeatherTime(clear);
+            weather.setRainTime(rain);
+            weather.setThunderTime(thunder);
+            weather.setRaining(raining);
+            weather.setThundering(thundering);
+        }
+        helper.succeed();
+    }
+
+    private static void itImitatesAMob(GameTestHelper helper) {
+        BleepEntity bleep = bleep(helper, player(helper));
+        helper.assertFalse(bleep.imitate(), "it only imitates mobs it has met");
+        bleep.memory().mobs.put("minecraft:cow", 0L);
+        helper.assertTrue(bleep.imitate() && bleep.display() == Display.IMITATE, "a cow, in its own voice: guess who");
+        helper.succeedWhen(() -> helper.assertTrue(bleep.thought().equals("thought.bleep.imitate.reveal"), "then it tells who it was"));
+    }
+
+    private static void itSledsOnSnow(GameTestHelper helper) {
+        for (int x = 0; x <= 6; x++) for (int z = 0; z <= 2; z++) helper.setBlock(new BlockPos(x, 0, z), Blocks.SNOW_BLOCK);
+        BleepEntity bleep = helper.spawnWithNoFreeWill(BleepContent.BLEEP.get(), SPOT.above()); // on the snow
+        bleep.tame(player(helper));
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(bleep.sledding(), "on snow it rides its sled"))
+                .thenExecute(() -> {
+                    for (int x = 0; x <= 6; x++) for (int z = 0; z <= 2; z++) helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(bleep.sledding(), "off the snow the sled folds away"))
+                .thenSucceed();
+    }
+
+    private static void theTrackerListsYourBleeps(GameTestHelper helper) {
+        var owner = (net.minecraft.server.level.ServerPlayer) owner(helper, 1.5);
+        BleepEntity bleep = bleep(helper, owner);
+        bleep.setCustomName(Component.literal("Bolt"));
+        io.hookdev.bleep.BleepOwners.get(helper.getLevel()).add(owner.getUUID(), bleep.getUUID());
+        var list = io.hookdev.bleep.item.TrackerItem.bleeps(owner);
+        helper.assertTrue(list.size() == 1 && list.getFirst().name().equals("Bolt") && list.getFirst().battery() == 100, "the tracker shows Bolt, full, it shows " + list);
+        bleep.discard();
+        io.hookdev.bleep.BleepSightings.get(helper.getLevel()).saw(bleep.getUUID(), new io.hookdev.bleep.BleepSightings.Seen("Bolt", "minecraft:overworld", 1, 2, 3, 40, "activity.bleep.staying", -1));
+        io.hookdev.bleep.BleepOwners.get(helper.getLevel()).add(owner.getUUID(), bleep.getUUID());
+        list = io.hookdev.bleep.item.TrackerItem.bleeps(owner);
+        helper.assertTrue(list.size() == 1 && list.getFirst().battery() == 40, "far away: as it was last seen");
+        io.hookdev.bleep.BleepOwners.get(helper.getLevel()).remove(bleep.getUUID());
+        io.hookdev.bleep.BleepSightings.get(helper.getLevel()).forget(bleep.getUUID());
+        helper.succeed();
+    }
+
+    private static void itFillsItsMuseum(GameTestHelper helper) {
+        Player owner = player(helper);
+        BleepEntity bleep = helper.spawn(BleepContent.BLEEP.get(), SPOT);
+        bleep.tame(owner);
+        BlockPos home = homebase(helper, HOME);
+        bleep.setHome(GlobalPos.of(helper.getLevel().dimension(), home));
+        helper.setBlock(FAR, BleepContent.DISPLAY_CASE.get().defaultBlockState());
+        bleep.storage().addItem(new ItemStack(Items.COBBLESTONE, 10));
+        bleep.storage().addItem(new ItemStack(Items.DIAMOND, 2));
+        bleep.stay();
+        helper.runAfterDelay(20, bleep::planMuseum);
+        helper.succeedWhen(() -> {
+            var display = (io.hookdev.bleep.block.DisplayCaseBlockEntity) helper.getLevel().getBlockEntity(helper.absolutePos(FAR));
+            helper.assertTrue(display != null && display.item().is(Items.DIAMOND), "the diamond goes in its museum, not the cobblestone");
+            helper.assertTrue(bleep.storage().countItem(Items.DIAMOND) == 1, "one of them");
+        });
+    }
+
+    private static void aHomebaseEarnsAnAdvancement(GameTestHelper helper) {
+        var owner = helper.makeMockServerPlayerInLevel();
+        Vec3 at = helper.absoluteVec(new Vec3(3.5, 0, 1.5));
+        owner.snapTo(at.x, at.y, at.z);
+        bleep(helper, owner);
+        BlockPos home = emptyHomebase(helper, HOME);
+        HomebaseBlock.moveIn(helper.getLevel(), home, owner);
+        var advancement = helper.getLevel().getServer().getAdvancements().get(Bleep.id("home_sweet_home"));
+        helper.assertTrue(advancement != null && owner.getAdvancements().getOrStartProgress(advancement).isDone(), "a homebase earns Home Sweet Home");
+        helper.succeed();
     }
 
     private static void onlyTheOwnerGivesOrders(GameTestHelper helper) {
@@ -679,10 +1000,12 @@ public final class BleepGameTests {
         bleep.tame(owner);
         BlockPos bed = new BlockPos(1, 0, 1);
         owner.setSleepingPos(helper.absolutePos(bed)); // in bed (a real bed needs a real night)
-        helper.succeedWhen(() -> {
+        helper.startSequence().thenWaitUntil(() -> {
             helper.assertTrue(bleep.activity() == Activity.BEDSIDE && bleep.emotion() == Emotion.ASLEEP, "its owner asleep: it sleeps by the bed, it is " + bleep.activity());
             helper.assertTrue(bleep.memory().diary.stream().anyMatch(e -> e.key().equals("diary.bleep.bedside")), "written in its diary");
-        });
+        }).thenExecute(owner::clearSleepingPos) // morning
+            .thenWaitUntil(() -> helper.assertTrue(bleep.activity() != Activity.BEDSIDE && bleep.emotion() != Emotion.ASLEEP, "its owner up: it should wake up too, it is " + bleep.activity()))
+            .thenSucceed();
     }
 
     private static void itDigsSomethingUp(GameTestHelper helper) {
@@ -865,7 +1188,7 @@ public final class BleepGameTests {
         Player player = withCore(helper);
         for (Item part : BleepCoreItem.parts()) player.getInventory().add(new ItemStack(part));
         var owners = io.hookdev.bleep.BleepOwners.get(helper.getLevel());
-        for (int i = 0; i < io.hookdev.bleep.BleepOwners.MAX; i++) owners.add(player.getUUID(), java.util.UUID.randomUUID());
+        for (int i = 0; i < io.hookdev.bleep.BleepConfig.maxBleeps(); i++) owners.add(player.getUUID(), java.util.UUID.randomUUID());
         useCore(helper, player);
         helper.assertTrue(player.getMainHandItem().is(BleepContent.BLEEP_CORE.get()), "with ten bleeps the core stays in your hand");
         helper.assertTrue(helper.getLevel().getEntitiesOfClass(BleepEntity.class, new net.minecraft.world.phys.AABB(helper.absolutePos(SPOT)).inflate(8)).isEmpty(), "no eleventh bleep");

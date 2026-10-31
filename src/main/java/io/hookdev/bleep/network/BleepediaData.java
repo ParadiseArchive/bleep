@@ -17,7 +17,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record BleepediaData(int entityId, String name, Map<String, Long> mobs, Map<String, Long> biomes, Map<String, Long> finds,
                             List<Memory.Entry> diary, long born, long now, long lastOpened, int daysTogether, int fightsWon, int timesEmpty,
-                            int distance, String favourite, String bond, List<String> friends, int chips, int signs, Map<String, Long> milestones, String hobby) implements CustomPacketPayload {
+                            int distance, String favourite, String bond, List<String> friends, int chips, int signs, Map<String, Long> milestones, String hobby, List<Memory.Photo> photos) implements CustomPacketPayload {
     public static final Type<BleepediaData> TYPE = new Type<>(Bleep.id("bleepedia"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepediaData> CODEC = CustomPacketPayload.codec(BleepediaData::write, BleepediaData::read);
 
@@ -27,7 +27,7 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         var favourite = bleep.obsession();
         return new BleepediaData(bleep.getId(), bleep.getDisplayName().getString(), m.mobs, m.biomes, m.finds, m.diary, m.born,
                 bleep.level().getGameTime(), m.lastOpened, m.daysTogether, m.fightsWon, m.timesEmpty, (int) m.distance,
-                favourite != null && bleep.revealed() ? favourite.nameKey() : "", io.hookdev.bleep.entity.Bond.key(bleep.bond()), friends(m), bleep.chips(), m.signs, m.milestones, m.hobby);
+                favourite != null && bleep.revealed() ? favourite.nameKey() : "", io.hookdev.bleep.entity.Bond.key(bleep.bond()), friends(m), bleep.chips(), m.signs, m.milestones, m.hobby, m.photos);
     }
 
     /** Its friends, best first, as "level\tname" (friend.bleep.<level>): the ones it knows well, and its rivals. */
@@ -70,6 +70,8 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         buf.writeVarInt(signs);
         writeMap(buf, milestones);
         buf.writeUtf(hobby);
+        buf.writeVarInt(photos.size());
+        for (Memory.Photo p : photos) { buf.writeLong(p.time()); buf.writeUtf(p.moment()); buf.writeUtf(p.arg()); buf.writeByteArray(p.pixels()); }
     }
 
     private static BleepediaData read(RegistryFriendlyByteBuf buf) {
@@ -85,7 +87,12 @@ public record BleepediaData(int entityId, String name, Map<String, Long> mobs, M
         String favourite = buf.readUtf(), bond = buf.readUtf();
         List<String> friends = new ArrayList<>();
         for (int i = buf.readVarInt(); i > 0; i--) friends.add(buf.readUtf());
-        return new BleepediaData(id, name, mobs, biomes, finds, diary, born, now, lastOpened, days, fights, empty, distance, favourite, bond, friends, buf.readVarInt(), buf.readVarInt(), readMap(buf), buf.readUtf());
+        int chips = buf.readVarInt(), signs = buf.readVarInt();
+        var milestones = readMap(buf);
+        String hobby = buf.readUtf();
+        List<Memory.Photo> photos = new ArrayList<>();
+        for (int i = Math.min(buf.readVarInt(), Memory.PHOTOS); i > 0; i--) photos.add(new Memory.Photo(buf.readLong(), buf.readUtf(), buf.readUtf(), buf.readByteArray(Memory.Photo.BYTES)));
+        return new BleepediaData(id, name, mobs, biomes, finds, diary, born, now, lastOpened, days, fights, empty, distance, favourite, bond, friends, chips, signs, milestones, hobby, photos);
     }
 
     @Override

@@ -79,8 +79,8 @@ const SHELVES = {
   bleep: shelf('bleep.render', [['bleep_assembling', 'Being put together', M - 30], ['bleep', 'Happy', L], ['bleep_excited', 'Excited', L], ['bleep_asleep', 'Switched off', L], ['bleep_home', 'Charging at home', L + 20]]),
   faces: faceShelf(),
   dress: shelf('dress-up.render', [['bleep_red', 'Party hat', L], ['bleep_blue', 'Top hat', L + 10], ['bleep_lime', 'Antenna, heart', L + 10], ['bleep_yellow', 'Star sticker', L - 30], ['bleep_magenta', 'Party hat, bolt', L], ['bleep_cyan', 'Antenna', L + 10]]),
-  world: shelf('world.render', [['bleep_abandoned', 'Abandoned, long ago', L], ['bleep_dancing', 'A record playing', L], ['bleep_asleep', 'Asleep by your bed', L]]),
-  parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['power_bank', 'Power Bank', 96], ['homebase_charging', 'Homebase', M]]),
+  world: shelf('world.render', [['bleep_abandoned', 'Abandoned, long ago', L], ['bleep_dancing', 'A record playing', L], ['bleep_boat', 'In its boat', L + 20], ['bleep_sled', 'On its sled', L + 20], ['display_case', 'Its museum', M]]),
+  parts: shelf('parts.render', [['bleep_core', 'Bleep Core', 96], ['bleep_display', 'Bleep Display', 96], ['bleep_tracks', 'Bleep Tracks', 96], ['bleep_arms', 'Bleep Arms', 96], ['power_bank', 'Power Bank', 96], ['whistle', 'Whistle', 96], ['tracker', 'Bleep Tracker', 96], ['homebase_charging', 'Homebase', M]]),
 };
 
 // ---------- a little server for the site, plus the pictures above ----------

@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -52,6 +53,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -92,6 +94,12 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<String> QUESTION = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Boolean> ABANDONED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> MAGNET = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    /** In the water it sits in a little boat (owner, 31 Oct 2026). */
+    private static final EntityDataAccessor<Boolean> BOAT = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Muted from its info screen (owner, 31 Oct 2026): not a sound. */
+    private static final EntityDataAccessor<Boolean> MUTED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    /** On snow it rides a little sled (owner, 31 Oct 2026). */
+    private static final EntityDataAccessor<Boolean> SLED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     /** Its work while it stays: the jobs that are on (JOB_*), and how far it goes from its spot. */
     private static final EntityDataAccessor<Integer> JOBS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
@@ -168,6 +176,8 @@ public class BleepEntity extends TamableAnimal {
     private boolean slept;
     /** On its way home (the Go Home button); and whether it was following when it ran empty, to follow again after. */
     private boolean goingHome, followAfterSleep;
+    /** On its homebase, and the homebase's battery is empty. */
+    private boolean homeEmpty;
     /** Whether its homebase's light is on. */
     private boolean charging;
     /** An order it is dawdling over, and for how long still. */
@@ -206,6 +216,9 @@ public class BleepEntity extends TamableAnimal {
     private boolean leads, it, ballDecided;
     /** Told to stay: the spot it potters about near (STAY_RADIUS); null while parked on its homebase, where it keeps still. */
     private @Nullable BlockPos stayAt;
+    /** Where it builds a snowman now, and the day it last built one: one a day at most. */
+    private @Nullable BlockPos snowmanAt, snowmanPlanned;
+    private long snowmanDay = -1;
     public static final int STAY_RADIUS = 6;
     /** Away from its owner this long (game ticks, or real milliseconds: logged out) and it is over the moon to see them again. */
     public static final long WELCOME_AFTER = 6000, WELCOME_AFTER_REAL = 5 * 60 * 1000;
@@ -281,8 +294,8 @@ public class BleepEntity extends TamableAnimal {
     private boolean bedside;
     /** Its storage, as big as a small chest. */
     public static final int STORAGE = 27;
-    /** How far its magnet reaches, and how long it may take to show its owner something before it gives up. */
-    public static final int MAGNET_RANGE = 6, SHOW_TICKS = 400;
+    /** How long it may take to show its owner something before it gives up. */
+    public static final int SHOW_TICKS = 400;
     /** A new bleep's name. */
     public static final String DEFAULT_NAME = "Bleep";
     private final net.minecraft.world.SimpleContainer storage = new net.minecraft.world.SimpleContainer(STORAGE) {
@@ -323,6 +336,8 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(4, new TreasureGoal());
         this.goalSelector.addGoal(4, new WayGoal());
         this.goalSelector.addGoal(6, new WorkGoal());
+        this.goalSelector.addGoal(6, new SnowmanGoal());
+        this.goalSelector.addGoal(6, new MuseumGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
@@ -368,6 +383,9 @@ public class BleepEntity extends TamableAnimal {
         builder.define(ABANDONED, false);
         builder.define(MAGNET, false);
         builder.define(PARTY, false);
+        builder.define(BOAT, false);
+        builder.define(MUTED, false);
+        builder.define(SLED, false);
         builder.define(JOBS, 0);
         builder.define(RADIUS, STAY_RADIUS);
         builder.define(CHIPS, 0);
@@ -490,6 +508,7 @@ public class BleepEntity extends TamableAnimal {
         setBattery(FULL);
         tame(player);
         if (memory.born < 0) memory.born = level().getGameTime();
+        io.hookdev.bleep.Awards.award(player, "good_as_new");
         boot();
         remember("diary.bleep.abandoned", "");
         remember("diary.bleep.past." + getRandom().nextInt(Abandoned.PASTS), "");
@@ -516,8 +535,11 @@ public class BleepEntity extends TamableAnimal {
         this.entityData.set(NEWS, true);
     }
 
-    private void rememberFirst(String what, String key, String arg) {
-        if (memory.first(level().getGameTime(), what, key, arg)) this.entityData.set(NEWS, true);
+    /** Writes it in its diary the first time only; true if this was the first time. */
+    private boolean rememberFirst(String what, String key, String arg) {
+        boolean first = memory.first(level().getGameTime(), what, key, arg);
+        if (first) this.entityData.set(NEWS, true);
+        return first;
     }
 
     /** Its owner opens its Bleepedia: everything it remembers goes to them, and the news is read. */
@@ -550,6 +572,8 @@ public class BleepEntity extends TamableAnimal {
         if (memory.born < 0) memory.born = level().getGameTime();
         rememberFirst("born", "diary.bleep.born", "");
         if (obsession() == null) setObsession(getRandom().nextInt(Obsession.ALL.size()));
+        award("hello_world");
+        if (level() instanceof ServerLevel server && getOwner() instanceof Player owner && io.hookdev.bleep.BleepOwners.get(server).count(owner.getUUID()) >= 3) award("family");
     }
 
     /** Put together from its parts: tracks first, then its body, arms and head, then the screen comes on. */
@@ -602,6 +626,7 @@ public class BleepEntity extends TamableAnimal {
         if (old != null) giveBack(player, new ItemStack(BleepContent.ACCESSORIES.get(old).get()));
         setWorn(accessory.slot, accessory);
         feel(Emotion.EXCITED, 40);
+        io.hookdev.bleep.Awards.award(player, "dressed_up");
         if (accessory == Accessory.SUNGLASSES) pinThought("thought.bleep.dress.sunglasses");
         else if (accessory == Accessory.LEATHER_JACKET) pinThought("thought.bleep.dress.jacket");
         else if (accessory == Accessory.CAPE) pinThought("thought.bleep.dress.cape");
@@ -651,6 +676,20 @@ public class BleepEntity extends TamableAnimal {
         if (sound != null) playSound(sound.get(), volume, getVoicePitch());
     }
 
+    public boolean muted() {
+        return this.entityData.get(MUTED);
+    }
+
+    public void setMuted(boolean muted) {
+        this.entityData.set(MUTED, muted);
+    }
+
+    /** Not a sound when its owner muted it, nor on its homebase: there it keeps quiet by itself (owner, 31 Oct 2026). */
+    @Override
+    public boolean isSilent() {
+        return super.isSilent() || muted() || onHome();
+    }
+
     /** Every bleep has a voice of its own: a little higher or lower. */
     @Override
     public float getVoicePitch() {
@@ -659,6 +698,11 @@ public class BleepEntity extends TamableAnimal {
 
     // ---------- the bond ----------
 
+    /** Its owner gets this advancement (when they are on the server). */
+    private void award(String id) {
+        io.hookdev.bleep.Awards.award(getOwner() instanceof Player owner ? owner : null, id);
+    }
+
     /** Raises or lowers the bond; a new level is celebrated. */
     public void changeBond(int delta) {
         if (delta == 0 || level().isClientSide()) return;
@@ -666,6 +710,8 @@ public class BleepEntity extends TamableAnimal {
         setBond(before + delta);
         if (Bond.level(bond()) > Bond.level(before)) {
             feel(Emotion.EXCITED, 60);
+            if (Bond.level(bond()) >= 1) award("friends");
+            if (Bond.level(bond()) >= 3) award("best_friends");
             if (getOwner() instanceof Player owner) {
                 owner.sendOverlayMessage(Component.translatable("message.bleep.level_up", getDisplayName(), Component.translatable(Bond.key(bond()))));
             }
@@ -865,6 +911,7 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public void thunderHit(ServerLevel level, net.minecraft.world.entity.LightningBolt lightning) {
         setBattery(FULL);
+        award("overcharged");
         if (slept) {
             slept = false;
             if (followAfterSleep) follow();
@@ -926,6 +973,7 @@ public class BleepEntity extends TamableAnimal {
         if (!level().isClientSide()) removeLight();
         if (level() instanceof ServerLevel server && (reason == RemovalReason.KILLED || reason == RemovalReason.DISCARDED)) {
             io.hookdev.bleep.BleepOwners.get(server).remove(getUUID());
+            io.hookdev.bleep.BleepSightings.get(server).forget(getUUID());
         }
         if (!level().isClientSide() && reason == RemovalReason.KILLED) {
             stow();
@@ -997,6 +1045,12 @@ public class BleepEntity extends TamableAnimal {
             }
         }
         return true;
+    }
+
+    /** Its owner blew the whistle: it comes and follows, or stays where it is. A new bleep may dawdle first, as with any order. */
+    public void whistled(boolean stay) {
+        order(stay ? STAY : FOLLOW, getRandom().nextFloat());
+        if (!stay && !dawdling()) feel(Emotion.EXCITED, 30);
     }
 
     public boolean dawdling() {
@@ -1128,24 +1182,28 @@ public class BleepEntity extends TamableAnimal {
             remember("diary.bleep.homeless", "");
         }
         boolean home = onHome();
+        homeEmpty = false;
         if (slept) {
             sleptTicks++;
             if (!home && homeHere() && sleptTicks >= GOES_HOME_AFTER) {
                 beamHome();
                 home = true;
             }
-            setBattery(battery() + (home ? homeCharge() : SLEEP_CHARGE));
+            float charge = home ? fromHomebase(homeCharge()) : 0;
+            setBattery(battery() + (charge > 0 ? charge : SLEEP_CHARGE)); // an empty homebase: it trickles back as anywhere else
             if (battery() >= FULL) { // awake again, and a little sad about it
                 slept = false;
                 feel(Emotion.SAD, 80);
                 if (followAfterSleep) follow();
             }
         } else if (home) {
-            setBattery(battery() + homeCharge());
+            if (battery() < FULL) setBattery(battery() + fromHomebase(homeCharge()));
+            if (homeEmpty && tickCount % 1200 == 600) pinThought("thought.bleep.home_empty");
         } else if (moving) {
             drain(DRIVE_COST * (home() == null ? HOMELESS_COST : 1));
         }
-        setCharging(home && battery() < FULL);
+        setCharging(home && battery() < FULL && !homeEmpty);
+        if (bedside && ownersBed() == null) wakeUp(); // morning (here, not in BedsideGoal: asleep it is immobile, and goals do not tick then)
         if (dawdleTicks > 0) dawdle();
         if (moodTicks > 0 && --moodTicks == 0 && mood == Emotion.BOOT) feel(Emotion.EXCITED, 40);
         boolean busy = moving || home || (getOwner() != null && distanceToSqr(getOwner()) < 36 && !isOrderedToSit());
@@ -1158,6 +1216,12 @@ public class BleepEntity extends TamableAnimal {
             rememberFirst("llama", "diary.bleep.llama", "");
         }
         lightTheWay();
+        tickBoat();
+        tickSled();
+        if (!slept) maybeSunsetPhoto();
+        if (tickCount % 100 == 50) forecastWeather();
+        if (tickCount % 100 == 75 && isTame()) io.hookdev.bleep.BleepSightings.get((ServerLevel) level()).saw(getUUID(), sighting());
+        tickImitate();
         tickDisplay(moving);
         tickWorld(moving);
         if (isTame() && !hasCustomName()) { // every bleep is called Bleep until you give it a name of its own
@@ -1244,6 +1308,7 @@ public class BleepEntity extends TamableAnimal {
                 showDisplay(Display.GAME, 240);
                 return;
             }
+            if (emotion() == Emotion.BORED && getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER && getRandom().nextFloat() < 0.15f && imitate()) return;
             today();
             if (emotion() == Emotion.HAPPY && giftsToday == 0 && getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER && getRandom().nextFloat() < 0.08f) {
                 showDisplay(Display.WANT, 80);
@@ -1311,7 +1376,7 @@ public class BleepEntity extends TamableAnimal {
         if (!(magnet() || collecting) || slept || battery() <= 0 || tickCount % 4 != 0) return;
         LivingEntity owner = getOwner();
         Obsession favourite = obsession();
-        for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(MAGNET_RANGE), i -> i.isAlive() && !i.hasPickUpDelay() && i != fetching
+        for (ItemEntity item : level().getEntitiesOfClass(ItemEntity.class, getBoundingBox().inflate(io.hookdev.bleep.BleepConfig.magnetRange()), i -> i.isAlive() && !i.hasPickUpDelay() && i != fetching
                 && (owner == null || i.getOwner() != owner) && (favourite == null || !favourite.matches().test(i.getItem())) && !isBall(i.getItem()) && storage.canAddItem(i.getItem()))) {
             if (distanceToSqr(item) < 1.5 * 1.5) {
                 int before = item.getItem().getCount();
@@ -1513,6 +1578,7 @@ public class BleepEntity extends TamableAnimal {
         memory.biomes.put(biome, level().getGameTime());
         if (memory.biomes.size() == 1) return; // where it was built is no discovery
         this.entityData.set(NEWS, true);
+        snap("biome", "biome." + biome.replace(':', '.'));
         if (getOwner() != null && distanceToSqr(getOwner()) < TOGETHER * TOGETHER) changeBond(Bond.DISCOVERY);
     }
 
@@ -1781,6 +1847,8 @@ public class BleepEntity extends TamableAnimal {
         murmur("thought.bleep.greet." + getRandom().nextInt(3));
         other.pinThought("thought.bleep.greet.back");
         befriend(this, other, 1);
+        var friend = memory.friends.get(other.getUUID().toString());
+        if (friend != null && friend.points() >= Memory.Friend.BEST) snap("friend", other.getName().getString());
     }
 
     /** A little chat, four lines, taking turns (tests: which chat). */
@@ -1996,7 +2064,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Battery used up: with the battery chip it lasts half as long again. */
     private void drain(float amount) {
-        setBattery(battery() - amount * (has(Chip.BATTERY) ? 2 / 3f : 1));
+        setBattery(battery() - amount * (has(Chip.BATTERY) ? 2 / 3f : 1) * io.hookdev.bleep.BleepConfig.batteryDrain());
     }
 
     // ---------- letters ----------
@@ -3123,6 +3191,7 @@ public class BleepEntity extends TamableAnimal {
         feel(Emotion.SURPRISED, 60);
         say("thought.bleep.star.fell");
         rememberFirst("star", "diary.bleep.star", "");
+        snap("star", "");
         addSigns(3);
     }
 
@@ -3224,6 +3293,7 @@ public class BleepEntity extends TamableAnimal {
         lastBirthday = day;
         partyTicks = 2400;
         this.entityData.set(PARTY, true);
+        award("birthday");
         showDisplay(Display.BIRTHDAY, 240);
         feel(Emotion.EXCITED, 100);
         say("thought.bleep.birthday");
@@ -3232,9 +3302,270 @@ public class BleepEntity extends TamableAnimal {
         if (getOwner() instanceof Player owner) owner.sendSystemMessage(Component.translatable("message.bleep.birthday", getDisplayName(), day - 1));
     }
 
+    // ---------- photos (owner, 31 Oct 2026) ----------
+
+    /** At most one photo in this many ticks (two minutes), and how long its owner's game has to send the picture. */
+    public static final int PHOTO_GAP = 2400, PHOTO_WAIT = 200;
+    private long lastPhoto = Long.MIN_VALUE / 2;
+    /** The photo it asked its owner's game for (moment and what to fill in), and when; null when none is waited for. */
+    private @Nullable String[] photoPending;
+    private long photoAsked;
+
+    /**
+     * A nice moment (sunset, a falling star, its best friend, a new biome): it says Click! with a flash, and its
+     * owner's game takes a tiny picture of what they see. True if it took one (not too soon after the last, its owner
+     * close by).
+     */
+    public boolean snap(String moment, String arg) {
+        if (level().isClientSide() || slept || abandoned() || !(getOwner() instanceof net.minecraft.server.level.ServerPlayer owner) || owner.level() != level()
+                || distanceToSqr(owner) > 24 * 24 || level().getGameTime() - lastPhoto < PHOTO_GAP) return false;
+        lastPhoto = level().getGameTime();
+        photoPending = new String[] {moment, arg};
+        photoAsked = lastPhoto;
+        playSound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.8f);
+        ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, getX(), getY() + 1.1, getZ(), 12, 0.3, 0.2, 0.3, 0.05);
+        feel(Emotion.EXCITED, 30);
+        pinThought("thought.bleep.photo." + moment);
+        owner.sendOverlayMessage(Component.translatable("message.bleep.click", getDisplayName()));
+        if (owner.connection.hasChannel(io.hookdev.bleep.network.PhotoRequest.TYPE)) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(owner, new io.hookdev.bleep.network.PhotoRequest(getId()));
+        }
+        return true;
+    }
+
+    /** The picture from its owner's game, for the photo it asked for a moment ago: into its Bleepedia. */
+    public boolean photoTaken(Player player, byte[] pixels) {
+        if (photoPending == null || !isOwnedBy(player) || level().getGameTime() - photoAsked > PHOTO_WAIT
+                || pixels.length != Memory.Photo.BYTES) return false;
+        memory.addPhoto(new Memory.Photo(level().getGameTime(), photoPending[0], photoPending[1], pixels.clone()));
+        photoPending = null;
+        remember("diary.bleep.photo", "photo.bleep." + memory.photos.getLast().moment() + ".diary");
+        io.hookdev.bleep.Awards.award(player, "say_cheese");
+        return true;
+    }
+
+    /** What a photo shows: photo.bleep.<moment>, with the biome or the friend filled in. */
+    public static Component photoMoment(Memory.Photo photo) {
+        return Component.translatable("photo.bleep." + photo.moment(), photo.moment().equals("biome") ? Component.translatable(photo.arg()) : Component.literal(photo.arg()));
+    }
+
+    /** Prints one of its photos on an empty map from its owner's inventory (none needed in creative). True if it did. */
+    public boolean printPhoto(Player player, int index) {
+        if (!(level() instanceof ServerLevel level) || index < 0 || index >= memory.photos.size()) return false;
+        if (!player.getAbilities().instabuild) {
+            var inventory = player.getInventory();
+            int slot = -1;
+            for (int i = 0; i < inventory.getContainerSize(); i++) if (inventory.getItem(i).is(Items.MAP)) slot = i;
+            if (slot < 0) {
+                player.sendOverlayMessage(Component.translatable("message.bleep.print_no_map"));
+                return false;
+            }
+            inventory.removeItem(slot, 1);
+        }
+        Memory.Photo photo = memory.photos.get(index);
+        ItemStack print = PhotoPrint.print(level, photo, Component.translatable("item.bleep.photo_print", getDisplayName(), photoMoment(photo)));
+        giveBack(player, print);
+        level.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.2f);
+        player.sendOverlayMessage(Component.translatable("message.bleep.printed", photoMoment(photo)));
+        return true;
+    }
+
+    /** Now and then at sunset, outside with its owner: a photo. */
+    private void maybeSunsetPhoto() {
+        if (tickCount % 100 != 0 || level().dimension() != Level.OVERWORLD || level().isRaining() || !(getOwner() instanceof Player owner)) return;
+        long time = level().getOverworldClockTime() % 24000;
+        if (time < 12000 || time >= 12800 || !level().canSeeSky(blockPosition().above()) || !level().canSeeSky(owner.blockPosition().above())
+                || distanceToSqr(owner) > 16 * 16 || getRandom().nextInt(3) != 0) return;
+        snap("sunset", "");
+    }
+
+    /** As it is now, for the Bleep Tracker. */
+    public io.hookdev.bleep.BleepSightings.Seen sighting() {
+        BlockPos at = blockPosition();
+        return new io.hookdev.bleep.BleepSightings.Seen(getDisplayName().getString(), level().dimension().identifier().toString(), at.getX(), at.getY(), at.getZ(),
+                Math.round(battery()), activity().key(), color());
+    }
+
+    // ---------- imitating a mob (owner, 31 Oct 2026) ----------
+
+    /** The mob it imitates now (its id), and the ticks until it tells who it was. */
+    private @Nullable String imitating;
+    private int imitateTicks;
+
+    /** A mob's sound, if it has one: its ambient sound, else its hurt sound. */
+    private static @Nullable SoundEvent mobSound(Identifier mob) {
+        for (String kind : List.of("ambient", "hurt")) {
+            var sound = BuiltInRegistries.SOUND_EVENT.getValue(Identifier.fromNamespaceAndPath(mob.getNamespace(), "entity." + mob.getPath() + "." + kind));
+            if (sound != null) return sound;
+        }
+        return null;
+    }
+
+    /**
+     * Bored, it imitates a mob it has met, its sound in its own (higher, robot) voice, with sound waves and a ? on its
+     * display: guess who. Three seconds later it tells. True if it found a mob to do.
+     */
+    public boolean imitate() {
+        if (slept || imitating != null || memory.mobs.isEmpty()) return false;
+        List<String> mobs = new java.util.ArrayList<>(memory.mobs.keySet());
+        java.util.Collections.shuffle(mobs, new java.util.Random(getRandom().nextLong()));
+        for (String mob : mobs) {
+            Identifier id = Identifier.tryParse(mob);
+            SoundEvent sound = id == null ? null : mobSound(id);
+            if (sound == null) continue;
+            imitating = mob;
+            imitateTicks = 60;
+            playSound(sound, 0.8f, 1.6f);
+            showDisplay(Display.IMITATE, 60);
+            pinThought("thought.bleep.imitate");
+            return true;
+        }
+        return false;
+    }
+
+    /** Who it was imitating: it tells its owner. */
+    private void tickImitate() {
+        if (imitating == null || --imitateTicks > 0) return;
+        var type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.tryParse(imitating));
+        imitating = null;
+        pinThought("thought.bleep.imitate.reveal");
+        if (getOwner() instanceof Player owner && distanceToSqr(owner) < 24 * 24) {
+            owner.sendOverlayMessage(Component.translatable("message.bleep.imitated", getDisplayName(), type.getDescription()));
+        }
+        hobbyPoint("playing");
+    }
+
+    // ---------- the weather forecast (owner, 31 Oct 2026) ----------
+
+    /** How far ahead it feels the weather coming (a minute), and what it last forecast: 0 nothing, 1 rain, 2 thunder. */
+    public static final int FORECAST_AHEAD = 1200;
+    private int forecast;
+
+    /** What is coming within a minute in this world: 2 thunder, 1 rain, 0 nothing new (as it is now). */
+    public static int weatherAhead(ServerLevel level) {
+        var weather = level.getWeatherData();
+        if (weather.getClearWeatherTime() > 0) return 0;
+        boolean rainSoon = !weather.isRaining() && weather.getRainTime() > 0 && weather.getRainTime() <= FORECAST_AHEAD;
+        boolean wet = weather.isRaining() || rainSoon;
+        if (wet && !weather.isThundering() && weather.getThunderTime() > 0 && weather.getThunderTime() <= FORECAST_AHEAD) return 2;
+        return rainSoon ? 1 : 0;
+    }
+
+    /**
+     * Rain or thunder on its way: a cloud on its display and a word for its owner, once for each change in the
+     * weather. Thunder makes it very happy (lightning!). True if it said something.
+     */
+    public boolean forecastWeather() {
+        if (!(level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || slept || abandoned()) return false;
+        int ahead = weatherAhead(level);
+        if (ahead == forecast) return false;
+        forecast = ahead;
+        if (ahead == 0 || !(getOwner() instanceof Player owner) || distanceToSqr(owner) > 24 * 24) return false;
+        showDisplay(ahead == 2 ? Display.THUNDER : Display.RAIN, 100);
+        feel(ahead == 2 ? Emotion.EXCITED : Emotion.SURPRISED, 40);
+        say(ahead == 2 ? "thought.bleep.forecast.thunder" : "thought.bleep.forecast.rain");
+        return true;
+    }
+
+    /** Ticks on dry land since it was in the water: the boat folds away after half a second. */
+    private int ashoreTicks;
+
+    /** In the water, a little boat pops up under it; back on land it folds away again. It floats and sails faster. */
+    private void tickBoat() {
+        boolean water = isInWater() && !abandoned() && assembly() == 0;
+        if (water) ashoreTicks = 0;
+        else if (onGround()) ashoreTicks++;
+        if (water && !boating()) {
+            this.entityData.set(BOAT, true);
+            playSound(net.minecraft.sounds.SoundEvents.WOOD_PLACE, 0.8f, 1.2f);
+            ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.CLOUD, getX(), getY() + 0.3, getZ(), 8, 0.5, 0.1, 0.5, 0.02);
+            if (rememberFirst("boat", "diary.bleep.boat", "")) pinThought("thought.bleep.boat");
+        } else if (boating() && ashoreTicks > 10) {
+            this.entityData.set(BOAT, false);
+            playSound(net.minecraft.sounds.SoundEvents.WOOD_BREAK, 0.6f, 1.4f);
+            ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.CLOUD, getX(), getY() + 0.3, getZ(), 8, 0.5, 0.1, 0.5, 0.02);
+        }
+        if (boating() && water) { // it floats, steady: drawn to where the water comes just over its tracks, no bouncing
+            var motion = getDeltaMovement();
+            double sink = getFluidHeight(net.minecraft.tags.FluidTags.WATER) - BOAT_DRAFT;
+            setDeltaMovement(motion.x, Mth.clamp(sink * 0.3, -0.05, 0.08), motion.z);
+        }
+    }
+
+    /** How deep its boat lies in the water. */
+    private static final double BOAT_DRAFT = 0.2;
+
+    /** In its boat it does not swim (vanilla FloatGoal jumps): it floats (tickBoat). */
+    @Override
+    public double getFluidJumpThreshold() {
+        return boating() ? 10 : super.getFluidJumpThreshold();
+    }
+
+    private static final Identifier SLED_SPEED = Identifier.fromNamespaceAndPath("bleep", "sled");
+    /** Ticks off the snow since it was on it: the sled folds away after a second. */
+    private int offSnowTicks;
+
+    /** Snow under its tracks: a layer of snow, a block of snow, or powder snow. */
+    private boolean onSnow() {
+        BlockPos at = blockPosition();
+        BlockState here = level().getBlockState(at), below = level().getBlockState(at.below());
+        return here.is(Blocks.SNOW) || below.is(Blocks.SNOW_BLOCK) || below.is(Blocks.SNOW) || below.is(Blocks.POWDER_SNOW) || here.is(Blocks.POWDER_SNOW);
+    }
+
+    /** On snow a sled pops up under it, and it glides along half as fast again; off the snow it folds away. */
+    private void tickSled() {
+        boolean snow = onGround() && onSnow() && !boating() && !abandoned() && assembly() == 0;
+        if (snow) offSnowTicks = 0;
+        else offSnowTicks++;
+        if (snow && !sledding()) {
+            this.entityData.set(SLED, true);
+            playSound(net.minecraft.sounds.SoundEvents.WOOD_PLACE, 0.6f, 1.4f);
+            ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.SNOWFLAKE, getX(), getY() + 0.2, getZ(), 10, 0.5, 0.1, 0.5, 0.02);
+            if (rememberFirst("sled", "diary.bleep.sled", "")) pinThought("thought.bleep.sled");
+        } else if (sledding() && offSnowTicks > 20) {
+            this.entityData.set(SLED, false);
+            playSound(net.minecraft.sounds.SoundEvents.WOOD_BREAK, 0.5f, 1.5f);
+        }
+        var speed = getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (sledding() && !speed.hasModifier(SLED_SPEED)) speed.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(SLED_SPEED, 0.5,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+        else if (!sledding() && speed.hasModifier(SLED_SPEED)) speed.removeModifier(SLED_SPEED);
+        if (sledding() && getDeltaMovement().horizontalDistanceSqr() > 0.002 && tickCount % 3 == 0) { // a little snow sprays up
+            ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.SNOWFLAKE, getX(), getY() + 0.1, getZ(), 2, 0.3, 0.05, 0.3, 0.01);
+        }
+    }
+
+    public boolean sledding() {
+        return this.entityData.get(SLED);
+    }
+
+    public boolean boating() {
+        return this.entityData.get(BOAT);
+    }
+
+    /** In its boat it sails along, instead of wading. */
+    @Override
+    protected float getWaterSlowDown() {
+        return boating() ? 0.95f : super.getWaterSlowDown();
+    }
+
     /** Its birthday party is on. */
     public boolean party() {
         return this.entityData.get(PARTY);
+    }
+
+    /** Charge from its homebase's own battery (as much as it has); an empty one gives nothing. */
+    private float fromHomebase(float percent) {
+        if (!(level().getBlockEntity(home().pos()) instanceof io.hookdev.bleep.block.HomebaseBlockEntity base)) return percent;
+        float got = base.draw(Math.min(percent, FULL - battery()));
+        if (got <= 0) homeEmpty = true;
+        return got;
+    }
+
+    /** Standing on a homebase with an empty battery. */
+    public boolean homeEmpty() {
+        return homeEmpty;
     }
 
     /** A home with comforts charges a quarter faster for each one. */
@@ -3292,9 +3623,12 @@ public class BleepEntity extends TamableAnimal {
 
     private Activity currentActivity(boolean home) {
         if (moodTicks > 0 && mood == Emotion.BOOT) return Activity.STARTING;
-        if (home) return display() == Display.DREAM ? Activity.DREAMING : battery() < FULL ? Activity.CHARGING : slept || dozing() ? Activity.SLEEPING : Activity.AT_HOME;
+        if (home) return display() == Display.DREAM ? Activity.DREAMING : battery() < FULL && !homeEmpty ? Activity.CHARGING : slept || dozing() ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
         if (bedside) return Activity.BEDSIDE;
+        if (snowmanAt != null) return Activity.BUILDING;
+        if (boating()) return Activity.BOATING;
+        if (sledding() && getDeltaMovement().horizontalDistanceSqr() > 0.002) return Activity.SLEDDING;
         if (guardAt != null) return Activity.GUARDING;
         if (fishTicks > 0) return Activity.FISHING;
         if (shopAt != null) return Activity.SHOPPING;
@@ -3398,7 +3732,7 @@ public class BleepEntity extends TamableAnimal {
         if (abandoned()) {
             if (level().isClientSide()) return InteractionResult.SUCCESS;
             if (stack.is(Items.REDSTONE_BLOCK) && level() instanceof ServerLevel server && io.hookdev.bleep.BleepOwners.get(server).full(player.getUUID())) {
-                player.sendOverlayMessage(Component.translatable("message.bleep.too_many", io.hookdev.bleep.BleepOwners.MAX));
+                player.sendOverlayMessage(Component.translatable("message.bleep.too_many", io.hookdev.bleep.BleepConfig.maxBleeps()));
             } else if (stack.is(Items.REDSTONE_BLOCK)) {
                 stack.consume(1, player);
                 repair(player);
@@ -3554,6 +3888,8 @@ public class BleepEntity extends TamableAnimal {
         if (stayAt != null) output.store("stay_at", BlockPos.CODEC, stayAt);
         output.putInt("comforts", comforts);
         output.putLong("comfort_day", comfortDay);
+        output.putLong("snowman_day", snowmanDay);
+        output.putBoolean("muted", muted());
     }
 
     @Override
@@ -3617,11 +3953,255 @@ public class BleepEntity extends TamableAnimal {
         input.read("stay_at", BlockPos.CODEC).ifPresent(this::stayHere);
         comforts = input.getIntOr("comforts", 0);
         comfortDay = input.getLongOr("comfort_day", -1);
+        snowmanDay = input.getLongOr("snowman_day", -1);
+        setMuted(input.getBooleanOr("muted", false));
     }
 
     /** Not when it is told to stay, is going home, or is switched off. */
     private boolean free() {
         return !slept && !parked() && !goingHome && dawdleTicks == 0 && getTarget() == null && !naughty.busy() && !bedside && digTicks == 0 && hideMode == 0 && trickTicks == 0 && !hunting() && wayTo == null;
+    }
+
+    // ---------- its museum (owner, 31 Oct 2026) ----------
+
+    /** How far from its homebase its display cases may stand. */
+    public static final int MUSEUM_RANGE = 8;
+    /** The display case it is filling now, and one the tests ask it to fill. */
+    private @Nullable BlockPos museumAt;
+    private boolean museumPlanned;
+
+    /** How much it treasures a thing: its favourite most, then by rarity and shine. 0: not for its museum. */
+    public int treasured(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+        Obsession favourite = obsession();
+        if (favourite != null && favourite.matches().test(stack)) return 100;
+        int score = switch (stack.getOrDefault(net.minecraft.core.component.DataComponents.RARITY, net.minecraft.world.item.Rarity.COMMON)) {
+            case EPIC -> 40;
+            case RARE -> 30;
+            case UNCOMMON -> 20;
+            default -> 0;
+        };
+        if (stack.is(Items.DIAMOND) || stack.is(Items.EMERALD) || stack.is(Items.AMETHYST_SHARD) || stack.is(Items.GOLD_INGOT) || stack.is(Items.NAUTILUS_SHELL)
+                || stack.has(net.minecraft.core.component.DataComponents.JUKEBOX_PLAYABLE)) score = Math.max(score, 15);
+        return score;
+    }
+
+    /** The display cases near its homebase. */
+    private List<io.hookdev.bleep.block.DisplayCaseBlockEntity> displayCases() {
+        List<io.hookdev.bleep.block.DisplayCaseBlockEntity> cases = new java.util.ArrayList<>();
+        if (!homeHere()) return cases;
+        BlockPos home = home().pos();
+        for (BlockPos pos : BlockPos.betweenClosed(home.offset(-MUSEUM_RANGE, -2, -MUSEUM_RANGE), home.offset(MUSEUM_RANGE, 2, MUSEUM_RANGE))) {
+            if (level().getBlockEntity(pos) instanceof io.hookdev.bleep.block.DisplayCaseBlockEntity display) cases.add(display);
+        }
+        return cases;
+    }
+
+    /** The storage slot of the thing it treasures most that is not on show yet, or -1. */
+    private int bestForMuseum(List<io.hookdev.bleep.block.DisplayCaseBlockEntity> cases) {
+        int best = -1, bestScore = 0;
+        for (int slot = 0; slot < storage.getContainerSize(); slot++) {
+            ItemStack stack = storage.getItem(slot);
+            int score = treasured(stack);
+            if (score <= bestScore || cases.stream().anyMatch(c -> ItemStack.isSameItem(c.item(), stack))) continue;
+            best = slot;
+            bestScore = score;
+        }
+        return best;
+    }
+
+    /** Fills a display case at the next chance (for the tests: no waiting). */
+    public void planMuseum() {
+        museumPlanned = true;
+    }
+
+    /**
+     * Near its homebase with nothing to do (owner, 31 Oct 2026): it drives to an empty display case there and puts in
+     * the thing it treasures most from its storage (its favourite item first) that is not on show yet.
+     */
+    private class MuseumGoal extends Goal {
+        private int ticks, slot;
+
+        MuseumGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (!free() || busyWithOthers() || workAt != null || !homeHere() || battery() < TIRED) return false;
+            if (!museumPlanned && getRandom().nextInt(600) != 0) return false;
+            museumPlanned = false;
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(home().pos())) > 16 * 16) return false;
+            var cases = displayCases();
+            slot = bestForMuseum(cases);
+            if (slot < 0) return false;
+            museumAt = cases.stream().filter(io.hookdev.bleep.block.DisplayCaseBlockEntity::isEmpty).map(net.minecraft.world.level.block.entity.BlockEntity::getBlockPos)
+                    .min(java.util.Comparator.comparingDouble(p -> p.distSqr(blockPosition()))).orElse(null);
+            return museumAt != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return museumAt != null && free() && getTarget() == null && ticks < 300;
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+        }
+
+        @Override
+        public void stop() {
+            museumAt = null;
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            ticks++;
+            BlockPos at = museumAt;
+            if (at == null) return;
+            getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+            if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(at)) > 2.2 * 2.2) {
+                if (ticks % 10 == 1) getNavigation().moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 1.0);
+                return;
+            }
+            ItemStack stack = storage.getItem(slot);
+            if (level().getBlockEntity(at) instanceof io.hookdev.bleep.block.DisplayCaseBlockEntity display && display.isEmpty() && treasured(stack) > 0) {
+                display.setItem(stack);
+                storage.removeItem(slot, 1);
+                level().playSound(null, at, net.minecraft.sounds.SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.NEUTRAL, 0.8f, 1.3f);
+                io.hookdev.bleep.McVersion.swing(BleepEntity.this);
+                feel(Emotion.HAPPY, 60);
+                pinThought(treasured(display.item()) >= 100 ? "thought.bleep.museum.favourite" : "thought.bleep.museum");
+                rememberFirst("museum", "diary.bleep.museum", "");
+                hobbyPoint("collecting");
+            }
+            museumAt = null;
+        }
+    }
+
+    /** Builds a snowman at this spot as soon as it can (for the tests: no waiting for chance or snow). */
+    public void planSnowman(BlockPos at) {
+        snowmanPlanned = at;
+    }
+
+    /** Snow on the ground round the spot it stays at: three patches of snow or more. */
+    private boolean snowAround(BlockPos at) {
+        int snow = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(at.offset(-5, -2, -5), at.offset(5, 2, 5))) {
+            BlockState state = level().getBlockState(pos);
+            if ((state.is(Blocks.SNOW) || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)) && ++snow >= 3) return true;
+        }
+        return false;
+    }
+
+    /** A free spot for a snowman near where it stays: room for two blocks and a head, on solid ground. */
+    private @Nullable BlockPos snowmanSpot(BlockPos at) {
+        for (int i = 0; i < 16; i++) {
+            BlockPos pos = at.offset(getRandom().nextInt(9) - 4, getRandom().nextInt(3) - 1, getRandom().nextInt(9) - 4);
+            if (pos.closerThan(at, 1.5)) continue; // not on its own spot
+            if (level().getBlockState(pos).canBeReplaced() && !level().getBlockState(pos).liquid() && level().getBlockState(pos.above()).isAir()
+                    && level().getBlockState(pos.above(2)).isAir() && level().getBlockState(pos.below()).isFaceSturdy(level(), pos.below(), Direction.UP)) return pos;
+        }
+        return null;
+    }
+
+    /**
+     * On Stay with nothing to do, and snow lies about (owner, 31 Oct 2026): it builds a snowman, two blocks of snow
+     * scooped up from the ground. With a carved pumpkin in its storage it gives it a head, and the snowman comes alive
+     * (a snow golem). Once a day at most.
+     */
+    private class SnowmanGoal extends Goal {
+        private int ticks, step;
+
+        SnowmanGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (stayAt == null || !isOrderedToSit() || !free() || busyWithOthers() || workAt != null || battery() < TIRED) return false;
+            if (snowmanPlanned != null) {
+                snowmanAt = snowmanPlanned;
+                snowmanPlanned = null;
+                return true;
+            }
+            if (getRandom().nextInt(200) != 0 || level().getGameTime() / Bond.DAY == snowmanDay || !snowAround(stayAt)) return false;
+            snowmanAt = snowmanSpot(stayAt);
+            return snowmanAt != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return snowmanAt != null && stayAt != null && isOrderedToSit() && !slept && getTarget() == null && ticks < 600;
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+            step = 0;
+            pinThought("thought.bleep.snowman.start");
+        }
+
+        @Override
+        public void stop() {
+            snowmanAt = null;
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            ticks++;
+            BlockPos at = snowmanAt;
+            if (at == null) return;
+            getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5);
+            if (step == 0) { // drive up to it
+                if (distanceToSqr(net.minecraft.world.phys.Vec3.atBottomCenterOf(at)) < 2.2 * 2.2) {
+                    getNavigation().stop();
+                    step = 1;
+                    ticks = 0;
+                } else if (ticks % 10 == 1) {
+                    getNavigation().moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 1.0);
+                } else if (ticks > 200) {
+                    snowmanAt = null; // cannot get there
+                }
+                return;
+            }
+            if (ticks % 15 != 0) return;
+            ServerLevel level = (ServerLevel) level();
+            BlockPos part = step == 1 ? at : step == 2 ? at.above() : at.above(2);
+            if (step <= 2) { // a ball of snow, then another on top
+                if (!level.getBlockState(part).canBeReplaced()) {
+                    snowmanAt = null;
+                    return;
+                }
+                level.setBlock(part, Blocks.SNOW_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+                level.playSound(null, part, net.minecraft.sounds.SoundEvents.SNOW_PLACE, net.minecraft.sounds.SoundSource.NEUTRAL, 1.0f, 0.9f);
+                level.sendParticles(net.minecraft.core.particles.ParticleTypes.SNOWFLAKE, part.getX() + 0.5, part.getY() + 0.6, part.getZ() + 0.5, 12, 0.4, 0.3, 0.4, 0.02);
+                io.hookdev.bleep.McVersion.swing(BleepEntity.this);
+                step++;
+                return;
+            }
+            // the head: a carved pumpkin from its storage brings it to life
+            snowmanDay = level.getGameTime() / Bond.DAY;
+            award("snowman");
+            remember("diary.bleep.snowman", "");
+            int pumpkin = -1;
+            for (int slot = 0; slot < storage.getContainerSize(); slot++) if (storage.getItem(slot).is(Items.CARVED_PUMPKIN)) pumpkin = slot;
+            if (pumpkin >= 0 && level.getBlockState(part).isAir()) {
+                storage.removeItem(pumpkin, 1);
+                double dx = getX() - (at.getX() + 0.5), dz = getZ() - (at.getZ() + 0.5);
+                Direction facing = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? Direction.EAST : Direction.WEST) : (dz > 0 ? Direction.SOUTH : Direction.NORTH);
+                level.setBlock(part, Blocks.CARVED_PUMPKIN.defaultBlockState().setValue(net.minecraft.world.level.block.CarvedPumpkinBlock.FACING, facing), Block.UPDATE_ALL);
+                feel(Emotion.EXCITED, 80);
+                pinThought("thought.bleep.snowman.alive");
+            } else {
+                feel(Emotion.HAPPY, 60);
+                pinThought("thought.bleep.snowman.done");
+            }
+            snowmanAt = null;
+        }
     }
 
     /** Drives to its homebase after Go Home; beams there when it is far away or does not get there in 15 seconds. */
@@ -4144,6 +4724,12 @@ public class BleepEntity extends TamableAnimal {
         }
     }
 
+    /** Morning: awake by the bed, and happy about it. */
+    private void wakeUp() {
+        bedside = false;
+        feel(Emotion.HAPPY, 20);
+    }
+
     /** Its owner went to bed: it drives to the bed and sleeps beside it until morning. */
     private class BedsideGoal extends Goal {
         private int ticks;
@@ -4169,10 +4755,7 @@ public class BleepEntity extends TamableAnimal {
 
         @Override
         public void stop() {
-            if (bedside) { // morning
-                bedside = false;
-                feel(Emotion.HAPPY, 20);
-            }
+            if (bedside) wakeUp();
         }
 
         @Override

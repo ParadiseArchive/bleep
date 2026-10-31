@@ -25,10 +25,11 @@ public class BleepScreen extends Screen {
     private static final float FACE_U = 18 / 128f, FACE_V = 18 / 128f, FACE_W = 20 / 128f, FACE_H = 10 / 128f;
     private static final int FACE_SCALE = 4;
     private static final net.minecraft.resources.Identifier MAGNET = io.hookdev.bleep.Bleep.id("textures/gui/magnet.png");
+    private static final net.minecraft.resources.Identifier SOUND_ON = io.hookdev.bleep.Bleep.id("textures/gui/sound_on.png"), SOUND_OFF = io.hookdev.bleep.Bleep.id("textures/gui/sound_off.png");
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet, play, work, chips, way, yes, no;
+    private Button goHome, torch, book, chest, magnet, mute, play, work, chips, way, yes, no;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -50,6 +51,8 @@ public class BleepScreen extends Screen {
         chest = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.OPEN_STORAGE)).bounds(left + W - 32, top + 32, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.storage"))).build());
         magnet = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.MAGNET)).bounds(left + W - 32, top + 56, 22, 22).build());
+        // next to the book: its sound on or off
+        mute = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.MUTE)).bounds(left + W - 56, top + 8, 22, 22).build());
         // and two more screens: games and tricks, and its work while it stays
         play = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new PlayScreen(bleep))).bounds(left + W - 32, top + 80, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.play"))).build());
@@ -58,7 +61,7 @@ public class BleepScreen extends Screen {
         way = addRenderableWidget(Button.builder(Component.empty(), b -> { send(BleepCommand.SHOW_WAY); onClose(); }).bounds(left + W - 32, top + 152, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.show_way"))).build());
         // its name: click it and type a new one (Enter, or closing the screen, saves it)
-        name = addRenderableWidget(new net.minecraft.client.gui.components.EditBox(font, left + 100, top + 11, 120, 10, Component.translatable("screen.bleep.name")));
+        name = addRenderableWidget(new net.minecraft.client.gui.components.EditBox(font, left + 100, top + 11, 100, 10, Component.translatable("screen.bleep.name")));
         name.setBordered(false);
         name.setMaxLength(io.hookdev.bleep.network.BleepRename.MAX);
         name.setTextColor(TEXT);
@@ -118,6 +121,7 @@ public class BleepScreen extends Screen {
         work.active = bleep.isOrderedToSit() && !bleep.onHome();
         work.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(work.active ? "screen.bleep.work" : "screen.bleep.work.stay_first")));
         magnet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(bleep.magnet() ? "screen.bleep.magnet.on" : "screen.bleep.magnet.off")));
+        mute.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(bleep.muted() ? "screen.bleep.sound.off" : "screen.bleep.sound.on")));
         if (!name.isFocused() && !name.getValue().equals(currentName())) name.setValue(currentName());
     }
 
@@ -136,7 +140,7 @@ public class BleepScreen extends Screen {
                 FACE_U, FACE_U + FACE_W, FACE_V, FACE_V + FACE_H);
 
         int tx = fx + fw + 10;
-        g.fill(tx, fy + 10, tx + 120, fy + 11, name.isFocused() ? GLOW : 0xFF2C313A); // a line under its name: you can type there
+        g.fill(tx, fy + 10, tx + 100, fy + 11, name.isFocused() ? GLOW : 0xFF2C313A); // a line under its name: you can type there
         g.text(font, Component.translatable("screen.bleep.mood").append(": ").append(Component.translatable("emotion.bleep." + bleep.emotion().texture())), tx, fy + 15, GLOW, false);
         g.text(font, Component.translatable(bleep.activity().key()), tx, fy + 27, DIM, false);
 
@@ -175,6 +179,7 @@ public class BleepScreen extends Screen {
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), book.getX() + 3, book.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST), chest.getX() + 3, chest.getY() + 3);
         g.blit(MAGNET, magnet.getX() + 3, magnet.getY() + 3, magnet.getX() + 19, magnet.getY() + 19, 0, 1, 0, 1);
+        g.blit(bleep.muted() ? SOUND_OFF : SOUND_ON, mute.getX() + 3, mute.getY() + 3, mute.getX() + 19, mute.getY() + 19, 0, 1, 0, 1);
         g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.BALL.get()), play.getX() + 3, play.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_HOE), work.getX() + 3, work.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS), way.getX() + 3, way.getY() + 3);

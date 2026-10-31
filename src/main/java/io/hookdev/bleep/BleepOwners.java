@@ -15,10 +15,9 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 
 /**
  * Who owns which bleeps, saved with the world (also the ones in chunks that are not loaded), so a player can have at
- * most {@link #MAX}. Owner's choice (30 Oct 2026): any more and it really turns into a fight.
+ * most {@link BleepConfig#maxBleeps()} (10 unless a pack maker sets it). Owner's choice (30 Oct 2026): any more and it really turns into a fight.
  */
 public final class BleepOwners extends SavedData {
-    public static final int MAX = 10;
     private static final Codec<BleepOwners> CODEC = Codec.unboundedMap(UUIDUtil.STRING_CODEC, UUIDUtil.STRING_CODEC.listOf())
             .xmap(BleepOwners::new, BleepOwners::asMap);
     public static final SavedDataType<BleepOwners> TYPE = new SavedDataType<>(Bleep.id("owners"), BleepOwners::new, CODEC);
@@ -47,7 +46,12 @@ public final class BleepOwners extends SavedData {
     }
 
     public boolean full(UUID owner) {
-        return count(owner) >= MAX;
+        return count(owner) >= BleepConfig.maxBleeps();
+    }
+
+    /** This player's bleeps (their ids). */
+    public List<UUID> of(UUID owner) {
+        return new ArrayList<>(bleeps.getOrDefault(owner, Set.of()));
     }
 
     /** This bleep is this player's (and nobody else's). */

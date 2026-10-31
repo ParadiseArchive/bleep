@@ -1,0 +1,22 @@
+{
+  "parent": "bleep:hello_world",
+  "display": {
+    "icon": {
+      "id": "minecraft:snow_block"
+    },
+    "title": {
+      "translate": "advancements.bleep.snowman.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.snowman.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

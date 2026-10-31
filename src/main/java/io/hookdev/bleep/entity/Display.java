@@ -40,7 +40,11 @@ public enum Display {
     /** A dream, asleep on its homebase at night: a mob it saw (its name), a place (a little scene), a falling star, or something strange. */
     DREAM,
     /** It has a question for its owner: a big blinking question mark. */
-    QUESTION;
+    QUESTION,
+    /** The weather forecast, a minute ahead: a rain cloud, or a thunder cloud with a bolt. */
+    RAIN, THUNDER,
+    /** It imitates a mob: sound waves and a question mark (guess who). */
+    IMITATE;
 
     private static final Display[] VALUES = values();
 

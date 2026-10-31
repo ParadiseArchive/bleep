@@ -70,7 +70,7 @@ public class BleepJadePlugin implements IWailaPlugin {
         }
     }
 
-    /** Server side: who lives here (a homebase has no block entity, the bleep keeps where its home is). */
+    /** Server side: who lives here (the bleep keeps where its home is), and how full its battery is. */
     enum HomeData implements IServerDataProvider<BlockAccessor> {
         INSTANCE;
 
@@ -78,6 +78,9 @@ public class BleepJadePlugin implements IWailaPlugin {
         public void appendServerData(CompoundTag data, BlockAccessor accessor) {
             BleepEntity resident = HomebaseBlock.resident(accessor.getLevel(), accessor.getPosition());
             if (resident != null) data.putString("bleep_resident", resident.getDisplayName().getString());
+            if (io.hookdev.bleep.BleepConfig.homebaseNeedsPower() && accessor.getBlockEntity() instanceof io.hookdev.bleep.block.HomebaseBlockEntity home) {
+                data.putInt("bleep_battery", Math.round(home.fraction() * 100));
+            }
         }
 
         @Override
@@ -94,6 +97,8 @@ public class BleepJadePlugin implements IWailaPlugin {
             String resident = accessor.getServerData().getStringOr("bleep_resident", "");
             tooltip.add(resident.isEmpty() ? Component.translatable("jade.bleep.nobody_home").withStyle(ChatFormatting.GRAY)
                     : Component.translatable("message.bleep.homebase_of", resident).withStyle(ChatFormatting.AQUA));
+            int battery = accessor.getServerData().getIntOr("bleep_battery", -1);
+            if (battery >= 0) tooltip.add(Component.translatable("jade.bleep.homebase_battery", battery).withStyle(battery == 0 ? ChatFormatting.GOLD : ChatFormatting.GRAY));
             if (accessor.getBlockState().getValue(HomebaseBlock.CHARGING)) {
                 tooltip.add(Component.translatable("activity.bleep.charging").withStyle(ChatFormatting.GRAY));
             }

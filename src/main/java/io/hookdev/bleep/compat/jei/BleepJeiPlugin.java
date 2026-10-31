@@ -29,6 +29,8 @@ public final class BleepJeiPlugin implements IModPlugin {
         info(registration, BleepContent.HOMEBASE.get(), "homebase");
         info(registration, BleepContent.POWER_BANK.get(), "power_bank");
         info(registration, BleepContent.BALL.get(), "ball");
+        info(registration, BleepContent.WHISTLE.get(), "whistle");
+        info(registration, BleepContent.TRACKER.get(), "tracker");
         info(registration, BleepContent.STAR_SHARD.get(), "star_shard");
         BleepContent.CHIPS.forEach((chip, item) -> info(registration, item.get(), chip.id()));
     }

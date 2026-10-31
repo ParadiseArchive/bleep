@@ -1,0 +1,22 @@
+{
+  "parent": "bleep:friends",
+  "display": {
+    "icon": {
+      "id": "minecraft:cake"
+    },
+    "title": {
+      "translate": "advancements.bleep.best_friends.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.best_friends.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

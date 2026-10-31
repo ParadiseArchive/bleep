@@ -27,11 +27,16 @@ public class Bleep {
 
     public Bleep(IEventBus modEventBus, ModContainer modContainer) {
         BleepContent.register(modEventBus);
+        modContainer.registerConfig(McVersion.WORLD_CONFIG, BleepConfig.SPEC);
         BleepGameTests.register(modEventBus);
         modEventBus.addListener((EntityAttributeCreationEvent event) -> event.put(BleepContent.BLEEP.get(), BleepEntity.createAttributes().build()));
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle)
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("2").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle)
+                .playToServer(io.hookdev.bleep.network.PhotoTaken.TYPE, io.hookdev.bleep.network.PhotoTaken.CODEC, io.hookdev.bleep.network.PhotoTaken::handle)
+                .playToClient(io.hookdev.bleep.network.PhotoRequest.TYPE, io.hookdev.bleep.network.PhotoRequest.CODEC)
+                .playToClient(io.hookdev.bleep.network.TrackerData.TYPE, io.hookdev.bleep.network.TrackerData.CODEC)
                 .playToServer(io.hookdev.bleep.network.BleepRename.TYPE, io.hookdev.bleep.network.BleepRename.CODEC, io.hookdev.bleep.network.BleepRename::handle)
                 .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC));
+        modEventBus.addListener(Bleep::registerCapabilities);
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
         NeoForge.EVENT_BUS.addListener(Bleep::guardTheGrave);
@@ -73,6 +78,12 @@ public class Bleep {
             }
         });
         LOGGER.info("Bleep loaded. Bleep bloop.");
+    }
+
+    /** A homebase takes FE from any mod's cables, and redstone and a parked bleep's things from hoppers and pipes. */
+    private static void registerCapabilities(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(net.neoforged.neoforge.capabilities.Capabilities.Energy.BLOCK, BleepContent.HOMEBASE_ENTITY.get(), (home, side) -> home.energy());
+        event.registerBlockEntity(net.neoforged.neoforge.capabilities.Capabilities.Item.BLOCK, BleepContent.HOMEBASE_ENTITY.get(), (home, side) -> home.items());
     }
 
     /**

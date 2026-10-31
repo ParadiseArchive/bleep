@@ -37,6 +37,8 @@ public final class BleepContent {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Bleep.MODID);
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Bleep.MODID);
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(Registries.SOUND_EVENT, Bleep.MODID);
+    public static final DeferredRegister<net.minecraft.world.level.block.entity.BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Bleep.MODID);
+    public static final DeferredRegister<net.minecraft.core.component.DataComponentType<?>> COMPONENTS = DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, Bleep.MODID);
     public static final DeferredRegister<MapCodec<? extends IGlobalLootModifier>> LOOT_MODIFIERS =
             DeferredRegister.create(NeoForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, Bleep.MODID);
 
@@ -70,6 +72,12 @@ public final class BleepContent {
         return null;
     }
 
+    /** A whistle: your bleeps come to you, or stay (sneaking). */
+    public static final DeferredItem<io.hookdev.bleep.item.WhistleItem> WHISTLE = ITEMS.registerItem("whistle", io.hookdev.bleep.item.WhistleItem::new, p -> p.stacksTo(1));
+
+    /** The Bleep Tracker: all your bleeps on a little screen, with an arrow to each. */
+    public static final DeferredItem<io.hookdev.bleep.item.TrackerItem> TRACKER = ITEMS.registerItem("tracker", io.hookdev.bleep.item.TrackerItem::new, p -> p.stacksTo(1));
+
     /** A ball to throw for your bleep: it bounces, and your bleep brings it back. */
     public static final DeferredItem<io.hookdev.bleep.item.BallItem> BALL = ITEMS.registerItem("ball", io.hookdev.bleep.item.BallItem::new, p -> p.stacksTo(16));
     public static final DeferredHolder<EntityType<?>, EntityType<io.hookdev.bleep.entity.BallEntity>> BALL_ENTITY = ENTITIES.register("ball",
@@ -98,6 +106,19 @@ public final class BleepContent {
             p -> p.mapColor(MapColor.METAL).strength(2.0f, 6.0f).sound(SoundType.METAL).noOcclusion()
                     .lightLevel(state -> state.getValue(HomebaseBlock.CHARGING) ? 7 : 0));
     public static final DeferredItem<BlockItem> HOMEBASE_ITEM = ITEMS.registerSimpleBlockItem(HOMEBASE);
+    /** The homebase's own battery: FE, filled with redstone or by cables. */
+    public static final DeferredHolder<net.minecraft.world.level.block.entity.BlockEntityType<?>, net.minecraft.world.level.block.entity.BlockEntityType<io.hookdev.bleep.block.HomebaseBlockEntity>> HOMEBASE_ENTITY =
+            BLOCK_ENTITIES.register("homebase", () -> new net.minecraft.world.level.block.entity.BlockEntityType<>(io.hookdev.bleep.block.HomebaseBlockEntity::new, HOMEBASE.get()));
+    /** The FE in a broken homebase, kept in the item. */
+    public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<Integer>> STORED_ENERGY = COMPONENTS.register("stored_energy",
+            () -> net.minecraft.core.component.DataComponentType.<Integer>builder().persistent(com.mojang.serialization.Codec.INT).networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT).build());
+
+    /** A display case: its bleep's museum, by its homebase. */
+    public static final DeferredBlock<io.hookdev.bleep.block.DisplayCaseBlock> DISPLAY_CASE = BLOCKS.registerBlock("display_case", io.hookdev.bleep.block.DisplayCaseBlock::new,
+            p -> p.mapColor(MapColor.WOOD).strength(1.0f).sound(SoundType.GLASS).noOcclusion());
+    public static final DeferredItem<BlockItem> DISPLAY_CASE_ITEM = ITEMS.registerSimpleBlockItem(DISPLAY_CASE);
+    public static final DeferredHolder<net.minecraft.world.level.block.entity.BlockEntityType<?>, net.minecraft.world.level.block.entity.BlockEntityType<io.hookdev.bleep.block.DisplayCaseBlockEntity>> DISPLAY_CASE_ENTITY =
+            BLOCK_ENTITIES.register("display_case", () -> new net.minecraft.world.level.block.entity.BlockEntityType<>(io.hookdev.bleep.block.DisplayCaseBlockEntity::new, DISPLAY_CASE.get()));
 
     /** From the stars: glowing rock with strange signs on it (it lines a crater), and the fallen star in the middle. */
     public static final DeferredBlock<io.hookdev.bleep.block.StarBlock> STARSTONE = BLOCKS.registerBlock("starstone", p -> new io.hookdev.bleep.block.StarBlock(p, false),
@@ -135,11 +156,14 @@ public final class BleepContent {
                 output.accept(BLEEP_TRACKS.get());
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
+                output.accept(DISPLAY_CASE_ITEM.get());
                 output.accept(STAR_SHARD.get());
                 output.accept(STARSTONE_ITEM.get());
                 output.accept(FALLEN_STAR_ITEM.get());
                 output.accept(POWER_BANK.get());
                 output.accept(BALL.get());
+                output.accept(WHISTLE.get());
+                output.accept(TRACKER.get());
                 CHIPS.values().forEach(item -> output.accept(item.get()));
                 ACCESSORIES.values().forEach(item -> output.accept(item.get()));
             })
@@ -149,6 +173,8 @@ public final class BleepContent {
 
     public static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
+        BLOCK_ENTITIES.register(modEventBus);
+        COMPONENTS.register(modEventBus);
         ENTITIES.register(modEventBus);
         ITEMS.register(modEventBus);
         TABS.register(modEventBus);

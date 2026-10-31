@@ -6,7 +6,7 @@
   <a href="https://github.com/ParadiseArchive/bleep/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/ParadiseArchive/bleep/build.yml?branch=main&style=flat-square&label=build&labelColor=0a0c13&color=2de2e6" alt="Build"></a>
   <img src="https://img.shields.io/badge/minecraft-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="Minecraft 26.1.2 and 26.3">
   <img src="https://img.shields.io/badge/neoforge-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="NeoForge 26.1.2 and 26.3">
-  <img src="https://img.shields.io/badge/version-0.1.0-ffb547?style=flat-square&labelColor=0a0c13" alt="Version 0.1.0">
+  <img src="https://img.shields.io/badge/version-0.2.0-ffb547?style=flat-square&labelColor=0a0c13" alt="Version 0.2.0">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-ff4f8b?style=flat-square&labelColor=0a0c13" alt="License: GPL-3.0"></a>
 </p>
 
@@ -49,7 +49,7 @@ your bond, its favourite item (??? until you find out what it is), what it is th
 Home buttons. Sneak-right-click to pet it. It talks back in cute robot chirps, a few for every mood.
 
 <p align="center">
-  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt (click to rename), mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and down the right a book with a ! for its Bleepedia, a chest for its storage, a magnet, a ball for Play and a hoe for Work.">
+  <img src=".github/readme/info-screen.png" width="49%" alt="The info screen: a happy face, the name Bolt (click to rename), mood Happy, Following you, battery 73 %, bond Friend, favourite ???, a thought, the Follow, Stay and Go Home buttons, and down the right a book with a ! for its Bleepedia, a chest for its storage, a magnet, a ball for Play, a hoe for Work, its chips and a compass, and a speaker to mute it.">
 </p>
 
 ## What is in it
@@ -74,11 +74,18 @@ and its display has tricks: its name as a ticker, tic-tac-toe when it is bored, 
 Every bleep keeps a book: the Bleepedia, behind the book on its info screen. Every mob it met (with its face and its
 opinion), every biome it drove through, the special blocks it spotted, its stats and a diary in its own words; a ! on
 the book when there is something new. Out in the world it dances when a record plays, sleeps next to your bed, digs up
-bits and bobs and adores iron golems. Now and then you find an old, abandoned bleep: a block of redstone wakes it up.
+bits and bobs and adores iron golems. In the water a little boat pops up under it, on snow it rides a sled, and when
+it stays somewhere snowy it builds a snowman. It feels rain coming, does impressions of mobs it met, and fills display
+cases near its homebase with its favourite things: its own museum. Now and then you find an old, abandoned bleep: a
+block of redstone wakes it up.
 
-<img src=".github/readme/bleepedia.png" width="420" alt="The Bleepedia: tabs for mobs, biomes, finds, about me and its diary, with a creeper it has met between the ones it has not.">
+### Photos
+At a nice moment it says Click! and takes a photo of what you see: a sunset with you, a falling star, its best friend,
+a new biome. They go in a Photos tab in its Bleepedia, and Print puts one on a map for an item frame.
 
-<img src=".github/readme/shelf-world.png" width="100%" alt="An abandoned bleep in faded paint, an orange bleep dancing in a party hat, and a bleep asleep.">
+<img src=".github/readme/bleepedia.png" width="420" alt="The Bleepedia: tabs for mobs, biomes, finds, about me, its diary, badges, the ??? page and photos, with the mobs it has met.">
+
+<img src=".github/readme/shelf-world.png" width="100%" alt="An abandoned bleep in faded paint, an orange bleep dancing in a party hat, a bleep in its boat, a bleep on its sled, and a display case.">
 
 ### Storage and magnet
 Every bleep carries a storage as big as a small chest, behind the chest on its info screen. Switch on its magnet and it
@@ -141,19 +148,23 @@ plants a sapling where they stood.
 Now and then it asks you something, yes or no. It remembers, and brings it up again later.
 
 ### Parts and home
-The core and the three parts a bleep is built from, a power bank, and the homebase: a charging pad it goes home to when it runs empty, and that Go
-Home sends it to. Its light burns while it charges.
+The core and the three parts a bleep is built from, a power bank, a whistle that calls your bleeps, a Bleep Tracker that
+shows where they all are, and the homebase: a charging pad it goes home to when it runs empty, and that Go Home sends
+it to. A homebase charges from a battery of its own: fill it with redstone, a block of redstone or FE from cables.
+Hoppers and pipes reach the storage of the bleep parked on it.
 
-<img src=".github/readme/shelf-parts.png" width="100%" alt="Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase.">
+<img src=".github/readme/shelf-parts.png" width="100%" alt="Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms, the power bank, the whistle, the Bleep Tracker and the homebase.">
 
 ## Get it
 
-Bleep is not out yet: the first release, **0.1.0**, is on its way to CurseForge. Until then you can build it yourself
-(see below).
+**0.2.0** is out: download it from the [GitHub releases](https://github.com/ParadiseArchive/bleep/releases)
+(CurseForge is on its way). What is new is in
+[the changelog](release/changelog/0.2.0.md).
 
 - Minecraft 26.3 or 26.1.2 (the version of All the Mods 11) with NeoForge, Java 25: pick the file for your Minecraft version
 - In-game help: tooltips on every part, and in JEI every recipe and where the core is found
 - Works with Jade (battery, mood and bond when you look at a bleep) and JEI
+- Thirteen advancements, and a config for pack makers (bleeps per player, battery drain, homebase power, falling stars and more)
 - Stand-alone: no other mod needed
 
 The full documentation, with every face, part, recipe and the info screen, is on

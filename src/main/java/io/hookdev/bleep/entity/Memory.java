@@ -32,6 +32,36 @@ public final class Memory {
 
     private static final Codec<Map<String, Long>> FOUND = Codec.unboundedMap(Codec.STRING, Codec.LONG);
 
+    /**
+     * A photo it took (owner, 31 Oct 2026): the game time, the moment (photo.bleep.<moment>: sunset, star, friend,
+     * biome), something to fill in (a biome or a friend's name, or empty), and the picture itself, W x H pixels, two
+     * bytes each (RGB 565: five bits of red, six of green, five of blue).
+     */
+    public record Photo(long time, String moment, String arg, byte[] pixels) {
+        public static final int W = 96, H = 54, BYTES = W * H * 2;
+        public static final Codec<Photo> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.LONG.fieldOf("time").forGetter(Photo::time), Codec.STRING.fieldOf("moment").forGetter(Photo::moment),
+                Codec.STRING.fieldOf("arg").forGetter(Photo::arg),
+                Codec.BYTE_BUFFER.xmap(b -> { byte[] a = new byte[b.remaining()]; b.get(a); return a; }, java.nio.ByteBuffer::wrap).fieldOf("pixels").forGetter(Photo::pixels))
+                .apply(i, Photo::new));
+
+        /** A pixel as an opaque ARGB colour. */
+        public int colour(int x, int y) {
+            int i = (y * W + x) * 2, v = (pixels[i] & 255) << 8 | pixels[i + 1] & 255;
+            return 0xFF000000 | ((v >> 11) & 31) * 255 / 31 << 16 | ((v >> 5) & 63) * 255 / 63 << 8 | (v & 31) * 255 / 31;
+        }
+
+        /** An ARGB colour as the two bytes of a pixel. */
+        public static void put(byte[] pixels, int x, int y, int r, int g, int b) {
+            int v = Math.round(r * 31 / 255f) << 11 | Math.round(g * 63 / 255f) << 5 | Math.round(b * 31 / 255f), i = (y * W + x) * 2;
+            pixels[i] = (byte) (v >> 8);
+            pixels[i + 1] = (byte) v;
+        }
+    }
+
+    /** How many photos it keeps: the oldest go first. */
+    public static final int PHOTOS = 12;
+
     /** Another bleep it knows: its name (as it was last) and how good friends they are. */
     public record Friend(String name, int points) {
         public static final Codec<Friend> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -51,6 +81,7 @@ public final class Memory {
     /** Kind of mob, biome or find (by id), and the game time it was found. */
     public final Map<String, Long> mobs = new LinkedHashMap<>(), biomes = new LinkedHashMap<>(), finds = new LinkedHashMap<>();
     public final List<Entry> diary = new ArrayList<>();
+    public final List<Photo> photos = new ArrayList<>();
     /** The game time it was put together, the last time its owner opened the Bleepedia, and its stats. */
     public long born = -1, lastOpened = -1;
     public int daysTogether, fightsWon, timesEmpty;
@@ -97,6 +128,12 @@ public final class Memory {
         return true;
     }
 
+    /** Keeps a photo; the oldest goes when there are too many. */
+    public void addPhoto(Photo photo) {
+        photos.add(photo);
+        while (photos.size() > PHOTOS) photos.removeFirst();
+    }
+
     /** Better (or worse) friends with another bleep; returns the friend as it is now. */
     public Friend befriend(String id, String name, int points) {
         Friend before = friends.get(id);
@@ -129,6 +166,7 @@ public final class Memory {
         output.store("friends", Codec.unboundedMap(Codec.STRING, Friend.CODEC), friends);
         output.store("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL), answers);
         output.store("recalled", FOUND, recalled);
+        output.store("photos", Photo.CODEC.listOf(), photos);
     }
 
     public void load(ValueInput input) {
@@ -160,5 +198,7 @@ public final class Memory {
         input.read("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL)).ifPresent(answers::putAll);
         recalled.clear();
         input.read("recalled", FOUND).ifPresent(recalled::putAll);
+        photos.clear();
+        input.read("photos", Photo.CODEC.listOf()).ifPresent(list -> list.stream().filter(p -> p.pixels().length == Photo.BYTES).forEach(photos::add)); // not the first, smaller kind
     }
 }

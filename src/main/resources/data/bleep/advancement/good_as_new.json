@@ -1,0 +1,22 @@
+{
+  "parent": "bleep:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:redstone_block"
+    },
+    "title": {
+      "translate": "advancements.bleep.good_as_new.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.good_as_new.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

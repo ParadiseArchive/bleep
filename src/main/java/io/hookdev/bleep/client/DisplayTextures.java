@@ -68,6 +68,8 @@ public final class DisplayTextures {
             case ALERT -> "alert" + ((int) (state.ageInTicks / 4) % 2);
             case YUM, CURIOUS, SWEAT, TEAR, SPARKLE, ORE -> state.display.name() + ((int) (state.ageInTicks / 8) % 2);
             case QUESTION -> "question" + ((int) (state.ageInTicks / 10) % 2);
+            case RAIN, THUNDER -> state.display.name() + ((int) (state.ageInTicks / 5) % 3);
+            case IMITATE -> "imitate" + ((int) (state.ageInTicks / 4) % 4);
             case DREAM -> "dream" + state.dream + (state.dream.startsWith("mob:") ? step : (int) (state.ageInTicks / 5));
             case TREASURE -> state.treasureDistance > FAR_OFF ? "treasure_arrow" + arrow(state.treasureAngle) : "treasure" + warmth(state.treasureDistance) + ((int) (state.ageInTicks / 6) % 2);
             default -> "face";
@@ -88,6 +90,9 @@ public final class DisplayTextures {
             case SPARKLE -> sparkle(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case ORE -> ore(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case QUESTION -> question(image, (int) (state.ageInTicks / 10) % 2 == 0);
+            case RAIN -> weather(image, false, (int) (state.ageInTicks / 5) % 3);
+            case THUNDER -> weather(image, true, (int) (state.ageInTicks / 5) % 3);
+            case IMITATE -> imitate(image, (int) (state.ageInTicks / 4) % 4);
             case DREAM -> dream(image, state.dream, state.dreamName, (int) (state.ageInTicks / 3), (int) (state.ageInTicks / 5), state.id);
             case TREASURE -> {
                 if (state.treasureDistance > FAR_OFF) arrow(image, arrow(state.treasureAngle));
@@ -243,6 +248,38 @@ public final class DisplayTextures {
         }
         String[] heart = beat ? new String[] {".#.#.", "#####", "#####", ".###.", "..#.."} : new String[] {".....", ".#.#.", ".###.", "..#..", "....."};
         for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++) if (heart[y].charAt(x) == '#') set(image, 12 + x, 2 + y, PINK);
+    }
+
+    // ---------- the weather forecast ----------
+
+    private static final int CLOUD = 0xFFD6DCE2, STORM_CLOUD = 0xFF7D8794, RAIN_DROP = 0xFF5AB4FF, BOLT = 0xFFFFE14A;
+
+    /** A cloud, with rain falling from it (three frames), or a dark one with a flashing bolt. */
+    private static void weather(NativeImage image, boolean thunder, int frame) {
+        String[] cloud = {"...###....", ".#######..", "##########", ".########."};
+        int colour = thunder ? STORM_CLOUD : CLOUD;
+        for (int y = 0; y < cloud.length; y++) for (int x = 0; x < 10; x++) if (cloud[y].charAt(x) == '#') set(image, 5 + x, 1 + y, colour);
+        if (thunder && frame != 1) { // the bolt, on and off
+            int[][] bolt = {{10, 5}, {9, 6}, {10, 6}, {11, 6}, {10, 7}, {9, 8}};
+            for (int[] p : bolt) set(image, p[0], p[1], BOLT);
+        }
+        for (int i = 0; i < 4; i++) { // the rain, falling
+            int x = 6 + i * 2 + (i % 2), y = 5 + (frame + i) % 4;
+            if (!thunder || x < 8 || x > 11) set(image, x, y, RAIN_DROP);
+        }
+    }
+
+    // ---------- imitating a mob: guess who ----------
+
+    /** Sound waves that pulse, and a question mark: who was that? */
+    private static void imitate(NativeImage image, int frame) {
+        int[] heights = {2, 4, 6, 3, 5, 2};
+        for (int i = 0; i < heights.length; i++) {
+            int h = Math.max(1, (heights[i] + frame * (i % 2 == 0 ? 1 : -1) + 8) % 7);
+            for (int y = 0; y < h; y++) set(image, 2 + i * 2, 5 + h / 2 - y, GLOW);
+        }
+        String glyph = FONT.get('?');
+        for (int g = 0; g < 15; g++) if (glyph.charAt(g) == '#') set(image, 15 + g % 3, 2 + g / 3, AMBER);
     }
 
     // ---------- stars: a little constellation, twinkling ----------

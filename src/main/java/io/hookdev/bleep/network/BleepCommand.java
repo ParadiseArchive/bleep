@@ -13,9 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 /** A button on a bleep's info screen: Follow, Stay, Go Home, take the torch, its Bleepedia, its storage, its magnet. */
 public record BleepCommand(int entityId, int command) implements CustomPacketPayload {
-    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, SHOW_WAY = 7, ANSWER_YES = 8, ANSWER_NO = 9, HIDE = 10, SEEK = 11, BURY = 12, FIND = 13;
+    public static final int FOLLOW = BleepEntity.FOLLOW, STAY = BleepEntity.STAY, GO_HOME = BleepEntity.GO_HOME, TAKE_TORCH = 3, OPEN_BOOK = 4, OPEN_STORAGE = 5, MAGNET = 6, SHOW_WAY = 7, ANSWER_YES = 8, ANSWER_NO = 9, HIDE = 10, SEEK = 11, BURY = 12, FIND = 13, MUTE = 14;
     /** Plus a trick (Trick ordinal), a stay radius, or a job (its JOB_ bit). */
-    public static final int TRICK = 20, RADIUS = 100, JOB = 200, REMOVE_CHIP = 300;
+    public static final int TRICK = 20, RADIUS = 100, JOB = 200, REMOVE_CHIP = 300, PRINT_PHOTO = 400;
     public static final Type<BleepCommand> TYPE = new Type<>(Bleep.id("command"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BleepCommand> CODEC = CustomPacketPayload.codec(BleepCommand::write, BleepCommand::read);
     /** How far from the player a bleep still hears its owner. */
@@ -63,6 +63,11 @@ public record BleepCommand(int entityId, int command) implements CustomPacketPay
         }
         if (command > JOB && command < JOB + 64) {
             bleep.toggleJob(command - JOB);
+            return true;
+        }
+        if (command >= PRINT_PHOTO && command < PRINT_PHOTO + io.hookdev.bleep.entity.Memory.PHOTOS) return bleep.printPhoto(player, command - PRINT_PHOTO);
+        if (command == MUTE) {
+            bleep.setMuted(!bleep.muted());
             return true;
         }
         if (command == MAGNET) {

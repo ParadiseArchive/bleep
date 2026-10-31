@@ -1,0 +1,9 @@
+{
+  "parent": "bleep:block/homebase",
+  "textures": {
+    "particle": "bleep:block/homebase_side",
+    "pad": "bleep:block/homebase_pad",
+    "side": "bleep:block/homebase_side",
+    "post": "bleep:block/homebase_post_on_4"
+  }
+}

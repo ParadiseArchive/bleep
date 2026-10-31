@@ -153,6 +153,12 @@ public class BleepModel extends EntityModel<BleepRenderState> implements ArmedMo
             rightArm.zRot = 0.3f;
             leftArm.zRot = -0.3f;
         }
+        if (state.sledding) { // on its sled, a little higher, arms up: wheee
+            root.y -= 2;
+            rightArm.xRot = leftArm.xRot = -2.6f;
+            rightArm.zRot = 0.25f;
+            leftArm.zRot = -0.25f;
+        }
         if (state.carrying && emotion != Emotion.GLITCH) { // holding its find out in front
             rightArm.xRot = leftArm.xRot = -1.1f;
             rightArm.zRot = leftArm.zRot = 0;

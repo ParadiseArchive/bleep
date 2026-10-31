@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:glass",
+    "P": "#minecraft:planks"
+  },
+  "pattern": [
+    "GGG",
+    "G G",
+    "PPP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "bleep:display_case"
+  }
+}

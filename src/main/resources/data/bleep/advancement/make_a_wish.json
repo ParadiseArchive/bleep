@@ -1,0 +1,29 @@
+{
+  "parent": "bleep:root",
+  "display": {
+    "icon": {
+      "id": "bleep:star_shard"
+    },
+    "title": {
+      "translate": "advancements.bleep.make_a_wish.title"
+    },
+    "description": {
+      "translate": "advancements.bleep.make_a_wish.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "got": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "bleep:star_shard"
+          }
+        ]
+      }
+    }
+  }
+}

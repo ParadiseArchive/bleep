@@ -1,7 +1,7 @@
 // Generates Bleep's textures, item models and language file. Run from the project root:  node tools/gen-assets.mjs
 // The bleep's texture follows the boxes in client/BleepModel.java (64 x 64, Minecraft's usual box layout); the faces
 // on its display are 128 x 128, so the display (10 x 5 on the model) gets 20 x 10 pixels.
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 
@@ -119,6 +119,24 @@ texture('entity/bleep/bleep', 64, 64, g => {
 });
 
 // ---------- what a bleep wears (64 x 64), from the boxes in client/AccessoryModel.java ----------
+// the little boat on the water: planks all over (BoatModel), a dark rim along the top of each board
+texture('entity/bleep/boat', 128, 64, g => {
+  const PLANK = '#9c6b3a', PLANK_DARK = '#7a5029', PLANK_LIGHT = '#b9824b', SEAM_DARK = '#5a3a1c';
+  g.rect(0, 0, 128, 64, PLANK);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 128; x++) {
+    if (y % 4 === 3) g.set(x, y, SEAM_DARK);                         // between the boards
+    else if ((x * 7 + y * 13) % 23 === 0) g.set(x, y, PLANK_DARK);   // the grain
+    else if ((x * 5 + y * 11) % 29 === 0) g.set(x, y, PLANK_LIGHT);
+  }
+  for (let x = 0; x < 128; x++) for (const y of [20, 44]) g.set(x, y, '#2de2e6'); // a cyan stripe along the top rim
+});
+// the sled on snow (SledModel): red-painted wood on two steel runners curled up at the front
+texture('entity/bleep/sled', 64, 32, g => {
+  g.rect(0, 0, 64, 16, '#c8323c');
+  for (let x = 0; x < 64; x++) { g.set(x, 3, '#9e2530'); g.set(x, 7, '#9e2530'); g.set(x, 11, '#9e2530'); g.set(x, 15, '#9e2530'); }
+  g.rect(0, 16, 64, 16, '#c9d1d9');
+  for (let x = 0; x < 64; x++) { g.set(x, 16, '#eef2f5'); g.set(x, 31, '#7d8794'); }
+});
 texture('entity/bleep/accessories', 64, 64, g => {
   const MAG = '#ff4f8b', CYN = '#2de2e6', YEL = '#ffd23f', BLK = '#1b1d22', BLK2 = '#2c2f36', RED = '#d6283b', RED2 = '#a01a2a';
   // party hat: three tiers in magenta and cyan stripes, a white pompom on top
@@ -279,6 +297,34 @@ texture('item/power_bank', 16, 16, g => {
   g.rect(6, 1, 4, 2, '#c87533'); g.rect(7, 1, 2, 1, '#e89a5c');
   for (const y of [5, 8, 11]) g.rect(6, y, 4, 2, y === 5 ? '#1f9aa0' : GLOW);
 });
+// a whistle: a silver tin whistle with a cyan lanyard ring
+texture('item/whistle', 16, 16, g => {
+  const TIN = '#c9d1d9', TIN_DARK = '#7d8794', TIN_LIGHT = '#eef2f5';
+  for (let i = 0; i < 9; i++) { g.rect(3 + i, 11 - i, 2, 2, TIN); g.set(3 + i, 12 - i, TIN_DARK); g.set(4 + i, 11 - i, TIN_LIGHT); }
+  g.rect(11, 2, 3, 3, TIN); g.set(13, 4, TIN_DARK); g.set(11, 2, TIN_LIGHT);   // the mouthpiece
+  g.set(7, 7, DARK); g.set(6, 8, DARK);                                          // the hole
+  g.rect(1, 12, 3, 1, GLOW); g.rect(1, 13, 1, 2, GLOW); g.rect(1, 15, 3, 1, GLOW); g.set(3, 14, GLOW); // the lanyard ring
+});
+// the sound button on its info screen: a speaker with waves (on), or with a red cross (off)
+for (const on of [true, false]) {
+  texture('gui/sound_' + (on ? 'on' : 'off'), 16, 16, g => {
+    const BODY = '#d6dce2', EDGE = '#8d949c';
+    g.rect(2, 6, 3, 4, BODY); g.rect(5, 5, 1, 6, BODY); g.rect(6, 4, 1, 8, BODY); g.rect(7, 3, 1, 10, BODY); g.rect(8, 2, 1, 12, EDGE);
+    if (on) {
+      g.rect(10, 6, 1, 4, GLOW); g.set(11, 5, GLOW); g.set(11, 10, GLOW); g.rect(12, 6, 1, 4, GLOW);
+      g.rect(13, 4, 1, 8, GLOW); g.set(12, 3, GLOW); g.set(12, 12, GLOW);
+    } else {
+      for (let i = 0; i < 5; i++) { g.set(10 + i, 5 + i, '#ff4f8b'); g.set(14 - i, 5 + i, '#ff4f8b'); }
+    }
+  });
+}
+// the Bleep Tracker: a little white handheld with a black screen, a cyan dot on it and an antenna
+texture('item/tracker', 16, 16, g => {
+  g.rect(3, 3, 10, 12, WHITE_EDGE); g.rect(4, 4, 8, 10, WHITE);
+  g.rect(5, 5, 6, 5, SCREEN); g.set(8, 7, GLOW); g.set(6, 6, DIM); g.set(9, 8, DIM);
+  g.rect(5, 11, 2, 2, '#ff4f8b'); g.rect(9, 11, 2, 2, DARK);
+  g.rect(11, 0, 1, 3, DARK); g.set(11, 0, GLOW);
+});
 // the magnet button on its info screen: a red horseshoe magnet with silver tips
 texture('gui/magnet', 16, 16, g => {
   const RED = '#d6283b', RED_DARK = '#a01a2a', TIP = '#d6dce2', TIP_DARK = '#8d949c';
@@ -349,7 +395,7 @@ for (const [name, led, mark] of [['speed_chip', '#ffb547', ['..#', '.#.', '###',
     g.rect(4, 4, 2, 2, '#0e3a1e');
   });
 }
-for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf']) {
+for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf', 'whistle', 'tracker']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -386,6 +432,12 @@ for (const [name, dye] of [['sticker_star', 'yellow_dye'], ['sticker_heart', 'pi
 }
 // a power bank: copper on top, iron round two blocks of redstone
 shaped('power_bank', [' C ', 'IRI', 'IRI'], { C: 'minecraft:copper_ingot', I: 'minecraft:iron_ingot', R: 'minecraft:redstone_block' });
+// the Bleep Tracker: a compass inside, redstone, and an iron case
+json(join(DATA, 'recipe/tracker.json'), { type: 'minecraft:crafting_shapeless', category: 'misc',
+  ingredients: ['minecraft:compass', 'minecraft:redstone', 'minecraft:iron_ingot'], result: { count: 1, id: 'bleep:tracker' } });
+// a whistle: an iron ingot, a nugget for the pea and string for the lanyard
+json(join(DATA, 'recipe/whistle.json'), { type: 'minecraft:crafting_shapeless', category: 'misc',
+  ingredients: ['minecraft:iron_ingot', 'minecraft:iron_nugget', 'minecraft:string'], result: { count: 1, id: 'bleep:whistle' } });
 // a bouncy ball: wool round a slimeball
 shaped('ball', [' W ', 'WSW', ' W '], { W: 'minecraft:white_wool', S: 'minecraft:slime_ball' });
 // upgrade chips: gold and redstone on a board, and what makes each one special
@@ -416,13 +468,18 @@ texture('block/homebase_side', 16, 16, g => {
   for (let x = 0; x < 16; x++) { g.set(x, 0, WHITE_SHADE); g.set(x, 15, WHITE_EDGE); g.set(x, 14, DARK); }
   g.rect(0, 6, 16, 1, SEAM);
 });
+// the post: the charge light (on while a bleep charges) and under it its own battery, four bars (power 0..4; empty: one red)
 for (const [name, light] of [['homebase_post', '#1a3a3d'], ['homebase_post_on', GLOW]]) {
-  texture('block/' + name, 16, 16, g => {
-    g.rect(0, 0, 16, 16, WHITE);
-    g.rect(5, 0, 6, 1, WHITE_SHADE);
-    g.rect(7, 3, 2, 8, SCREEN); g.rect(7, 4, 2, 6, light);           // the charge light
-    g.set(7, 1, GREY); g.set(8, 1, GREY);
-  });
+  for (let power = 0; power <= 4; power++) {
+    texture('block/' + name + '_' + power, 16, 16, g => {
+      g.rect(0, 0, 16, 16, WHITE);
+      g.rect(5, 0, 6, 1, WHITE_SHADE);
+      g.rect(7, 3, 2, 8, SCREEN); g.rect(7, 4, 2, 6, light);           // the charge light
+      g.set(7, 1, GREY); g.set(8, 1, GREY);
+      g.rect(6, 11, 4, 2, SCREEN);                                       // the battery
+      for (let bar = 0; bar < 4; bar++) g.set(6 + bar, 12, bar < power ? GLOW : power === 0 && bar === 0 ? '#ff4f8b' : '#1a3a3d');
+    });
+  }
 }
 const PAD = { from: [1, 0, 1], to: [15, 2, 15], faces: {
   up: { uv: [1, 1, 15, 15], texture: '#pad' }, down: { uv: [1, 1, 15, 15], texture: '#side' },
@@ -433,11 +490,14 @@ const POST = { from: [5, 2, 12], to: [11, 14, 15], faces: {
   east: { uv: [12, 2, 15, 14], texture: '#side' }, west: { uv: [1, 2, 4, 14], texture: '#side' },
   up: { uv: [5, 12, 11, 15], texture: '#side' } } };
 const homebaseTextures = post => ({ particle: 'bleep:block/homebase_side', pad: 'bleep:block/homebase_pad', side: 'bleep:block/homebase_side', post: 'bleep:block/' + post });
-json(join(ASSETS, 'models/block/homebase.json'), { parent: 'minecraft:block/block', textures: homebaseTextures('homebase_post'), elements: [PAD, POST] });
-json(join(ASSETS, 'models/block/homebase_charging.json'), { parent: 'bleep:block/homebase', textures: homebaseTextures('homebase_post_on') });
+json(join(ASSETS, 'models/block/homebase.json'), { parent: 'minecraft:block/block', textures: homebaseTextures('homebase_post_4'), elements: [PAD, POST] });
+for (let power = 0; power <= 4; power++) for (const on of [false, true]) {
+  json(join(ASSETS, 'models/block/homebase_' + power + (on ? '_charging' : '') + '.json'), { parent: 'bleep:block/homebase', textures: homebaseTextures('homebase_post' + (on ? '_on_' : '_') + power) });
+}
+for (const old of ['models/block/homebase_charging.json', 'textures/block/homebase_post.png', 'textures/block/homebase_post_on.png']) if (existsSync(join(ASSETS, old))) unlinkSync(join(ASSETS, old));
 const YAW = { north: 0, east: 90, south: 180, west: 270 };
-json(join(ASSETS, 'blockstates/homebase.json'), { variants: Object.fromEntries(Object.entries(YAW).flatMap(([facing, y]) => [false, true].map(on =>
-  ['charging=' + on + ',facing=' + facing, { model: 'bleep:block/homebase' + (on ? '_charging' : ''), ...(y ? { y } : {}) }]))) });
+json(join(ASSETS, 'blockstates/homebase.json'), { variants: Object.fromEntries(Object.entries(YAW).flatMap(([facing, y]) => [false, true].flatMap(on => [0, 1, 2, 3, 4].map(power =>
+  ['charging=' + on + ',facing=' + facing + ',power=' + power, { model: 'bleep:block/homebase_' + power + (on ? '_charging' : ''), ...(y ? { y } : {}) }])))) });
 item('homebase', 'bleep:block/homebase');
 
 // ---------- from the stars: starstone (strange signs on it), the fallen star, star shards ----------
@@ -478,6 +538,33 @@ json(join(DATA, 'recipe/homebase.json'), {
 json(join(DATA, 'loot_table/blocks/homebase.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/homebase',
   pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:homebase' }] }] });
 json(join(ROOT, 'data/minecraft/tags/block/mineable/pickaxe.json'), { values: ['bleep:homebase', 'bleep:starstone', 'bleep:fallen_star'] });
+
+// ---------- the display case: a glass case on a dark wooden foot, its bleep's museum ----------
+texture('block/display_case_wood', 16, 16, g => {
+  g.rect(0, 0, 16, 16, '#5a3a1e');
+  for (let x = 0; x < 16; x++) { g.set(x, 0, '#7a5029'); g.set(x, 15, '#3d2712'); if (x % 5 === 2) g.set(x, 7, '#4a2f17'); }
+  g.rect(0, 5, 16, 1, '#ffb547');                                  // a thin brass line
+});
+texture('block/display_case_glass', 16, 16, g => {
+  for (let i = 0; i < 16; i++) { g.set(i, 0, '#c9d1d9'); g.set(i, 15, '#c9d1d9'); g.set(0, i, '#c9d1d9'); g.set(15, i, '#c9d1d9'); } // the frame
+  g.set(3, 4, '#eef6ff'); g.set(4, 3, '#eef6ff'); g.set(3, 6, '#eef6ff'); g.set(6, 3, '#eef6ff'); g.set(5, 4, '#eef6ff'); g.set(4, 5, '#eef6ff'); // a shine
+});
+// the glass shows its whole texture on every side, so its frame runs along the edges
+const CASE_FACES = (from, to, tex) => Object.fromEntries(['north', 'south', 'east', 'west', 'up', 'down'].map(f => [f, tex === '#glass' ? { uv: [0, 0, 16, 16], texture: tex } : { texture: tex }]));
+json(join(ASSETS, 'models/block/display_case.json'), { parent: 'minecraft:block/block',
+  textures: { particle: 'bleep:block/display_case_wood', wood: 'bleep:block/display_case_wood', glass: 'bleep:block/display_case_glass' },
+  elements: [
+    { from: [1, 0, 1], to: [15, 4, 15], faces: CASE_FACES(null, null, '#wood') },                // the foot
+    { from: [6, 4, 6], to: [10, 5, 10], faces: CASE_FACES(null, null, '#wood') },                // a little plinth
+    { from: [1, 4, 1], to: [15, 15, 15], faces: CASE_FACES(null, null, '#glass') },              // the glass
+    { from: [1, 15, 1], to: [15, 16, 15], faces: CASE_FACES(null, null, '#wood') },              // the lid
+  ] });
+json(join(ASSETS, 'blockstates/display_case.json'), { variants: { '': { model: 'bleep:block/display_case' } } });
+item('display_case', 'bleep:block/display_case');
+json(join(DATA, 'loot_table/blocks/display_case.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/display_case',
+  pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:display_case' }] }] });
+json(join(ROOT, 'data/minecraft/tags/block/mineable/axe.json'), { values: ['bleep:display_case'] });
+shaped('display_case', ['GGG', 'G G', 'PPP'], { G: 'minecraft:glass', P: '#minecraft:planks' });
 // the core from the stars: eight star shards round a block of diamond
 json(join(DATA, 'recipe/bleep_core_from_stars.json'), { type: 'minecraft:crafting_shaped', category: 'misc',
   key: { S: 'bleep:star_shard', B: 'minecraft:diamond_block' }, pattern: ['SSS', 'SBS', 'SSS'], result: { count: 1, id: 'bleep:bleep_core' } });
@@ -613,6 +700,35 @@ const favouriteLines = Object.fromEntries(Object.entries(FAVOURITES).flatMap(([i
 const mobLines = Object.fromEntries(Object.entries(MOBS).map(([id, line]) => ['mob.bleep.' + id, line]));
 const thoughtLines = Object.fromEntries(Object.entries(THOUGHTS).flatMap(([kind, lines]) => lines.map((line, n) => ['thought.bleep.' + kind + '.' + n, line])));
 
+// ---------- advancements: the root and the shard come from the inventory, the others are awarded in Awards.java ----------
+const ADVANCEMENTS = [
+  // id, parent, icon, frame, title, description
+  ['root', null, 'bleep:bleep_core', 'task', 'Bleep!', 'Find a Bleep Core'],
+  ['hello_world', 'root', 'bleep:bleep_display', 'task', 'Hello, World', 'Build a bleep'],
+  ['home_sweet_home', 'hello_world', 'bleep:homebase', 'task', 'Home Sweet Home', 'Give your bleep a homebase'],
+  ['friends', 'hello_world', 'minecraft:cookie', 'task', 'Friends', 'Become friends with a bleep'],
+  ['best_friends', 'friends', 'minecraft:cake', 'goal', 'Best Friends', 'Become a bleep\'s best friend'],
+  ['dressed_up', 'hello_world', 'bleep:top_hat', 'task', 'Dressed to Impress', 'Put something on your bleep'],
+  ['overcharged', 'hello_world', 'minecraft:lightning_rod', 'goal', 'Overcharged!', 'See your bleep get struck by lightning'],
+  ['birthday', 'friends', 'bleep:party_hat', 'goal', 'Happy Birthday', 'Celebrate a bleep\'s birthday'],
+  ['family', 'hello_world', 'bleep:bleep_tracks', 'goal', 'The More the Merrier', 'Have three bleeps'],
+  ['snowman', 'hello_world', 'minecraft:snow_block', 'task', 'Do You Want to Build a Snowman?', 'Your bleep builds a snowman'],
+  ['say_cheese', 'hello_world', 'minecraft:spyglass', 'task', 'Say Cheese!', 'Your bleep takes a photo'],
+  ['make_a_wish', 'root', 'bleep:star_shard', 'goal', 'Make a Wish', 'Find a star shard'],
+  ['good_as_new', 'root', 'minecraft:redstone_block', 'goal', 'Good as New', 'Wake an abandoned bleep'],
+];
+const BY_INVENTORY = { root: 'bleep:bleep_core', make_a_wish: 'bleep:star_shard' };
+for (const [id, parent, icon, frame] of ADVANCEMENTS) {
+  json(join(DATA, 'advancement', id + '.json'), {
+    ...(parent ? { parent: 'bleep:' + parent } : {}),
+    display: { icon: { id: icon }, title: { translate: 'advancements.bleep.' + id + '.title' }, description: { translate: 'advancements.bleep.' + id + '.description' },
+      frame, show_toast: true, announce_to_chat: parent !== null, ...(parent ? {} : { background: 'minecraft:gui/advancements/backgrounds/stone' }) },
+    criteria: BY_INVENTORY[id] ? { got: { trigger: 'minecraft:inventory_changed', conditions: { items: [{ items: BY_INVENTORY[id] }] } } } : { done: { trigger: 'minecraft:impossible' } },
+  });
+}
+const advancementLines = Object.fromEntries(ADVANCEMENTS.flatMap(([id, , , , title, description]) =>
+  [['advancements.bleep.' + id + '.title', title], ['advancements.bleep.' + id + '.description', description]]));
+
 // ---------- language ----------
 json(join(ASSETS, 'lang/en_us.json'), {
   'itemGroup.bleep': 'Bleep',
@@ -629,7 +745,8 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'tooltip.bleep.bleep_display': 'A bleep\'s face.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_tracks': 'What a bleep drives on.\nOne of the three parts a core needs.',
   'tooltip.bleep.bleep_arms': 'Big enough to hold things.\nOne of the three parts a core needs.',
-  'tooltip.bleep.homebase': 'Place it near your bleep: it moves in\nand charges here.',
+  'tooltip.bleep.homebase': 'Place it near your bleep: it moves in\nand charges here, from its own battery.\nFill it with redstone, a block of redstone\nor FE from cables.',
+  'tooltip.bleep.homebase_stored': 'Battery: %s%%',
   'message.bleep.missing_parts': 'Still missing: %s',
   // the Bleepedia
   'screen.bleep.bleepedia': 'Bleepedia', 'screen.bleep.bleepedia_of': 'Bleepedia of %s', 'screen.bleep.new': 'NEW',
@@ -640,6 +757,36 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'screen.bleep.about.mobs': 'Mobs met', 'screen.bleep.about.biomes': 'Biomes seen', 'screen.bleep.about.finds': 'Finds',
   'screen.bleep.about.fights': 'Fights won', 'screen.bleep.about.empty': 'Ran empty', 'screen.bleep.about.bond': 'Bond',
   'biome.bleep.unknown': 'Somewhere new. I am filing this under adventure.',
+  'screen.bleep.no_photos': 'No photos yet. At a nice moment it says Click!: a sunset with you, a falling star, its best friend, a new biome. Six to a page; click one to see it big, and print it on an empty map.',
+  'photo.bleep.sunset': 'Sunset', 'photo.bleep.star': 'A falling star!', 'photo.bleep.friend': 'Me and %s', 'photo.bleep.biome': '%s!',
+  'photo.bleep.sunset.diary': 'a sunset', 'photo.bleep.star.diary': 'a falling star', 'photo.bleep.friend.diary': 'my best friend', 'photo.bleep.biome.diary': 'a new place',
+  'diary.bleep.photo': 'I took a photo: %s. I am an artist now.',
+  'thought.bleep.photo.sunset': 'Click! The sky is on fire. In a nice way.',
+  'thought.bleep.photo.star': 'Click! Did you see that? I got it on camera!',
+  'thought.bleep.photo.friend': 'Click! Me and my best friend. Frame it.',
+  'thought.bleep.photo.biome': 'Click! New place, new photo. For the album.',
+  'message.bleep.click': '%s: Click!',
+  'screen.bleep.print': 'Print',
+  'item.bleep.photo_print': 'Photo by %s: %s',
+  'message.bleep.printed': 'Printed: %s. Hang it in an item frame!',
+  'message.bleep.print_no_map': 'You need an empty map to print on.',
+  'thought.bleep.imitate': 'Guess who! *ahem*',
+  'thought.bleep.imitate.reveal': 'Did you get it? I am very good at this. I practise in the dark.',
+  'message.bleep.imitated': '%s did an impression of: %s',
+  'thought.bleep.forecast.rain': 'Rain in a minute. I can feel it in my circuits.',
+  'thought.bleep.forecast.thunder': 'Thunder is coming! Lightning, please, pick me. PICK ME.',
+  'screen.bleep.sound.on': 'Sound on (click to mute). On its homebase it is quiet anyway.',
+  'screen.bleep.sound.off': 'Muted (click for sound)',
+  'diary.bleep.snowman': 'I built a snowman. It does not say much. Neither do I, sometimes.',
+  'thought.bleep.snowman.start': 'Snow! Snowman time. Stand back, artist at work.',
+  'thought.bleep.snowman.done': 'A snowman! It needs a head. A pumpkin would do. *hint*',
+  'thought.bleep.snowman.alive': 'IT IS ALIVE. I made a friend. A cold one.',
+  'activity.bleep.building': 'Building a snowman',
+  'activity.bleep.boating': 'Sailing', 'activity.bleep.sledding': 'Sledding',
+  'diary.bleep.sled': 'Snow! A sled came out of me. I went WHEEE. I did not know I could say WHEEE.',
+  'thought.bleep.sled': 'Wheee! Snow is the best floor.',
+  'diary.bleep.boat': 'I fell in the water and a boat came out of me. I did not know I could do that.',
+  'thought.bleep.boat': 'Ahoy! Captain Bleep. I have a boat now. Where did it come from? Do not ask.',
   'diary.bleep.dance': 'I danced for the first time. I am very good at it.',
   // bleeps together: chats (two bleeps take turns), saying hi, tag, fights, friends
   "chat.bleep.0.0": "Did you see that llama?",
@@ -877,7 +1024,7 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'diary.bleep.hobby': 'I have a hobby now: %s. I am very serious about it.',
   'thought.bleep.milestone': 'New badge! Look in my Bleepedia. Look look look.',
   'diary.bleep.milestone': 'Earned a badge: %s.',
-  'screen.bleep.tab.badges': 'Badges', 'screen.bleep.about.hobby': 'Hobby', 'screen.bleep.about.no_hobby': 'Still looking',
+  'screen.bleep.tab.badges': 'Badges', 'screen.bleep.tab.photos': 'Photos', 'screen.bleep.about.hobby': 'Hobby', 'screen.bleep.about.no_hobby': 'Still looking',
   "milestone.bleep.drive_1k": "On the road", "milestone.bleep.drive_1k.desc": "Drive a kilometre.",
   "milestone.bleep.drive_10k": "Long haul", "milestone.bleep.drive_10k.desc": "Drive ten kilometres.",
   "milestone.bleep.mobs_10": "Spotter", "milestone.bleep.mobs_10.desc": "Meet ten kinds of mobs.",
@@ -1081,6 +1228,23 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'thought.bleep.show.1': 'I am keeping this safe for you. Look!',
   'thought.bleep.show.2': 'Treasure! In my storage! Well, in my hand now.',
   'item.bleep.power_bank': 'Power Bank',
+  'item.bleep.whistle': 'Whistle',
+  'block.bleep.display_case': 'Display Case',
+  'tooltip.bleep.display_case': 'Place a few near a homebase: its bleep\nputs its favourite item and best finds in them.\nRight-click with something to put it in,\nwith an empty hand to take it out.',
+  'jei.bleep.display_case': 'A glass case with one thing in it, turning slowly. Place a few within 8 blocks of a homebase and its bleep makes a museum: with nothing to do, it drives over and puts the thing it treasures most from its storage in an empty one. Its favourite item first, then rare things, diamonds, emeralds, gold and music discs; never the same thing twice.\n\nYou can fill them too: right-click with something to put it in (what was there comes out), with an empty hand to take it out.',
+  'thought.bleep.museum': 'For my museum. Do not touch. Okay, you may look.',
+  'thought.bleep.museum.favourite': 'My favourite thing, behind glass. The centrepiece of the collection.',
+  'diary.bleep.museum': 'I opened my own museum today. Entry is free. Snacks are not.',
+  'item.bleep.tracker': 'Bleep Tracker',
+  'tooltip.bleep.tracker': 'Right-click: all your bleeps, their battery,\nwhat they do, and an arrow to each.',
+  'jei.bleep.tracker': 'Right-click it and its little screen shows all your bleeps: their colour and name, their battery, what they are doing, and how far away they are with an arrow that turns as you turn. A bleep far away (in a chunk that is not loaded) shows where and how it was last seen.',
+  'screen.bleep.tracker.none': 'No bleeps yet. Build one with a Bleep Core!',
+  'screen.bleep.tracker.elsewhere': 'other world',
+  'tooltip.bleep.whistle': 'Blow it: your bleeps within 64 blocks\ncome to you and follow.\nSneak and blow: they stay where they are.',
+  'jei.bleep.whistle': 'Blow it (right-click) and your bleeps within 64 blocks come to you and follow you. Sneak and blow, and they all stay where they are. A new bleep may dawdle first, as with any order.',
+  'message.bleep.whistle_come': 'Whistle: %s bleep(s) on the way',
+  'message.bleep.whistle_stay': 'Whistle: %s bleep(s) stay',
+  'message.bleep.whistle_nobody': 'No bleep of yours within earshot.',
   'item.bleep.party_hat': 'Party Hat', 'item.bleep.top_hat': 'Top Hat', 'item.bleep.antenna': 'Antenna with a Bow',
   'item.bleep.crown': 'Crown', 'item.bleep.sunglasses': 'Sunglasses', 'item.bleep.leather_jacket': 'Leather Jacket',
   'item.bleep.cape': 'Cape', 'item.bleep.bow_tie': 'Bow Tie', 'item.bleep.scarf': 'Scarf',
@@ -1101,9 +1265,9 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'tooltip.bleep.sticker_star': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
   'tooltip.bleep.sticker_heart': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
   'tooltip.bleep.sticker_bolt': 'Right-click your bleep: it sticks on its front.\nShears take it off again.',
-  'tooltip.bleep.power_bank': 'One full charge for a bleep.\nRight-click your bleep to top it up;\nright-click a homebase to fill it again.',
+  'tooltip.bleep.power_bank': 'One full charge for a bleep.\nRight-click your bleep to top it up;\nright-click a homebase to fill it again,\nfrom the homebase battery.',
   'jei.bleep.ball': 'A ball to play with. Right-click to throw it: it bounces, and your bleep (any bleep, from the first day) drives after it and brings it back. Playing ball raises the bond a little, five times a day. A bleep it hits catches it.\n\nA ball lying by its homebase, or in an item frame there, is a toy: a comfort that makes it charge faster.',
-  'jei.bleep.power_bank': 'One full charge for a bleep, carried along: its bar shows what is left. Right-click your bleep with it to top it up, even when it is switched off. Right-click a homebase with it to fill it again.\n\nRedstone charges a bleep too: 8% a dust, 72% a block. And lightning fills it up at once, and makes it hyper for half a minute.',
+  'jei.bleep.power_bank': 'One full charge for a bleep, carried along: its bar shows what is left. Right-click your bleep with it to top it up, even when it is switched off. Right-click a homebase with it to fill it again, from the homebase battery.\n\nRedstone charges a bleep too: 8% a dust, 72% a block. And lightning fills it up at once, and makes it hyper for half a minute.',
   'message.bleep.full': '%s is fully charged.',
   'message.bleep.power_bank_empty': 'The power bank is empty: fill it on a homebase.',
   'message.bleep.power_bank_full': 'The power bank is full.',
@@ -1122,13 +1286,21 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'jei.bleep.bleep_display': 'A bleep\'s face. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_tracks': 'What a bleep drives on. One of the three parts a Bleep Core needs.',
   'jei.bleep.bleep_arms': 'Big enough to hold things, like its favourite item when it brings it to you. One of the three parts a Bleep Core needs.',
-  'jei.bleep.homebase': 'Place it near your bleep and it moves in. An empty bleep goes home to charge here, and Go Home on its info screen sends it here. The light on the post burns while it charges.',
+  'jei.bleep.homebase': 'Place it near your bleep and it moves in. An empty bleep goes home to charge here, and Go Home on its info screen sends it here. The light on the post burns while it charges.\n\nA homebase charges from its own battery: the four bars under the light. Right-click it with redstone (10% of a charge a dust) or a block of redstone (90%), or run FE into it from any mod\'s cables; hoppers can bring it redstone too. Full, it holds one full charge for a bleep. Empty, it charges nothing. A comparator reads how full it is, and it keeps its charge when you break it.\n\nHoppers and pipes reach the storage of the bleep parked on it.',
   ...subtitleLines,
+  ...advancementLines,
   'message.bleep.stay': '%s: Stay',
   'message.bleep.follow': '%s: Follow',
   'message.bleep.asleep': '%s is out of battery. Zzz...',
   'block.bleep.homebase': 'Homebase',
   'message.bleep.homebase_of': 'Homebase of %s',
+  'message.bleep.homebase_of_battery': 'Homebase of %s · battery %s%%',
+  'message.bleep.homebase_filled': 'Homebase battery: %s%%',
+  'message.bleep.homebase_full': 'The homebase battery is full.',
+  'message.bleep.homebase_no_power': 'The homebase battery is empty: fill it with redstone.',
+  'message.bleep.power_bank_part': 'Power bank at %s%%: the homebase battery ran out.',
+  'thought.bleep.home_empty': 'My homebase is empty. Redstone, please. A block of it, if you love me.',
+  'jade.bleep.homebase_battery': 'Battery: %s%%',
   'message.bleep.homebase_empty': 'No bleep of yours nearby: place it close to your bleep.',
   'message.bleep.moved_in': '%s moved in!',
   'message.bleep.no_home': '%s has no homebase yet. Place one near it.',

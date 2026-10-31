@@ -6,6 +6,9 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
 public final class McVersion {
     private McVersion() {}
 
+    /** The kind of config that belongs to a world and is shared with its players. */
+    public static final net.neoforged.fml.config.ModConfig.Type WORLD_CONFIG = net.neoforged.fml.config.ModConfig.Type.SERVER;
+
     /** All the text on a sign, front and back. */
     public static String signText(SignBlockEntity sign) {
         StringBuilder text = new StringBuilder();

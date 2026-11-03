@@ -44,7 +44,15 @@ public enum Display {
     /** The weather forecast, a minute ahead: a rain cloud, or a thunder cloud with a bolt. */
     RAIN, THUNDER,
     /** It imitates a mob: sound waves and a question mark (guess who). */
-    IMITATE;
+    IMITATE,
+    /** Too hot (the Nether): a thermometer in the red, and heat rising off it. */
+    HOT,
+    /** Making music on a note block: two notes bobbing to the beat. */
+    MUSIC,
+    /** In a race: a chequered flag, waving. */
+    RACE,
+    /** It won the race: a gold cup. */
+    TROPHY;
 
     private static final Display[] VALUES = values();
 

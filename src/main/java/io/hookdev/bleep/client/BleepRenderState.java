@@ -27,5 +27,5 @@ public class BleepRenderState extends ArmedEntityRenderState {
     /** Dancing to music; switched off and forgotten (an abandoned bleep). */
     public boolean dancing, abandoned;
     /** On the water, in its little boat. */
-    public boolean boating, sledding;
+    public boolean boating, sledding, trailer;
 }

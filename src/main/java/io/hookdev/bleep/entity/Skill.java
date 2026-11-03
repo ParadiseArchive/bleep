@@ -10,7 +10,9 @@ public enum Skill {
     /** Fights the monsters that go for its owner, or that its owner goes for. */
     FIGHT(2),
     /** Picks up what lies about (loot, drops) and brings it to its owner. */
-    FETCH(2);
+    FETCH(2),
+    /** Watches its owner craft, remembers how, and makes it again from its storage (owner, 31 Oct 2026). */
+    CRAFT(3);
 
     public final int level;
 

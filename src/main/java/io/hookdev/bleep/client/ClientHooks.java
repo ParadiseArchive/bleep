@@ -14,6 +14,11 @@ public final class ClientHooks {
         McVersionClient.setScreen(new BleepediaScreen(data));
     }
 
+    public static void openCrafts(io.hookdev.bleep.network.CraftData data) {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level != null && level.getEntity(data.entityId()) instanceof io.hookdev.bleep.entity.BleepEntity bleep) McVersionClient.setScreen(new CraftScreen(bleep, data));
+    }
+
     public static void forgetDisplay(int id) {
         DisplayTextures.forget(id);
     }

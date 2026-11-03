@@ -29,6 +29,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         this.addLayer(new ItemInHandLayer<>(this));
         this.addLayer(new AccessoryLayer(this, new AccessoryModel(context.bakeLayer(AccessoryModel.LAYER))));
         this.addLayer(new BoatLayer(this, new BoatModel(context.bakeLayer(BoatModel.LAYER)), new SledModel(context.bakeLayer(SledModel.LAYER))));
+        this.addLayer(new TrailerLayer(this, new TrailerModel(context.bakeLayer(TrailerModel.LAYER))));
     }
 
     /**
@@ -80,6 +81,7 @@ public class BleepRenderer extends MobRenderer<BleepEntity, BleepRenderState, Bl
         state.abandoned = bleep.activity() == io.hookdev.bleep.entity.Activity.ABANDONED;
         state.boating = bleep.boating();
         state.sledding = bleep.sledding();
+        state.trailer = bleep.hasTrailer();
         state.name = bleep.hasCustomName() ? bleep.getCustomName().getString() : "BLEEP";
         var home = bleep.home();
         state.homeAngle = home != null && home.dimension().equals(bleep.level().dimension())

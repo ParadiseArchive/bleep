@@ -59,6 +59,21 @@ public final class Memory {
         }
     }
 
+    /**
+     * Something it watched its owner craft (a best friend): the grid as it was laid out (width x height, item ids, ""
+     * for an empty slot), and what came out.
+     */
+    public record Craft(int width, int height, List<String> items, String result, int count) {
+        public static final Codec<Craft> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.INT.fieldOf("width").forGetter(Craft::width), Codec.INT.fieldOf("height").forGetter(Craft::height),
+                Codec.STRING.listOf().fieldOf("items").forGetter(Craft::items), Codec.STRING.fieldOf("result").forGetter(Craft::result),
+                Codec.INT.fieldOf("count").forGetter(Craft::count)).apply(i, Craft::new));
+    }
+
+    /** How many crafts it remembers: the oldest it has not made in a while go first. */
+    public static final int CRAFTS = 18;
+    public final List<Craft> crafts = new ArrayList<>();
+
     /** How many photos it keeps: the oldest go first. */
     public static final int PHOTOS = 12;
 
@@ -91,6 +106,8 @@ public final class Memory {
     public final Map<String, Boolean> answers = new LinkedHashMap<>();
     public final Map<String, Long> recalled = new LinkedHashMap<>();
     public static final int SIGNS = 64;
+    /** An abandoned bleep's past (Abandoned.PASTS, -1: none) and how much of it it has told in its diary so far. */
+    public int past = -1, pastTold;
     /** How often it did things (its hobbies: stargazing, digging, collecting, dancing, chatting, playing; and catches, harvests). */
     public final Map<String, Integer> counts = new LinkedHashMap<>();
     /** Its hobby (one of the counts), or empty. */
@@ -128,10 +145,14 @@ public final class Memory {
         return true;
     }
 
-    /** Keeps a photo; the oldest goes when there are too many. */
+    /** Keeps a photo; the oldest goes when there are too many, but never the one from before (an abandoned bleep's). */
     public void addPhoto(Photo photo) {
         photos.add(photo);
-        while (photos.size() > PHOTOS) photos.removeFirst();
+        while (photos.size() > PHOTOS) {
+            int oldest = 0;
+            while (oldest < photos.size() - 1 && photos.get(oldest).moment().equals("old")) oldest++;
+            photos.remove(oldest);
+        }
     }
 
     /** Better (or worse) friends with another bleep; returns the friend as it is now. */
@@ -167,6 +188,9 @@ public final class Memory {
         output.store("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL), answers);
         output.store("recalled", FOUND, recalled);
         output.store("photos", Photo.CODEC.listOf(), photos);
+        output.store("crafts", Craft.CODEC.listOf(), crafts);
+        output.putInt("past", past);
+        output.putInt("past_told", pastTold);
     }
 
     public void load(ValueInput input) {
@@ -198,6 +222,10 @@ public final class Memory {
         input.read("answers", Codec.unboundedMap(Codec.STRING, Codec.BOOL)).ifPresent(answers::putAll);
         recalled.clear();
         input.read("recalled", FOUND).ifPresent(recalled::putAll);
+        crafts.clear();
+        input.read("crafts", Craft.CODEC.listOf()).ifPresent(crafts::addAll);
+        past = input.getIntOr("past", -1);
+        pastTold = input.getIntOr("past_told", 0);
         photos.clear();
         input.read("photos", Photo.CODEC.listOf()).ifPresent(list -> list.stream().filter(p -> p.pixels().length == Photo.BYTES).forEach(photos::add)); // not the first, smaller kind
     }

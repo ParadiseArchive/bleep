@@ -78,6 +78,9 @@ public final class BleepContent {
     /** The Bleep Tracker: all your bleeps on a little screen, with an arrow to each. */
     public static final DeferredItem<io.hookdev.bleep.item.TrackerItem> TRACKER = ITEMS.registerItem("tracker", io.hookdev.bleep.item.TrackerItem::new, p -> p.stacksTo(1));
 
+    /** A trailer to hitch behind your bleep: its storage becomes a big chest. */
+    public static final DeferredItem<Item> TRAILER = ITEMS.registerSimpleItem("trailer", p -> p.stacksTo(1));
+
     /** A ball to throw for your bleep: it bounces, and your bleep brings it back. */
     public static final DeferredItem<io.hookdev.bleep.item.BallItem> BALL = ITEMS.registerItem("ball", io.hookdev.bleep.item.BallItem::new, p -> p.stacksTo(16));
     public static final DeferredHolder<EntityType<?>, EntityType<io.hookdev.bleep.entity.BallEntity>> BALL_ENTITY = ENTITIES.register("ball",
@@ -112,6 +115,14 @@ public final class BleepContent {
     /** The FE in a broken homebase, kept in the item. */
     public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<Integer>> STORED_ENERGY = COMPONENTS.register("stored_energy",
             () -> net.minecraft.core.component.DataComponentType.<Integer>builder().persistent(com.mojang.serialization.Codec.INT).networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT).build());
+
+    /** Race flags: the chequered start (right-click: race!) and the course. */
+    public static final DeferredBlock<io.hookdev.bleep.block.RaceFlagBlock> START_FLAG = BLOCKS.registerBlock("start_flag", p -> new io.hookdev.bleep.block.RaceFlagBlock(p, true),
+            p -> p.mapColor(MapColor.WOOL).strength(0.5f).sound(SoundType.WOOD).noCollision().noOcclusion());
+    public static final DeferredItem<BlockItem> START_FLAG_ITEM = ITEMS.registerSimpleBlockItem(START_FLAG);
+    public static final DeferredBlock<io.hookdev.bleep.block.RaceFlagBlock> RACE_FLAG = BLOCKS.registerBlock("race_flag", p -> new io.hookdev.bleep.block.RaceFlagBlock(p, false),
+            p -> p.mapColor(MapColor.COLOR_CYAN).strength(0.5f).sound(SoundType.WOOD).noCollision().noOcclusion());
+    public static final DeferredItem<BlockItem> RACE_FLAG_ITEM = ITEMS.registerSimpleBlockItem(RACE_FLAG);
 
     /** A display case: its bleep's museum, by its homebase. */
     public static final DeferredBlock<io.hookdev.bleep.block.DisplayCaseBlock> DISPLAY_CASE = BLOCKS.registerBlock("display_case", io.hookdev.bleep.block.DisplayCaseBlock::new,
@@ -157,6 +168,8 @@ public final class BleepContent {
                 output.accept(BLEEP_ARMS.get());
                 output.accept(HOMEBASE_ITEM.get());
                 output.accept(DISPLAY_CASE_ITEM.get());
+                output.accept(START_FLAG_ITEM.get());
+                output.accept(RACE_FLAG_ITEM.get());
                 output.accept(STAR_SHARD.get());
                 output.accept(STARSTONE_ITEM.get());
                 output.accept(FALLEN_STAR_ITEM.get());
@@ -164,6 +177,7 @@ public final class BleepContent {
                 output.accept(BALL.get());
                 output.accept(WHISTLE.get());
                 output.accept(TRACKER.get());
+                output.accept(TRAILER.get());
                 CHIPS.values().forEach(item -> output.accept(item.get()));
                 ACCESSORIES.values().forEach(item -> output.accept(item.get()));
             })

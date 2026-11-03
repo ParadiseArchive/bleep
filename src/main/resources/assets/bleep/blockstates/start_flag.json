@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "bleep:block/start_flag"
+    },
+    "facing=east": {
+      "model": "bleep:block/start_flag",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "bleep:block/start_flag",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "bleep:block/start_flag",
+      "y": 270
+    }
+  }
+}

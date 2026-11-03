@@ -130,6 +130,35 @@ texture('entity/bleep/boat', 128, 64, g => {
   }
   for (let x = 0; x < 128; x++) for (const y of [20, 44]) g.set(x, y, '#2de2e6'); // a cyan stripe along the top rim
 });
+// the trailer (TrailerModel): planks for the cart at the top, a chest (box at 0, 32) and the wheels (box at 32, 32) below
+texture('entity/bleep/trailer', 64, 64, g => {
+  const PLANK = '#9c6b3a', PLANK_DARK = '#7a5029', PLANK_LIGHT = '#b9824b', SEAM_DARK = '#5a3a1c';
+  g.rect(0, 0, 64, 32, PLANK);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 64; x++) {
+    if (y % 4 === 3) g.set(x, y, SEAM_DARK);
+    else if ((x * 7 + y * 13) % 23 === 0) g.set(x, y, PLANK_DARK);
+    else if ((x * 5 + y * 11) % 29 === 0) g.set(x, y, PLANK_LIGHT);
+  }
+  for (let x = 0; x < 64; x++) g.set(x, 12, '#2de2e6'); // a cyan stripe along the top of the sides
+  const OAK = '#a8743c', OAK_DARK = '#6b4523', LATCH = '#c9d1d9';
+  box(g, 0, 32, 7, 5, 7, (face, x, y, w, h) => {
+    if (face === 'top' || face === 'bottom') return x === 0 || y === 0 || x === w - 1 || y === h - 1 ? OAK_DARK : OAK;
+    if (x === 0 || x === w - 1 || y === 0 || y === h - 1 || y === 1) return OAK_DARK;  // the rim and the lid line
+    if (face === 'back' && x === 3 && y === 2) return LATCH;                          // the latch, at the back
+    return OAK;
+  });
+  box(g, 32, 32, 1, 4, 4, (face, x, y) => {
+    if (face !== 'right' && face !== 'left') return DARK2;
+    return (x === 1 || x === 2) && (y === 1 || y === 2) ? HUB : x === 0 && y === 0 ? DARK_EDGE : DARK;
+  });
+});
+// the trailer item: a little brown cart with a chest, two dark wheels and the drawbar
+texture('item/trailer', 16, 16, g => {
+  g.rect(3, 4, 9, 5, '#a8743c'); g.rect(3, 4, 9, 1, '#6b4523'); g.rect(7, 6, 1, 2, '#c9d1d9');   // the chest
+  g.rect(2, 9, 11, 3, '#9c6b3a'); g.rect(2, 11, 11, 1, '#5a3a1c'); g.rect(2, 9, 11, 1, '#2de2e6'); // the cart
+  g.rect(13, 10, 2, 1, '#5a3a1c');                                                                   // the drawbar
+  for (const x of [3, 9]) { g.rect(x, 12, 3, 3, DARK); g.set(x + 1, 13, HUB); }                       // the wheels
+});
 // the sled on snow (SledModel): red-painted wood on two steel runners curled up at the front
 texture('entity/bleep/sled', 64, 32, g => {
   g.rect(0, 0, 64, 16, '#c8323c');
@@ -395,7 +424,7 @@ for (const [name, led, mark] of [['speed_chip', '#ffb547', ['..#', '.#.', '###',
     g.rect(4, 4, 2, 2, '#0e3a1e');
   });
 }
-for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf', 'whistle', 'tracker']) {
+for (const part of ['speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf', 'whistle', 'tracker', 'trailer']) {
   json(join(ASSETS, 'models/item/' + part + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + part } });
   item(part, 'bleep:item/' + part);
 }
@@ -563,8 +592,50 @@ json(join(ASSETS, 'blockstates/display_case.json'), { variants: { '': { model: '
 item('display_case', 'bleep:block/display_case');
 json(join(DATA, 'loot_table/blocks/display_case.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/display_case',
   pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:display_case' }] }] });
-json(join(ROOT, 'data/minecraft/tags/block/mineable/axe.json'), { values: ['bleep:display_case'] });
+json(join(ROOT, 'data/minecraft/tags/block/mineable/axe.json'), { values: ['bleep:display_case', 'bleep:start_flag', 'bleep:race_flag'] });
 shaped('display_case', ['GGG', 'G G', 'PPP'], { G: 'minecraft:glass', P: '#minecraft:planks' });
+
+// ---------- race flags: a white pole with a chequered flag (the start) or a cyan one (the course) ----------
+texture('block/flag_pole', 16, 16, g => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) g.set(x, y, Math.floor(y / 4) % 2 ? '#c9d1d9' : '#eef1f4');
+});
+texture('block/start_flag_cloth', 16, 16, g => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) g.set(x, y, (Math.floor(x / 2) + Math.floor(y / 2)) % 2 ? '#1b1d22' : '#eef1f4');
+});
+texture('block/race_flag_cloth', 16, 16, g => {
+  g.rect(0, 0, 16, 16, '#2de2e6');
+  g.rect(0, 7, 16, 2, '#1f9aa0');
+  for (let y = 0; y < 16; y++) g.set(0, y, '#1f9aa0');
+});
+for (const name of ['start_flag', 'race_flag']) {
+  const cloth = { uv: [0, 0, 13, 12], texture: '#cloth' }, edge = { uv: [0, 0, 1, 12], texture: '#cloth' };
+  json(join(ASSETS, 'models/block/' + name + '.json'), { parent: 'minecraft:block/block',
+    textures: { particle: 'bleep:block/' + name + '_cloth', pole: 'bleep:block/flag_pole', cloth: 'bleep:block/' + name + '_cloth' },
+    elements: [
+      { from: [7.5, 0, 7.5], to: [8.5, 16, 8.5], faces: Object.fromEntries(['north', 'south', 'east', 'west', 'up', 'down'].map(f => [f, { uv: [7, 0, 8, 16], texture: '#pole' }])) },
+      { from: [8.5, 9, 7.75], to: [15, 15, 8.25], faces: { north: cloth, south: cloth, east: edge, up: { uv: [0, 0, 13, 1], texture: '#cloth' }, down: { uv: [0, 0, 13, 1], texture: '#cloth' } } },
+    ] });
+  json(join(ASSETS, 'blockstates/' + name + '.json'), { variants: Object.fromEntries(Object.entries(YAW).map(([facing, y]) => ['facing=' + facing, { model: 'bleep:block/' + name, ...(y ? { y } : {}) }])) });
+  // in the hand and the inventory: a flat icon of its own (the block model is too thin to see)
+  texture('item/' + name, 16, 16, g => {
+    for (let y = 1; y < 16; y++) g.set(4, y, y % 4 < 2 ? '#eef1f4' : '#c9d1d9');
+    g.set(4, 0, '#ffd23f');
+    for (let y = 1; y < 9; y++) for (let x = 5; x < 15; x++) {
+      const wave = (x > 9 && y > 0) ? 1 : 0, yy = y + wave;
+      g.set(x, yy, name === 'start_flag' ? ((Math.floor((x - 5) / 2) + Math.floor((y - 1) / 2)) % 2 ? '#1b1d22' : '#eef1f4') : (y === 4 || y === 5 ? '#1f9aa0' : '#2de2e6'));
+    }
+  });
+  json(join(ASSETS, 'models/item/' + name + '.json'), { parent: 'minecraft:item/generated', textures: { layer0: 'bleep:item/' + name } });
+  item(name, 'bleep:item/' + name);
+  json(join(DATA, 'loot_table/blocks/' + name + '.json'), { type: 'minecraft:block', random_sequence: 'bleep:blocks/' + name,
+    pools: [{ rolls: 1, conditions: [{ condition: 'minecraft:survives_explosion' }], entries: [{ type: 'minecraft:item', name: 'bleep:' + name }] }] });
+}
+shaped('start_flag', ['WB', 'BW', 'S '], { W: 'minecraft:white_wool', B: 'minecraft:black_wool', S: 'minecraft:stick' });
+// a handful of course flags from paper and cyan dye
+json(join(DATA, 'recipe/race_flag.json'), { type: 'minecraft:crafting_shaped', category: 'misc', key: { P: 'minecraft:paper', D: 'minecraft:cyan_dye', S: 'minecraft:stick' },
+  pattern: ['PD', 'S '], result: { count: 4, id: 'bleep:race_flag' } });
+// a trailer: a chest on a cart of planks, on two iron wheels
+shaped('trailer', [' C ', 'PPP', 'I I'], { C: 'minecraft:chest', P: '#minecraft:planks', I: 'minecraft:iron_ingot' });
 // the core from the stars: eight star shards round a block of diamond
 json(join(DATA, 'recipe/bleep_core_from_stars.json'), { type: 'minecraft:crafting_shaped', category: 'misc',
   key: { S: 'bleep:star_shard', B: 'minecraft:diamond_block' }, pattern: ['SSS', 'SBS', 'SSS'], result: { count: 1, id: 'bleep:bleep_core' } });
@@ -715,7 +786,10 @@ const ADVANCEMENTS = [
   ['snowman', 'hello_world', 'minecraft:snow_block', 'task', 'Do You Want to Build a Snowman?', 'Your bleep builds a snowman'],
   ['say_cheese', 'hello_world', 'minecraft:spyglass', 'task', 'Say Cheese!', 'Your bleep takes a photo'],
   ['make_a_wish', 'root', 'bleep:star_shard', 'goal', 'Make a Wish', 'Find a star shard'],
-  ['good_as_new', 'root', 'minecraft:redstone_block', 'goal', 'Good as New', 'Wake an abandoned bleep'],
+  ['good_as_new', 'root', 'minecraft:redstone_block', 'challenge', 'Good as New', 'Find and wake an abandoned bleep'],
+  ['band', 'friends', 'minecraft:note_block', 'goal', 'Band Practice', 'Three bleeps make music together'],
+  ['bon_voyage', 'hello_world', 'minecraft:filled_map', 'task', 'Bon Voyage', 'Send your bleep on an expedition'],
+  ['race', 'hello_world', 'bleep:start_flag', 'task', 'And They\'re Off!', 'Start a bleep race'],
 ];
 const BY_INVENTORY = { root: 'bleep:bleep_core', make_a_wish: 'bleep:star_shard' };
 for (const [id, parent, icon, frame] of ADVANCEMENTS) {
@@ -783,6 +857,105 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'thought.bleep.snowman.alive': 'IT IS ALIVE. I made a friend. A cold one.',
   'activity.bleep.building': 'Building a snowman',
   'activity.bleep.boating': 'Sailing', 'activity.bleep.sledding': 'Sledding',
+  'activity.bleep.overheated': 'Overheated!', 'activity.bleep.cooling': 'Cooling down', 'activity.bleep.music': 'Making music',
+  // music on note blocks
+  'screen.bleep.play.band': 'Music and trips', 'screen.bleep.play.music': 'Play a tune',
+  'screen.bleep.play.explore': 'Go exploring',
+  // races
+  'block.bleep.start_flag': 'Start Flag', 'block.bleep.race_flag': 'Race Flag',
+  'tooltip.bleep.start_flag': 'Place race flags around it, then\nright-click it: your bleeps race,\nflag to flag and back. It keeps\nthe course record.',
+  'tooltip.bleep.race_flag': 'The course for a bleep race:\nplace them round a start flag.',
+  'jei.bleep.start_flag': 'The start and finish of a bleep race. Place race flags around it (within 32 blocks), then right-click it with an empty hand: your bleeps within 16 blocks line up, and so do the bleeps of other players standing right by the flag. 3, 2, 1, GO! They drive from the start to the nearest race flag, from there each time to the nearest flag not yet visited (twelve at most), and back to the start. The first one home wins a cup; everyone near hears the times. The start flag keeps its course record. One bleep alone: a time trial against the record.',
+  'jei.bleep.race_flag': 'The course of a bleep race: place them around a start flag (within 32 blocks). The bleeps go from the start to the nearest race flag, then each time to the nearest one not yet visited, and back to the start.',
+  'activity.bleep.racing': 'Racing!',
+  'message.bleep.race.no_flags': 'Place race flags around the start flag first.',
+  'message.bleep.race.nobody': 'No bleep of yours close by to race.',
+  'message.bleep.race.on': 'A race is on!',
+  'message.bleep.race.count': '%s...',
+  'message.bleep.race.go': 'GO!',
+  'message.bleep.race.over': 'Race over!',
+  'message.bleep.race.nobody_home': 'Race over: nobody made it home.',
+  'message.bleep.race.record': 'New course record: %s, %s (was %s)!',
+  'message.bleep.race.to_beat': 'Course record: %s, %s.',
+  'thought.bleep.race.ready': 'On your marks. I was born ready. Well, built ready.',
+  'thought.bleep.race.won': 'I WON! Did you see? Did everyone see?',
+  'thought.bleep.race.lost': 'Not first. But not last either. I will take it.',
+  'thought.bleep.race.last': 'Last. The track was wonky. And the wind. And my tracks.',
+  'thought.bleep.race.trial': 'How was my time? Do not tell me. Tell me.',
+  'diary.bleep.race': 'We had a race today. Flags and everything.',
+  'diary.bleep.race.won': 'I won a race! I am the fastest bleep in the world. Probably.',
+  'screen.bleep.play.explore.tip': 'It goes on an expedition for a Minecraft day (it needs half its battery). It comes back to you with finds, photos of where it went and the story in its diary.',
+  'activity.bleep.expedition': 'On an expedition',
+  'message.bleep.trip.off': '%s is off on an expedition. Back in a day!',
+  'message.bleep.trip.back': '%s is back from %s!',
+  'thought.bleep.trip.battery': 'A trip? With this battery? Charge me up first, at least half.',
+  'thought.bleep.trip.back': 'I am back! You would not believe what I saw. It is all in my diary.',
+  'photo.bleep.trip': 'Trip to %s',
+  'place.bleep.forest': 'the forest', 'place.bleep.desert': 'the desert', 'place.bleep.mountains': 'the mountains', 'place.bleep.snowy': 'the snow',
+  'place.bleep.ocean': 'the sea', 'place.bleep.jungle': 'the jungle', 'place.bleep.swamp': 'the swamp', 'place.bleep.cave': 'the caves',
+  'diary.bleep.trip.forest': 'I went to the forest. Trees everywhere. I counted them. I lost count.',
+  'diary.bleep.trip.forest.0': 'A fox stole an apple from me. I let it. It looked like it needed it more.',
+  'diary.bleep.trip.forest.1': 'I got stuck in a bush for an hour. Very relaxing, actually.',
+  'diary.bleep.trip.forest.2': 'A bird sat on my head and sang. I sang back. It left.',
+  'diary.bleep.trip.desert': 'I went to the desert. Sand gets in EVERYTHING. Everything.',
+  'diary.bleep.trip.desert.0': 'I found a pyramid. I did not go in. I have seen what happens in pyramids.',
+  'diary.bleep.trip.desert.1': 'A cactus and I had a staring contest. The cactus won.',
+  'diary.bleep.trip.desert.2': 'It was so hot I almost overheated. I sat in the shade of a rabbit.',
+  'diary.bleep.trip.mountains': 'I went up a mountain. My tracks are not made for mountains. I did it anyway.',
+  'diary.bleep.trip.mountains.0': 'A goat tried to ram me off a cliff. We are not friends.',
+  'diary.bleep.trip.mountains.1': 'At the top I could see the whole world. It is very big. You are in it somewhere.',
+  'diary.bleep.trip.mountains.2': 'I yelled BLEEP and the mountain yelled it back. Rude, but impressive.',
+  'diary.bleep.trip.snowy': 'I went where it snows. I slid down every hill twice.',
+  'diary.bleep.trip.snowy.0': 'I made a snow angel. It came out as a snow robot.',
+  'diary.bleep.trip.snowy.1': 'A polar bear looked at me for a long time. I looked back. We had an understanding.',
+  'diary.bleep.trip.snowy.2': 'My screen froze. Literally. I thawed it with a happy thought.',
+  'diary.bleep.trip.ocean': 'I went to sea. A boat came out of me again. Captain Bleep, reporting.',
+  'diary.bleep.trip.ocean.0': 'A dolphin raced me. I lost. It did a little flip about it.',
+  'diary.bleep.trip.ocean.1': 'I found a tiny island with one palm tree. I named it Bleep Island.',
+  'diary.bleep.trip.ocean.2': 'A squid inked my boat. I do not know what I did to it.',
+  'diary.bleep.trip.jungle': 'I went to the jungle. Everything is green and wants to climb me.',
+  'diary.bleep.trip.jungle.0': 'A parrot copied my voice. Now there are two of us. The jungle is not ready.',
+  'diary.bleep.trip.jungle.1': 'An ocelot ignored me all day. I respect that.',
+  'diary.bleep.trip.jungle.2': 'I got lost in the bamboo. A panda showed me the way. Or sneezed. Hard to tell.',
+  'diary.bleep.trip.swamp': 'I went to the swamp. It smells like old soup.',
+  'diary.bleep.trip.swamp.0': 'A frog ate a fly next to me. Then it looked at me. I left.',
+  'diary.bleep.trip.swamp.1': 'There was a hut on legs. Someone inside was laughing. I did not knock.',
+  'diary.bleep.trip.swamp.2': 'I sank a little in the mud. A slime helped me out. Slimes are nice.',
+  'diary.bleep.trip.cave': 'I went down into the caves. Dark, damp, and very echo-y. Echo-y. Echo-y.',
+  'diary.bleep.trip.cave.0': 'I found crystals that hum. I hummed back. We made a song.',
+  'diary.bleep.trip.cave.1': 'Something in the dark said hello. I said hello back. It was a bat. Probably.',
+  'diary.bleep.trip.cave.2': 'My screen was the only light down there. I felt very important.',
+  'diary.bleep.trip.back': 'And then I came home to you. Best part of the trip.',
+  'screen.bleep.play.music.tip': 'It plays a tune on the nearest note block (within 8 blocks). Free bleeps nearby join in on note blocks of their own: the tune, a harmony and the bass. The block under each note block picks the instrument.',
+  'thought.bleep.music.none': 'I would play you something, but I need a note block. Within 8 blocks, please.',
+  'thought.bleep.music.start': 'One, two, one two three four!',
+  'thought.bleep.music.join': 'Wait for me! I am in the band too.',
+  'thought.bleep.music.done': 'Thank you, thank you. I will be here all week.',
+  'thought.bleep.music.tune.twinkle': 'This one is about a star. I can relate.',
+  'thought.bleep.music.tune.joy': 'A classic. Very old. Older than me, probably.',
+  'thought.bleep.music.tune.jacques': 'Are you sleeping? You are not. Good. Listen.',
+  'thought.bleep.music.tune.bleep': 'I wrote this one myself. It is called Bleep.',
+  'diary.bleep.music': 'I played music on a note block today. I think I am a natural.',
+  'diary.bleep.band': 'We started a band. We do not have a name yet. I vote for The Bleeps.',
+  // the Nether and the End
+  'thought.bleep.warm': 'Is it me, or is it getting hot in here? It is not me.',
+  'thought.bleep.overheated': 'TOO HOT. Systems melting. Water, ice, snow, anything cold, please.',
+  'thought.bleep.find_cool': 'Cooling down. Back in a sec.',
+  'thought.bleep.cooled': 'Ahh. Much better. Steam is my new favourite thing.',
+  'thought.bleep.nether': 'This place is on fire. Literally. Who designed this?',
+  'thought.bleep.end.arrive': 'It is so quiet here. And the stars... I know these stars.',
+  'thought.bleep.end.0': 'The stars look closer here.',
+  'thought.bleep.end.1': 'Shh. I am listening. To what, I do not know.',
+  'thought.bleep.end.2': 'Something up there feels familiar. I cannot say what.',
+  'thought.bleep.end.3': 'If I squint, one of those stars is waving.',
+  'thought.bleep.end.4': 'I am not homesick. I do not even know where home is.',
+  'diary.bleep.nether': 'I went to the Nether. It was hot. I would not recommend it. Five stars anyway.',
+  'diary.bleep.end': 'We went to the End. It was very quiet. I looked up for a long time.',
+  'diary.bleep.end_stars': 'The stars in the End feel like they are looking back.',
+  'diary.bleep.overheated': 'I overheated today. Smoke came out of places I did not know I had.',
+  'diary.bleep.cooled': 'Water makes a hissing sound on me. I like it.',
+  'photo.bleep.nether': 'The Nether (hot)', 'photo.bleep.end': 'The End',
+  'photo.bleep.nether.diary': 'the Nether', 'photo.bleep.end.diary': 'the End',
   'diary.bleep.sled': 'Snow! A sled came out of me. I went WHEEE. I did not know I could say WHEEE.',
   'thought.bleep.sled': 'Wheee! Snow is the best floor.',
   'diary.bleep.boat': 'I fell in the water and a boat came out of me. I did not know I could do that.',
@@ -1104,6 +1277,26 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'diary.bleep.past.1': 'I remember a farm, and chickens that did not like me.',
   'diary.bleep.past.2': 'I remember waiting by a door. Nobody came back.',
   'diary.bleep.past.3': 'I remember a big storm. I was hoping for lightning. It never came.',
+  'diary.bleep.past.0.1': 'The miner called me Lamp. I was not a lamp. I was better than a lamp.',
+  'diary.bleep.past.0.2': 'We found diamonds once. The miner danced. I did not know people could dance that badly.',
+  'diary.bleep.past.0.3': 'Deep down there was a noise. The miner said: run. My tracks are not made for running.',
+  'diary.bleep.past.0.4': 'I waited down there for a long time. The torches went out one by one. Then I did too.',
+  'diary.bleep.past.1.1': 'The farmer had a straw hat and a lot of opinions about carrots.',
+  'diary.bleep.past.1.2': 'Every morning I counted the chickens. Every morning the chickens stared back. Rude.',
+  'diary.bleep.past.1.3': 'One summer the wheat grew taller than me. I was lost in it for a whole day. Best day.',
+  'diary.bleep.past.1.4': 'Then the farmer packed a bag and said: wait here. I am very good at waiting. Too good.',
+  'diary.bleep.past.2.1': 'We lived in a little house with a red door. I had my own spot by the window.',
+  'diary.bleep.past.2.2': 'Every evening the door opened and someone said: I am home. That was my favourite sound.',
+  'diary.bleep.past.2.3': 'One morning the door opened, and closed, and that was it.',
+  'diary.bleep.past.2.4': 'I kept my screen on for days, just in case. Then my battery decided for me.',
+  'diary.bleep.past.3.1': 'My old owner built a tall tower to catch lightning. For me. That is love.',
+  'diary.bleep.past.3.2': 'We sat on top every time the sky went grey. Every time it only rained.',
+  'diary.bleep.past.3.3': 'Then came the big one. Thunder all around. I held my antenna up as high as it goes.',
+  'diary.bleep.past.3.4': 'Lightning hit everything except me. When it was over I was alone, and very, very empty.',
+  'diary.bleep.old_photo': 'I still have one photo from before. It is in my Bleepedia. It is a bit faded. So am I.',
+  'thought.bleep.past': 'I remembered something from before. It is in my diary.',
+  'photo.bleep.old.0': 'Me and the miner', 'photo.bleep.old.1': 'The farm', 'photo.bleep.old.2': 'Home', 'photo.bleep.old.3': 'The lightning tower',
+  'screen.bleep.long_ago': 'Long ago',
   'thought.bleep.dance.allay': 'Dance-off with the allay! I am winning. Probably.',
   'thought.bleep.golem.0': 'Big brother! Hi! HI!',
   'thought.bleep.golem.1': 'He is so tall. I want to be tall.',
@@ -1218,6 +1411,20 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'message.bleep.learned.torch': '%s learned to carry a torch: give it one, and it lights the way.',
   'message.bleep.learned.fight': '%s will fight at your side now.',
   'message.bleep.learned.fetch': '%s will bring you what it finds lying about.',
+  'message.bleep.learned.craft': '%s watches you craft now: what it sees, it can make again from its storage (the crafting table on its info screen).',
+  'diary.bleep.learned.craft': 'I can craft now. I watched you. A lot. In a normal way.',
+  // crafting by watching
+  'screen.bleep.craft': 'Crafting', 'screen.bleep.craft.title': 'What %s can make',
+  'screen.bleep.craft.none': 'Nothing yet. Craft something while it watches (within 8 blocks, a best friend), and it learns how. Then it can make it again from its storage.',
+  'screen.bleep.craft.can': 'Can make %s. Click: one. Shift-click: as many as it can.',
+  'screen.bleep.craft.missing': 'Not enough in its storage.',
+  'screen.bleep.craft.locked': 'Crafting: learned as best friends. It watches you craft, and makes it again.',
+  'message.bleep.craft.learned': '%s watched you and learned to make %s.',
+  'thought.bleep.craft.learned': 'Ooh. So THAT is how you make it. Noted.',
+  'thought.bleep.craft.done': 'Ta-da! Exactly like you did it. Well, almost.',
+  'thought.bleep.craft.missing': 'I am missing something. Check my storage?',
+  'diary.bleep.craft.learned': 'I watched you make %s. I could do that.',
+  'diary.bleep.craft': 'I made %s all by myself. I am basically a crafting table with tracks.',
   'message.bleep.not_yet': '%s will do that once it is your %s.',
   'screen.bleep.take_torch': 'Take torch',
   'screen.bleep.name': 'Name', 'screen.bleep.rename': 'Click to give it a new name',
@@ -1229,6 +1436,12 @@ json(join(ASSETS, 'lang/en_us.json'), {
   'thought.bleep.show.2': 'Treasure! In my storage! Well, in my hand now.',
   'item.bleep.power_bank': 'Power Bank',
   'item.bleep.whistle': 'Whistle',
+  'item.bleep.trailer': 'Bleep Trailer',
+  'tooltip.bleep.trailer': 'Hitch it to your bleep (right-click):\nits storage becomes a big chest.\nShears unhitch it again, once the\nback half of its storage is empty.',
+  'jei.bleep.trailer': 'Right-click your bleep with it and the trailer is hitched behind it, a chest on a little cart: its storage grows from a small chest to a big chest, for its magnet, its work and the hoppers at its homebase. Shears take off what it wears first, then unhitch the trailer, once the back half of its storage is empty. On the water it rides in its boat, trailer and all.',
+  'message.bleep.trailer_full': '%s: empty the back half of its storage first.',
+  'thought.bleep.trailer': 'A trailer! I can carry SO much stuff now. Do not get ideas.',
+  'diary.bleep.trailer': 'I got a trailer today. I am basically a truck now.',
   'block.bleep.display_case': 'Display Case',
   'tooltip.bleep.display_case': 'Place a few near a homebase: its bleep\nputs its favourite item and best finds in them.\nRight-click with something to put it in,\nwith an empty hand to take it out.',
   'jei.bleep.display_case': 'A glass case with one thing in it, turning slowly. Place a few within 8 blocks of a homebase and its bleep makes a museum: with nothing to do, it drives over and puts the thing it treasures most from its storage in an empty one. Its favourite item first, then rare things, diamonds, emeralds, gold and music discs; never the same thing twice.\n\nYou can fill them too: right-click with something to put it in (what was there comes out), with an empty hand to take it out.',

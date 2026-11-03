@@ -431,6 +431,7 @@ public class BleepediaScreen extends Screen {
 
     /** What a photo shows, and its day. */
     private Component caption(Memory.Photo photo) {
+        if (photo.moment().equals("old")) return Component.translatable("screen.bleep.long_ago").append(": ").append(BleepEntity.photoMoment(photo));
         long day = data.born() < 0 ? 1 : (photo.time() - data.born()) / 24000 + 1;
         return Component.translatable("screen.bleep.day", day).append(": ").append(BleepEntity.photoMoment(photo));
     }

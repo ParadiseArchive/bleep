@@ -34,7 +34,7 @@ public final class BleepConfig {
                 "falling stars and the crafting recipe still give them.").define("coreInChests", true);
         FALLING_STARS = builder.comment("On a clear night each player has a 1 in this many chance a minute that a star falls nearby. 0: never.")
                 .defineInRange("fallingStarOneIn", STARS, 0, 100_000);
-        ABANDONED_BLEEPS = builder.comment("Now and then an old, abandoned bleep stands somewhere, to wake with a block of redstone.")
+        ABANDONED_BLEEPS = builder.comment("Very rarely an old, abandoned bleep stands in an abandoned mineshaft, trail ruins, an ancient city or a zombie village, to wake with a block of redstone.")
                 .define("abandonedBleeps", true);
         builder.pop();
         SPEC = builder.build();

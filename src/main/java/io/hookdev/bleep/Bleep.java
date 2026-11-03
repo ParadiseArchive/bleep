@@ -24,18 +24,21 @@ import org.slf4j.Logger;
 public class Bleep {
     public static final String MODID = "bleep";
     public static final Logger LOGGER = LogUtils.getLogger();
+    /** Players on their way through a portal, and the bleeps that come along (EntityTravelToDimensionEvent, then PlayerChangedDimensionEvent). */
+    private static final java.util.Map<java.util.UUID, java.util.List<java.util.UUID>> TRAVELLING = new java.util.concurrent.ConcurrentHashMap<>();
 
     public Bleep(IEventBus modEventBus, ModContainer modContainer) {
         BleepContent.register(modEventBus);
         modContainer.registerConfig(McVersion.WORLD_CONFIG, BleepConfig.SPEC);
         BleepGameTests.register(modEventBus);
         modEventBus.addListener((EntityAttributeCreationEvent event) -> event.put(BleepContent.BLEEP.get(), BleepEntity.createAttributes().build()));
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("2").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle)
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("3").playToServer(BleepCommand.TYPE, BleepCommand.CODEC, BleepCommand::handle)
                 .playToServer(io.hookdev.bleep.network.PhotoTaken.TYPE, io.hookdev.bleep.network.PhotoTaken.CODEC, io.hookdev.bleep.network.PhotoTaken::handle)
                 .playToClient(io.hookdev.bleep.network.PhotoRequest.TYPE, io.hookdev.bleep.network.PhotoRequest.CODEC)
                 .playToClient(io.hookdev.bleep.network.TrackerData.TYPE, io.hookdev.bleep.network.TrackerData.CODEC)
                 .playToServer(io.hookdev.bleep.network.BleepRename.TYPE, io.hookdev.bleep.network.BleepRename.CODEC, io.hookdev.bleep.network.BleepRename::handle)
-                .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC));
+                .playToClient(io.hookdev.bleep.network.BleepediaData.TYPE, io.hookdev.bleep.network.BleepediaData.CODEC)
+                .playToClient(io.hookdev.bleep.network.CraftData.TYPE, io.hookdev.bleep.network.CraftData.CODEC));
         modEventBus.addListener(Bleep::registerCapabilities);
         NeoForge.EVENT_BUS.addListener(Bleep::comeHomeAfterRespawn);
         NeoForge.EVENT_BUS.addListener(Bleep::fightWon);
@@ -67,10 +70,39 @@ public class Bleep {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.AdvancementEvent.AdvancementEarnEvent event) -> {
             if (event.getAdvancement().value().display().isPresent()) react(event.getEntity(), io.hookdev.bleep.entity.Display.SPARKLE); // not the recipe ones
         });
-        // now and then an abandoned bleep somewhere out of sight of a player
+        // crafting: a best friend watching learns how
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) -> {
+            if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) || !(event.getInventory() instanceof net.minecraft.world.inventory.CraftingContainer grid)) return;
+            var input = grid.asCraftInput();
+            for (BleepEntity bleep : player.level().getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(BleepEntity.WATCH_RANGE), b -> b.isOwnedBy(player))) {
+                bleep.watchCraft(player, input, event.getCrafting());
+            }
+        });
+        // races: the countdown, and the end
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) -> {
+            if (event.getLevel() instanceof ServerLevel level) io.hookdev.bleep.entity.Race.tickAll(level);
+        });
+        // through a portal: the bleeps following their owner come along
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent event) -> {
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+                TRAVELLING.put(player.getUUID(), io.hookdev.bleep.entity.BleepEntity.comingAlong(player).stream().map(net.minecraft.world.entity.Entity::getUUID).toList());
+            }
+        });
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) -> {
+            var along = TRAVELLING.remove(event.getEntity().getUUID());
+            if (along == null || !(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) return;
+            var from = player.level().getServer().getLevel(event.getFrom());
+            if (from == null) return;
+            for (var id : along) if (from.getEntity(id) instanceof io.hookdev.bleep.entity.BleepEntity bleep) bleep.travelTo(player);
+        });
+        // a player walking into a special place for the first time: maybe an abandoned bleep in there
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) -> {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.Abandoned.EVERY == 0 && player.tickCount > 0) {
                 io.hookdev.bleep.entity.Abandoned.maybeSpawn(player);
+            }
+            // back from an expedition, once the day is over and its owner is around
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % 100 == 60) {
+                io.hookdev.bleep.entity.Expeditions.get((ServerLevel) player.level()).comeBack(player, false);
             }
             // and on a clear night, very rarely, a star falls
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && player.tickCount % io.hookdev.bleep.entity.FallingStar.EVERY == 600) {

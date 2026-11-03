@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "minecraft:paper",
+    "D": "minecraft:cyan_dye",
+    "S": "minecraft:stick"
+  },
+  "pattern": [
+    "PD",
+    "S "
+  ],
+  "result": {
+    "count": 4,
+    "id": "bleep:race_flag"
+  }
+}

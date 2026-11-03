@@ -70,6 +70,10 @@ public final class DisplayTextures {
             case QUESTION -> "question" + ((int) (state.ageInTicks / 10) % 2);
             case RAIN, THUNDER -> state.display.name() + ((int) (state.ageInTicks / 5) % 3);
             case IMITATE -> "imitate" + ((int) (state.ageInTicks / 4) % 4);
+            case HOT -> "hot" + ((int) (state.ageInTicks / 5) % 3);
+            case MUSIC -> "music" + ((int) (state.ageInTicks / 4) % 2);
+            case RACE -> "race" + ((int) (state.ageInTicks / 4) % 2);
+            case TROPHY -> "trophy" + ((int) (state.ageInTicks / 8) % 2);
             case DREAM -> "dream" + state.dream + (state.dream.startsWith("mob:") ? step : (int) (state.ageInTicks / 5));
             case TREASURE -> state.treasureDistance > FAR_OFF ? "treasure_arrow" + arrow(state.treasureAngle) : "treasure" + warmth(state.treasureDistance) + ((int) (state.ageInTicks / 6) % 2);
             default -> "face";
@@ -93,6 +97,10 @@ public final class DisplayTextures {
             case RAIN -> weather(image, false, (int) (state.ageInTicks / 5) % 3);
             case THUNDER -> weather(image, true, (int) (state.ageInTicks / 5) % 3);
             case IMITATE -> imitate(image, (int) (state.ageInTicks / 4) % 4);
+            case HOT -> hot(image, (int) (state.ageInTicks / 5) % 3);
+            case MUSIC -> music(image, (int) (state.ageInTicks / 4) % 2);
+            case RACE -> raceFlag(image, (int) (state.ageInTicks / 4) % 2);
+            case TROPHY -> trophy(image, (int) (state.ageInTicks / 8) % 2 == 0);
             case DREAM -> dream(image, state.dream, state.dreamName, (int) (state.ageInTicks / 3), (int) (state.ageInTicks / 5), state.id);
             case TREASURE -> {
                 if (state.treasureDistance > FAR_OFF) arrow(image, arrow(state.treasureAngle));
@@ -266,6 +274,64 @@ public final class DisplayTextures {
         for (int i = 0; i < 4; i++) { // the rain, falling
             int x = 6 + i * 2 + (i % 2), y = 5 + (frame + i) % 4;
             if (!thunder || x < 8 || x > 11) set(image, x, y, RAIN_DROP);
+        }
+    }
+
+    // ---------- racing ----------
+
+    private static final int GOLD = 0xFFFFD23F, GOLD_DARK = 0xFFC8962A;
+
+    /** A chequered flag on a pole, its rows waving. */
+    private static void raceFlag(NativeImage image, int frame) {
+        for (int y = 0; y < 10; y++) set(image, 5, y, GLOW);
+        for (int y = 0; y < 6; y++) {
+            int shift = (y / 2 + frame) % 2;
+            for (int x = 0; x < 9; x++) set(image, 6 + x + shift, y, ((x / 2 + y / 2) % 2 == 0) ? 0xFFEEF1F4 : DIM);
+        }
+    }
+
+    /** A gold cup with two handles; a sparkle now and then. */
+    private static void trophy(NativeImage image, boolean sparkle) {
+        for (int y = 0; y < 4; y++) for (int x = 6 - (3 - y) / 2; x < 14 + (3 - y) / 2; x++) set(image, x, y, y == 0 ? GOLD_DARK : GOLD);
+        set(image, 5, 1, GOLD); set(image, 4, 2, GOLD); set(image, 14, 1, GOLD); set(image, 15, 2, GOLD); // the handles
+        set(image, 9, 4, GOLD); set(image, 10, 4, GOLD); set(image, 9, 5, GOLD_DARK); set(image, 10, 5, GOLD_DARK);
+        for (int x = 7; x < 13; x++) set(image, x, 6, GOLD);
+        for (int x = 6; x < 14; x++) set(image, x, 7, GOLD_DARK);
+        if (sparkle) { set(image, 16, 0, 0xFFFFFFFF); set(image, 3, 5, 0xFFFFFFFF); }
+    }
+
+    // ---------- making music ----------
+
+    /** Two eighth notes, bobbing in turn to the beat. */
+    private static void music(NativeImage image, int frame) {
+        for (int i = 0; i < 2; i++) {
+            int x = 4 + i * 8, y = (frame + i) % 2 == 0 ? 0 : 2, colour = i == 0 ? GLOW : PINK;
+            for (int k = 0; k < 6; k++) set(image, x + 2, y + k, colour);       // the stem
+            set(image, x + 3, y, colour);                                        // the flag
+            set(image, x + 4, y + 1, colour);
+            for (int dy = 0; dy < 2; dy++) for (int dx = 0; dx < 3; dx++) set(image, x + dx, y + 5 + dy, colour); // the head
+        }
+    }
+
+    // ---------- too hot ----------
+
+    private static final int GLASS = 0xFFD6DCE2;
+
+    /** A thermometer filled to the top, and wavy heat rising beside it (three frames). */
+    private static void hot(NativeImage image, int frame) {
+        for (int y = 1; y < 7; y++) {
+            set(image, 4, y, GLASS);
+            set(image, 6, y, GLASS);
+            set(image, 5, y, RED);
+        }
+        set(image, 5, 0, GLASS);
+        for (int y = 7; y < 10; y++) for (int x = 4; x < 7; x++) set(image, x, y, RED);
+        for (int i = 0; i < 3; i++) { // heat waves, drifting up
+            int x0 = 9 + i * 3;
+            for (int y = 0; y < 9; y++) {
+                int x = x0 + ((y + frame + i) % 4 < 2 ? 0 : 1);
+                if ((y + frame) % 3 != 2) set(image, x, y, i == 1 ? AMBER : RED);
+            }
         }
     }
 

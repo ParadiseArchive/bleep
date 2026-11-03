@@ -6,7 +6,7 @@
   <a href="https://github.com/ParadiseArchive/bleep/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/ParadiseArchive/bleep/build.yml?branch=main&style=flat-square&label=build&labelColor=0a0c13&color=2de2e6" alt="Build"></a>
   <img src="https://img.shields.io/badge/minecraft-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="Minecraft 26.1.2 and 26.3">
   <img src="https://img.shields.io/badge/neoforge-26.1.2%20%7C%2026.3-2de2e6?style=flat-square&labelColor=0a0c13" alt="NeoForge 26.1.2 and 26.3">
-  <img src="https://img.shields.io/badge/version-0.2.0-ffb547?style=flat-square&labelColor=0a0c13" alt="Version 0.2.0">
+  <img src="https://img.shields.io/badge/version-0.3.0-ffb547?style=flat-square&labelColor=0a0c13" alt="Version 0.3.0">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-ff4f8b?style=flat-square&labelColor=0a0c13" alt="License: GPL-3.0"></a>
 </p>
 
@@ -76,8 +76,9 @@ opinion), every biome it drove through, the special blocks it spotted, its stats
 the book when there is something new. Out in the world it dances when a record plays, sleeps next to your bed, digs up
 bits and bobs and adores iron golems. In the water a little boat pops up under it, on snow it rides a sled, and when
 it stays somewhere snowy it builds a snowman. It feels rain coming, does impressions of mobs it met, and fills display
-cases near its homebase with its favourite things: its own museum. Now and then you find an old, abandoned bleep: a
-block of redstone wakes it up.
+cases near its homebase with its favourite things: its own museum. Very rarely, in an ancient city, a trail ruin, a
+zombie village or a mineshaft, you find an old, abandoned bleep: a block of redstone wakes it up, and it brings an old
+photo from long ago and its story.
 
 ### Photos
 At a nice moment it says Click! and takes a photo of what you see: a sunset with you, a falling star, its best friend,
@@ -91,6 +92,20 @@ a new biome. They go in a Photos tab in its Bleepedia, and Print puts one on a m
 Every bleep carries a storage as big as a small chest, behind the chest on its info screen. Switch on its magnet and it
 pulls in what lies about; now and then it drives over to show you something it found. Put a sword in it and a Buddy
 fights with it. Its name is Bleep until you type a new one on its info screen.
+
+### Races, a band and trips
+Put race flags around a start flag and right-click it: your bleeps line up, 3, 2, 1, GO!, and race from flag to nearest
+flag and back, for the times and a course record. Friends at the start race with their bleeps too. Play a tune and it
+drives to a note block; up to three bleeps make a band, melody, harmony and bass. Go exploring and it is away for a
+Minecraft day, and comes back with finds, two photos and a story. A best friend watches you craft and makes it again
+from its storage. And a trailer behind it makes its storage as big as a large chest.
+
+<img src=".github/readme/shelf-fun.png" width="100%" alt="A bleep pulling a little wooden trailer, the chequered start flag and the cyan race flag.">
+
+### The Nether and the End
+Bleeps that follow you come along through a portal. In the Nether it slowly gets hot: too hot and it smokes, slows down
+and drains its battery, until it cools off at water, ice or snow, or you hand it a snowball. In the End it goes very
+quiet, and looks at the stars.
 
 ### Play and company
 Throw a ball and it brings it back. Have more than one bleep and they say hi, chat, play tag, pass the ball, fight
@@ -157,14 +172,14 @@ Hoppers and pipes reach the storage of the bleep parked on it.
 
 ## Get it
 
-**0.2.0** is out: download it from the [GitHub releases](https://github.com/ParadiseArchive/bleep/releases)
+**0.3.0** is out: download it from the [GitHub releases](https://github.com/ParadiseArchive/bleep/releases)
 (CurseForge is on its way). What is new is in
-[the changelog](release/changelog/0.2.0.md).
+[the changelog](release/changelog/0.3.0.md).
 
 - Minecraft 26.3 or 26.1.2 (the version of All the Mods 11) with NeoForge, Java 25: pick the file for your Minecraft version
 - In-game help: tooltips on every part, and in JEI every recipe and where the core is found
 - Works with Jade (battery, mood and bond when you look at a bleep) and JEI
-- Thirteen advancements, and a config for pack makers (bleeps per player, battery drain, homebase power, falling stars and more)
+- Sixteen advancements, and a config for pack makers (bleeps per player, battery drain, homebase power, falling stars and more)
 - Stand-alone: no other mod needed
 
 The full documentation, with every face, part, recipe and the info screen, is on

@@ -284,6 +284,7 @@ function bleepParts(pose = {}) {
 /** What it rides in (client/BoatModel and SledModel): boxes at the ground, in their own texture of tw x th. */
 const RIDES = {
   boat: { texture: 'bleep:entity/bleep/boat', tw: 128, th: 64, boxes: [[0, 0, -8, -1, -8, 16, 1, 17], [0, 20, -9, -6, -8, 1, 6, 17], [40, 20, 8, -6, -8, 1, 6, 17], [0, 44, -8, -6, 9, 16, 6, 1], [36, 44, -7, -6, -10, 14, 6, 2], [72, 44, -5, -6, -12, 10, 6, 2], [100, 44, -2, -6, -13, 4, 6, 1]] },
+  trailer: { texture: 'bleep:entity/bleep/trailer', tw: 64, th: 64, boxes: [[0, 0, -5, -4, 9, 10, 1, 10], [0, 12, -5, -8, 9, 1, 4, 10], [0, 12, 4, -8, 9, 1, 4, 10], [24, 12, -4, -8, 9, 8, 4, 1], [24, 18, -4, -8, 18, 8, 4, 1], [44, 12, -0.5, -4, 5, 1, 1, 4], [0, 32, -3.5, -9, 10.5, 7, 5, 7], [32, 32, -6, -4, 12, 1, 4, 4], [32, 32, 5, -4, 12, 1, 4, 4]] },
   sled: { texture: 'bleep:entity/bleep/sled', tw: 64, th: 32, boxes: [[0, 0, -7.5, -2, -7, 15, 1, 14], [0, 16, -7, -1, -8, 1, 1, 16], [0, 16, 6, -1, -8, 1, 1, 16], [0, 16, -7, -3, -10, 1, 2, 2], [0, 16, 6, -3, -10, 1, 2, 2], [0, 16, -7, -4, -11, 14, 1, 1]] },
 };
 /**
@@ -321,6 +322,7 @@ function bleepElements(pose = {}) {
     }
   }
   if (pose.ride) parts.push({ pivot: [0, 0, 0], ...RIDES[pose.ride] });
+  if (pose.trailer) parts.push({ pivot: [0, 0, 0], ...RIDES.trailer }); // its trailer behind it (client/TrailerModel)
   for (const part of parts) {
     const T = part.texture || 'bleep:entity/bleep/bleep', tint = part.texture || pose.color === undefined ? undefined : 0;
     const [px, py, pz] = part.pivot;
@@ -382,6 +384,8 @@ render('starstone', [{ model: 'starstone', y: S }], 6);
 render('fallen_star', [{ model: 'fallen_star', y: S }], 6);
 render('homebase_charging', [{ model: 'homebase_4_charging', y: S }], 6);
 render('display_case', [{ model: 'display_case', y: S }], 6);
+render('start_flag', [{ model: 'start_flag', y: S }], 6);
+render('race_flag', [{ model: 'race_flag', y: S }], 6);
 // docked on its homebase: standing on the pad, facing out, charging
 render('bleep_home', [{ model: 'homebase_4_charging', y: S, xf: big() }, { model: 'bleep', xf: big(2) }], 2);
 // the core is a flat item: just scale it up
@@ -424,8 +428,11 @@ MODELS.set('bleep_boat', bleepElements({ ride: 'boat', face: 'happy' }));
 render('bleep_boat', [{ model: 'bleep_boat', xf: big() }], 2);
 MODELS.set('bleep_sled', bleepElements({ ride: 'sled', color: 'cyan', neck: 'scarf', face: 'excited', arms: -2.6, armSpread: 0.25 }));
 render('bleep_sled', [{ model: 'bleep_sled', xf: big(), tints: [DYES.cyan] }], 2);
+// with its trailer: a chest on a little cart behind it
+MODELS.set('bleep_trailer', bleepElements({ trailer: true, face: 'happy' }));
+render('bleep_trailer', [{ model: 'bleep_trailer', xf: big() }], 2);
 // the other parts are flat items too
-for (const part of ['star_shard', 'speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf', 'whistle', 'tracker']) {
+for (const part of ['star_shard', 'speed_chip', 'shield_chip', 'battery_chip', 'ball', 'bleep_display', 'bleep_tracks', 'bleep_arms', 'power_bank', 'party_hat', 'top_hat', 'antenna', 'sticker_star', 'sticker_heart', 'sticker_bolt', 'crown', 'sunglasses', 'leather_jacket', 'cape', 'bow_tie', 'scarf', 'whistle', 'tracker', 'trailer']) {
   const t = texture('bleep:item/' + part);
   const W = t.w + 2, H = t.h + 2, px = Buffer.alloc(W * H * 4);
   for (let y = 0; y < t.h; y++) t.px.copy(px, ((y + 1) * W + 1) * 4, y * t.w * 4, (y + 1) * t.w * 4);
@@ -559,6 +566,34 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
     [2, 4, 6, 3, 5, 2].forEach((hh, i) => { const h = Math.max(1, (hh + 8) % 7); for (let y = 0; y < h; y++) set(2 + i * 2, 5 + Math.floor(h / 2) - y, GLOW); });
     [...'###..#.##....#.'].forEach((p, g) => { if (p === '#') set(15 + g % 3, 2 + Math.floor(g / 3), AMBER); });
   });
+  screen('trick_hot', (set) => { // overheated in the Nether (client/DisplayTextures.hot), frame 0
+    const GLASS = [0xd6, 0xdc, 0xe2];
+    for (let y = 1; y < 7; y++) { set(4, y, GLASS); set(6, y, GLASS); set(5, y, RED); }
+    set(5, 0, GLASS);
+    for (let y = 7; y < 10; y++) for (let x = 4; x < 7; x++) set(x, y, RED);
+    for (let i = 0; i < 3; i++) for (let y = 0; y < 9; y++) { const x = 9 + i * 3 + ((y + i) % 4 < 2 ? 0 : 1); if (y % 3 !== 2) set(x, y, i === 1 ? AMBER : RED); }
+  });
+  screen('trick_music', (set) => { // playing a note block (client/DisplayTextures.music), frame 0
+    for (let i = 0; i < 2; i++) {
+      const x = 4 + i * 8, y = i % 2 === 0 ? 0 : 2, c = i === 0 ? GLOW : PINK;
+      for (let k = 0; k < 6; k++) set(x + 2, y + k, c);
+      set(x + 3, y, c); set(x + 4, y + 1, c);
+      for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 3; dx++) set(x + dx, y + 5 + dy, c);
+    }
+  });
+  screen('trick_race', (set) => { // racing: a chequered flag (client/DisplayTextures.raceFlag), frame 0
+    for (let y = 0; y < 10; y++) set(5, y, GLOW);
+    for (let y = 0; y < 6; y++) { const shift = Math.floor(y / 2) % 2; for (let x = 0; x < 9; x++) set(6 + x + shift, y, (Math.floor(x / 2) + Math.floor(y / 2)) % 2 === 0 ? WHITE : DIM); }
+  });
+  screen('trick_trophy', (set) => { // won the race (client/DisplayTextures.trophy), sparkling
+    const GOLD = [0xff, 0xd2, 0x3f], GOLD_DARK = [0xc8, 0x96, 0x2a];
+    for (let y = 0; y < 4; y++) for (let x = 6 - Math.floor((3 - y) / 2); x < 14 + Math.floor((3 - y) / 2); x++) set(x, y, y === 0 ? GOLD_DARK : GOLD);
+    set(5, 1, GOLD); set(4, 2, GOLD); set(14, 1, GOLD); set(15, 2, GOLD);
+    set(9, 4, GOLD); set(10, 4, GOLD); set(9, 5, GOLD_DARK); set(10, 5, GOLD_DARK);
+    for (let x = 7; x < 13; x++) set(x, 6, GOLD);
+    for (let x = 6; x < 14; x++) set(x, 7, GOLD_DARK);
+    set(16, 0, WHITE2); set(3, 5, WHITE2);
+  });
   screen('trick_ball', (set) => { // shall we play? (client/DisplayTextures.ball)
     ['.pp.', 'pwpp', 'gggg', '.gg.'].forEach((row, y) => [...row].forEach((c, x) => { if (c !== '.') set(6 + x, 2 + y, c === 'p' ? PINK : c === 'g' ? GLOW : WHITE); }));
     for (let x = 6; x < 10; x++) set(x, 8, DIM);
@@ -570,7 +605,7 @@ for (const file of readdirSync(join(ASSETS, 'textures/entity/bleep/face')).sort(
 // Items the docs page shows without a recipe: the treats, the favourite items, the name tag. Add any new ones here.
 const SCREEN_ITEMS = ['minecraft:shears', 'minecraft:red_dye', 'bleep:bleep_core', 'bleep:bleep_display', 'bleep:bleep_tracks', 'bleep:bleep_arms', 'bleep:power_bank', 'minecraft:redstone_block', 'minecraft:torch', 'minecraft:cookie', 'minecraft:redstone', 'minecraft:name_tag', 'minecraft:amethyst_shard',
   'minecraft:lightning_rod', 'minecraft:compass', 'minecraft:music_disc_cat', 'minecraft:glow_berries', 'minecraft:clock',
-  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book', 'minecraft:chest', 'minecraft:iron_sword', 'minecraft:iron_hoe', 'minecraft:wheat', 'minecraft:cake', 'minecraft:fishing_rod', 'minecraft:furnace', 'minecraft:poppy', 'minecraft:iron_axe', 'minecraft:compass', 'minecraft:map', 'minecraft:filled_map', 'minecraft:snow_block', 'minecraft:carved_pumpkin', 'minecraft:hopper', 'minecraft:comparator'];
+  'minecraft:spyglass', 'minecraft:firework_rocket', 'minecraft:bell', 'minecraft:honeycomb', 'minecraft:book', 'minecraft:chest', 'minecraft:iron_sword', 'minecraft:iron_hoe', 'minecraft:wheat', 'minecraft:cake', 'minecraft:fishing_rod', 'minecraft:furnace', 'minecraft:poppy', 'minecraft:iron_axe', 'minecraft:compass', 'minecraft:map', 'minecraft:filled_map', 'minecraft:snow_block', 'minecraft:carved_pumpkin', 'minecraft:hopper', 'minecraft:comparator', 'minecraft:note_block', 'minecraft:snowball', 'minecraft:crafting_table', 'minecraft:ender_eye'];
 
 /** Writes items/<namespace>/<name>.png: a flat item at 16x16, a block item rendered like in the inventory. */
 function icon(id) {

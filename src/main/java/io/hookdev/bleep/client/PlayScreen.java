@@ -13,7 +13,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** Play with your bleep (the ball on its info screen): hide and seek and a treasure hunt, either way round, and tricks, some for a closer bond. */
 public class PlayScreen extends Screen {
-    private static final int W = 232, H = 198, DIM = 0xFF8A93A0;
+    private static final int W = 232, H = 240, DIM = 0xFF8A93A0;
     private final BleepEntity bleep;
     private int left, top;
 
@@ -43,6 +43,10 @@ public class PlayScreen extends Screen {
             if (!button.active) button.setTooltip(Tooltip.create(Component.translatable("screen.bleep.play.learns", Component.translatable(Bond.key(trick.level * 25)))));
             addRenderableWidget(button);
         }
+        addRenderableWidget(Button.builder(Component.translatable("screen.bleep.play.music"), b -> go(BleepCommand.MUSIC)).bounds(left + 10, top + 184, 104, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.bleep.play.music.tip"))).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.bleep.play.explore"), b -> go(BleepCommand.EXPEDITION)).bounds(left + 118, top + 184, 104, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.bleep.play.explore.tip"))).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.bleep.back"), b -> McVersionClient.setScreen(new BleepScreen(bleep))).bounds(left + 82, top + H - 28, 68, 20).build());
     }
 
@@ -65,6 +69,7 @@ public class PlayScreen extends Screen {
         g.text(font, Component.translatable("screen.bleep.play.hide_and_seek"), left + 10, top + 28, DIM, false);
         g.text(font, Component.translatable("screen.bleep.play.treasure"), left + 10, top + 70, DIM, false);
         g.text(font, Component.translatable("screen.bleep.play.tricks"), left + 10, top + 112, DIM, false);
+        g.text(font, Component.translatable("screen.bleep.play.band"), left + 10, top + 172, DIM, false);
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
     }
 

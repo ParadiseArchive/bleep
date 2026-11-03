@@ -100,6 +100,7 @@ public class BleepEntity extends TamableAnimal {
     private static final EntityDataAccessor<Boolean> MUTED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     /** On snow it rides a little sled (owner, 31 Oct 2026). */
     private static final EntityDataAccessor<Boolean> SLED = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> TRAILER = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> PARTY = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.BOOLEAN);
     /** Its work while it stays: the jobs that are on (JOB_*), and how far it goes from its spot. */
     private static final EntityDataAccessor<Integer> JOBS = SynchedEntityData.defineId(BleepEntity.class, EntityDataSerializers.INT);
@@ -292,18 +293,22 @@ public class BleepEntity extends TamableAnimal {
     private int danceTicks, digTicks, golemTicks;
     /** Asleep next to its owner's bed, while they sleep. */
     private boolean bedside;
-    /** Its storage, as big as a small chest. */
-    public static final int STORAGE = 27;
+    /** Its storage, as big as a small chest; with a trailer as big as a big chest. */
+    public static final int STORAGE = 27, TRAILER_STORAGE = 54;
     /** How long it may take to show its owner something before it gives up. */
     public static final int SHOW_TICKS = 400;
     /** A new bleep's name. */
     public static final String DEFAULT_NAME = "Bleep";
-    private final net.minecraft.world.SimpleContainer storage = new net.minecraft.world.SimpleContainer(STORAGE) {
-        @Override
-        public boolean stillValid(Player player) {
-            return isAlive() && !isRemoved() && distanceToSqr(player) < 8 * 8;
-        }
-    };
+    private net.minecraft.world.SimpleContainer storage = newStorage(STORAGE);
+
+    private net.minecraft.world.SimpleContainer newStorage(int size) {
+        return new net.minecraft.world.SimpleContainer(size) {
+            @Override
+            public boolean stillValid(Player player) {
+                return isAlive() && !isRemoved() && distanceToSqr(player) < 8 * 8;
+            }
+        };
+    }
     /**
      * What it holds came out of its storage (a weapon for a fight, or something it is showing off) and goes back
      * there, instead of being handed to its owner like a find.
@@ -330,6 +335,8 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(2, new GoHomeGoal());
         this.goalSelector.addGoal(2, new BedsideGoal());
         this.goalSelector.addGoal(2, new GuardGoal());
+        this.goalSelector.addGoal(2, new CoolGoal());
+        this.goalSelector.addGoal(2, new RaceGoal());
         this.goalSelector.addGoal(4, new WelcomeGoal());
         this.goalSelector.addGoal(4, new ShopGoal());
         this.goalSelector.addGoal(4, new HideAndSeekGoal());
@@ -338,6 +345,7 @@ public class BleepEntity extends TamableAnimal {
         this.goalSelector.addGoal(6, new WorkGoal());
         this.goalSelector.addGoal(6, new SnowmanGoal());
         this.goalSelector.addGoal(6, new MuseumGoal());
+        this.goalSelector.addGoal(5, new MusicGoal());
         this.goalSelector.addGoal(5, new SocialGoal());
         this.goalSelector.addGoal(6, new ShowGoal());
         this.goalSelector.addGoal(7, new PlayGoal());
@@ -386,6 +394,7 @@ public class BleepEntity extends TamableAnimal {
         builder.define(BOAT, false);
         builder.define(MUTED, false);
         builder.define(SLED, false);
+        builder.define(TRAILER, false);
         builder.define(JOBS, 0);
         builder.define(RADIUS, STAY_RADIUS);
         builder.define(CHIPS, 0);
@@ -479,7 +488,9 @@ public class BleepEntity extends TamableAnimal {
 
     /** Its owner opens its storage (the chest on its info screen). */
     public void openStorage(net.minecraft.server.level.ServerPlayer player) {
-        player.openMenu(new net.minecraft.world.SimpleMenuProvider((id, inventory, p) -> net.minecraft.world.inventory.ChestMenu.threeRows(id, inventory, storage), getDisplayName()));
+        net.minecraft.world.SimpleContainer open = storage;
+        player.openMenu(new net.minecraft.world.SimpleMenuProvider((id, inventory, p) -> open.getContainerSize() == TRAILER_STORAGE
+                ? net.minecraft.world.inventory.ChestMenu.sixRows(id, inventory, open) : net.minecraft.world.inventory.ChestMenu.threeRows(id, inventory, open), getDisplayName()));
     }
 
     /** A new name, typed on its info screen: plain text, never empty. */
@@ -511,7 +522,20 @@ public class BleepEntity extends TamableAnimal {
         io.hookdev.bleep.Awards.award(player, "good_as_new");
         boot();
         remember("diary.bleep.abandoned", "");
-        remember("diary.bleep.past." + getRandom().nextInt(Abandoned.PASTS), "");
+        memory.past = getRandom().nextInt(Abandoned.PASTS);
+        memory.pastTold = 0;
+        remember("diary.bleep.past." + memory.past, "");
+        memory.photos.addFirst(new Memory.Photo(0, "old", Integer.toString(memory.past), OldPhoto.draw(memory.past, getRandom())));
+        remember("diary.bleep.old_photo", "");
+    }
+
+    /** An abandoned bleep remembers a bit more of its past: the next line in its diary. False when it has told it all. */
+    public boolean rememberPast() {
+        if (memory.past < 0 || memory.pastTold >= Abandoned.PAST_LINES) return false;
+        memory.pastTold++;
+        remember("diary.bleep.past." + memory.past + "." + memory.pastTold, "");
+        pinThought("thought.bleep.past");
+        return true;
     }
 
     /** Starts digging now, if it is free to (tests). */
@@ -643,7 +667,52 @@ public class BleepEntity extends TamableAnimal {
             setWorn(slot, null);
             any = true;
         }
-        return any;
+        if (any || !hasTrailer()) return any;
+        // nothing to wear left: the shears unhitch its trailer, once the back half of its storage is empty
+        if (!unhitchTrailer()) {
+            player.sendOverlayMessage(Component.translatable("message.bleep.trailer_full", getDisplayName()));
+            return true;
+        }
+        giveBack(player, new ItemStack(BleepContent.TRAILER.get()));
+        return true;
+    }
+
+    // ---------- its trailer ----------
+
+    /** A trailer behind it: its storage grows from a small chest to a big chest. */
+    public boolean hasTrailer() {
+        return this.entityData.get(TRAILER);
+    }
+
+    /** Hitches a trailer to it (one at most); what is in its storage stays. */
+    public boolean hitchTrailer() {
+        if (hasTrailer()) return false;
+        resizeStorage(TRAILER_STORAGE);
+        this.entityData.set(TRAILER, true);
+        playSound(net.minecraft.sounds.SoundEvents.CHAIN_PLACE, 0.8f, 1.2f);
+        feel(Emotion.EXCITED, 40);
+        pinThought("thought.bleep.trailer");
+        rememberFirst("trailer", "diary.bleep.trailer", "");
+        return true;
+    }
+
+    /** Unhitches its trailer, if the back half of its storage is empty. */
+    public boolean unhitchTrailer() {
+        if (!hasTrailer()) return false;
+        for (int i = STORAGE; i < storage.getContainerSize(); i++) if (!storage.getItem(i).isEmpty()) return false;
+        resizeStorage(STORAGE);
+        this.entityData.set(TRAILER, false);
+        playSound(net.minecraft.sounds.SoundEvents.CHAIN_BREAK, 0.8f, 1.2f);
+        return true;
+    }
+
+    /** A new storage of this size, with everything from the old one in the same slots (the rest must be empty). */
+    private void resizeStorage(int size) {
+        net.minecraft.world.SimpleContainer old = storage;
+        storage = newStorage(size);
+        for (int i = 0; i < Math.min(size, old.getContainerSize()); i++) storage.setItem(i, old.getItem(i));
+        // hoppers and pipes at its homebase may hold on to the old storage: tell them it changed
+        if (home() != null && home().dimension().equals(level().dimension())) level().invalidateCapabilities(home().pos());
     }
 
     private void giveBack(Player player, ItemStack stack) {
@@ -687,7 +756,7 @@ public class BleepEntity extends TamableAnimal {
     /** Not a sound when its owner muted it, nor on its homebase: there it keeps quiet by itself (owner, 31 Oct 2026). */
     @Override
     public boolean isSilent() {
-        return super.isSilent() || muted() || onHome();
+        return super.isSilent() || muted() || onHome() || level().dimension() == Level.END; // in the End it goes quiet
     }
 
     /** Every bleep has a voice of its own: a little higher or lower. */
@@ -841,6 +910,7 @@ public class BleepEntity extends TamableAnimal {
             return true;
         }
         if (stack.is(Items.EMERALD)) return goShopping(player, stack);
+        if (stack.is(BleepContent.TRAILER.get())) return hitchTrailer();
         if (stack.is(Items.COOKIE) || stack.is(Items.REDSTONE)) {
             if (giftsToday >= Bond.GIFTS_PER_DAY) {
                 player.sendOverlayMessage(Component.translatable("message.bleep.full_of_gifts", getDisplayName()));
@@ -971,13 +1041,14 @@ public class BleepEntity extends TamableAnimal {
     @Override
     public void remove(RemovalReason reason) {
         if (!level().isClientSide()) removeLight();
-        if (level() instanceof ServerLevel server && (reason == RemovalReason.KILLED || reason == RemovalReason.DISCARDED)) {
+        if (level() instanceof ServerLevel server && (reason == RemovalReason.KILLED || reason == RemovalReason.DISCARDED) && !travelling) { // away on a trip it is still theirs
             io.hookdev.bleep.BleepOwners.get(server).remove(getUUID());
             io.hookdev.bleep.BleepSightings.get(server).forget(getUUID());
         }
         if (!level().isClientSide() && reason == RemovalReason.KILLED) {
             stow();
             net.minecraft.world.Containers.dropContents(level(), this, storage);
+            if (level() instanceof ServerLevel server && hasTrailer()) spawnAtLocation(server, new ItemStack(BleepContent.TRAILER.get()));
             if (level() instanceof ServerLevel server) kept.forEach(stack -> spawnAtLocation(server, stack));
             if (level() instanceof ServerLevel server && !purse.isEmpty()) spawnAtLocation(server, purse);
             if (level() instanceof ServerLevel server && !treasureItem.isEmpty()) spawnAtLocation(server, treasureItem);
@@ -1101,7 +1172,7 @@ public class BleepEntity extends TamableAnimal {
 
     /** Busy with another bleep, a game or a find: staying can wait a moment. */
     private boolean busyWithOthers() {
-        return wayTo != null || hunting() || shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
+        return wayTo != null || musicAt != null || race != null || hunting() || shopAt != null || fishTicks > 0 || guardAt != null || welcomeTicks > 0 || hideMode != 0 || trickTicks > 0 || gazeTicks > 0 || workAt != null || talkingTo != null || fightingWith != null || greetTicks > 0 || playing() || fetching != null || showTicks > 0 || !getMainHandItem().isEmpty();
     }
 
     /** Drives home and stays there; a homeless bleep does not know where to go. */
@@ -1218,6 +1289,8 @@ public class BleepEntity extends TamableAnimal {
         lightTheWay();
         tickBoat();
         tickSled();
+        tickHeat();
+        if (tickCount % 100 == 35) firstVisit();
         if (!slept) maybeSunsetPhoto();
         if (tickCount % 100 == 50) forecastWeather();
         if (tickCount % 100 == 75 && isTame()) io.hookdev.bleep.BleepSightings.get((ServerLevel) level()).saw(getUUID(), sighting());
@@ -1610,6 +1683,7 @@ public class BleepEntity extends TamableAnimal {
         memory.daysTogether++;
         changeBond((int) apart * Bond.DAY_APART + Bond.DAY_TOGETHER);
         if (Bond.level(bond()) >= 1 && getRandom().nextFloat() < 0.35f) writeLetter();
+        rememberPast();
         lastTogetherDay = day;
     }
 
@@ -3202,6 +3276,10 @@ public class BleepEntity extends TamableAnimal {
             getNavigation().stop();
             getLookControl().setLookAt(getX() + getLookAngle().x, getEyeY() + 20, getZ() + getLookAngle().z);
         }
+        if (level().dimension() == Level.END) {
+            endStars();
+            return;
+        }
         if (slept || abandoned() || level().dimension() != Level.OVERWORLD || !level().isDarkOutside()) return;
         long clock = level().getOverworldClockTime(), night = clock / 24000, time = clock % 24000;
         // full moon (phase 0), midnight: the same four notes in every bleep at the same moment
@@ -3346,6 +3424,8 @@ public class BleepEntity extends TamableAnimal {
 
     /** What a photo shows: photo.bleep.<moment>, with the biome or the friend filled in. */
     public static Component photoMoment(Memory.Photo photo) {
+        if (photo.moment().equals("old")) return Component.translatable("photo.bleep.old." + photo.arg());
+        if (photo.moment().equals("trip")) return Component.translatable("photo.bleep.trip", Component.translatable("place.bleep." + photo.arg()));
         return Component.translatable("photo.bleep." + photo.moment(), photo.moment().equals("biome") ? Component.translatable(photo.arg()) : Component.literal(photo.arg()));
     }
 
@@ -3540,6 +3620,524 @@ public class BleepEntity extends TamableAnimal {
         return this.entityData.get(SLED);
     }
 
+    // ---------- expeditions (owner, 31 Oct 2026) ----------
+
+    /** The battery it needs to set off, what the trip costs, and how many stories each place has (diary.bleep.trip.<place>.<n>). */
+    public static final float TRIP_BATTERY = 50, TRIP_COST = 40;
+    public static final int TRIP_STORIES = 3;
+    /** Leaving on a trip: removed from the world, but still its owner's. */
+    private boolean travelling;
+
+    /**
+     * Off on an expedition for a Minecraft day: it waves, beams away, and waits in Expeditions (saved as it is) until the
+     * day is over. False (and a thought) with too little battery.
+     */
+    public boolean goExploring(Player owner) {
+        if (!(level() instanceof ServerLevel server) || !isOwnedBy(owner) || abandoned() || slept || assembly() > 0 || travelling) return false;
+        if (battery() < TRIP_BATTERY) {
+            pinThought("thought.bleep.trip.battery");
+            return false;
+        }
+        stow();
+        setCharging(false);
+        String place = Expeditions.PLACES.get(getRandom().nextInt(Expeditions.PLACES.size()));
+        BlockPos at = blockPosition();
+        io.hookdev.bleep.BleepSightings.get(server).saw(getUUID(), new io.hookdev.bleep.BleepSightings.Seen(getDisplayName().getString(),
+                level().dimension().identifier().toString(), at.getX(), at.getY(), at.getZ(), Math.round(battery()), Activity.EXPEDITION.key(), color()));
+        var output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, server.registryAccess());
+        saveWithoutId(output);
+        Expeditions.get(server).leave(getUUID(), new Expeditions.Trip(owner.getUUID(), server.getGameTime() + Expeditions.TRIP, place, output.buildResult()));
+        server.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.6, getZ(), 20, 0.3, 0.5, 0.3, 0.15);
+        server.playSound(null, at, SoundEvents.ENDERMAN_TELEPORT, SoundSource.NEUTRAL, 0.5f, 1.6f);
+        owner.sendOverlayMessage(Component.translatable("message.bleep.trip.off", getDisplayName()));
+        io.hookdev.bleep.Awards.award(owner, "bon_voyage");
+        travelling = true;
+        discard();
+        return true;
+    }
+
+    /** Back from a trip, next to its owner: tired, with finds, two photos, a new biome and the story in its diary. */
+    public void backFromTrip(Player owner, String place) {
+        setBattery(Math.max(TIRED, battery() - TRIP_COST));
+        for (ItemStack find : Expeditions.finds(place, getRandom())) keepOrGive(owner, find);
+        long now = level().getGameTime();
+        memory.addPhoto(new Memory.Photo(now, "trip", place, TripPhoto.draw(place, color(), true, getRandom())));
+        memory.addPhoto(new Memory.Photo(now + 1, "trip", place, TripPhoto.draw(place, color(), false, getRandom())));
+        memory.biomes.putIfAbsent(Expeditions.biome(place), now);
+        remember("diary.bleep.trip." + place, "");
+        remember("diary.bleep.trip." + place + "." + getRandom().nextInt(TRIP_STORIES), "");
+        remember("diary.bleep.trip.back", "");
+        changeBond(Bond.GIFT);
+        if (level() instanceof ServerLevel server) {
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.6, getZ(), 20, 0.3, 0.5, 0.3, 0.15);
+            server.playSound(null, blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.NEUTRAL, 0.5f, 1.9f);
+        }
+        feel(Emotion.EXCITED, 80);
+        showDisplay(Display.HI, 60);
+        pinThought("thought.bleep.trip.back");
+        owner.sendOverlayMessage(Component.translatable("message.bleep.trip.back", getDisplayName(), Component.translatable("place.bleep." + place)));
+    }
+
+    // ---------- crafting by watching (owner, 31 Oct 2026) ----------
+
+    /** How close it must be to see its owner craft, and how many it makes at most on a shift-click. */
+    public static final int WATCH_RANGE = 8, CRAFT_ALL = 64;
+
+    /**
+     * Its owner crafted something: a best friend close by that can see them remembers how (the grid as it was), and
+     * says so the first time. True if it learned something new.
+     */
+    public boolean watchCraft(Player owner, net.minecraft.world.item.crafting.CraftingInput input, ItemStack result) {
+        if (!can(Skill.CRAFT) || slept || abandoned() || !isOwnedBy(owner) || distanceToSqr(owner) > WATCH_RANGE * WATCH_RANGE || !hasLineOfSight(owner)
+                || input.isEmpty() || result.isEmpty()) return false;
+        List<String> items = new java.util.ArrayList<>();
+        for (ItemStack stack : input.items()) items.add(stack.isEmpty() ? "" : net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+        Memory.Craft craft = new Memory.Craft(input.width(), input.height(), List.copyOf(items),
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(result.getItem()).toString(), result.getCount());
+        boolean known = memory.crafts.removeIf(c -> c.width() == craft.width() && c.height() == craft.height() && c.items().equals(craft.items()));
+        memory.crafts.add(craft); // the newest last
+        while (memory.crafts.size() > Memory.CRAFTS) memory.crafts.removeFirst();
+        if (known) return false;
+        lookAt(owner, 30, 30);
+        feel(Emotion.EXCITED, 30);
+        pinThought("thought.bleep.craft.learned");
+        owner.sendOverlayMessage(Component.translatable("message.bleep.craft.learned", getDisplayName(), result.getHoverName()));
+        rememberFirst("craft_learned", "diary.bleep.craft.learned", result.getItem().getDescriptionId());
+        return true;
+    }
+
+    /** How many times it could make this craft from its storage now (CRAFT_ALL at most). */
+    public int makeable(Memory.Craft craft) {
+        java.util.Map<String, Integer> needs = new java.util.HashMap<>();
+        for (String item : craft.items()) if (!item.isEmpty()) needs.merge(item, 1, Integer::sum);
+        int times = CRAFT_ALL;
+        for (var need : needs.entrySet()) {
+            int have = 0;
+            for (int i = 0; i < storage.getContainerSize(); i++) {
+                ItemStack stack = storage.getItem(i);
+                if (!stack.isEmpty() && net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(need.getKey())) have += stack.getCount();
+            }
+            times = Math.min(times, have / need.getValue());
+        }
+        return times;
+    }
+
+    /**
+     * Makes one of what it learned (all: as many as it can), from its storage, the way its owner did: Minecraft looks up
+     * the recipe, so other mods' recipes work too. What comes out (and what is left over, like an empty bucket) goes in
+     * its storage, or to its owner when there is no room. How many it made.
+     */
+    public int craft(Player owner, int index, boolean all) {
+        if (!(level() instanceof ServerLevel server) || !can(Skill.CRAFT) || index < 0 || index >= memory.crafts.size() || slept) return 0;
+        Memory.Craft craft = memory.crafts.get(index);
+        int made = 0;
+        ItemStack first = ItemStack.EMPTY;
+        while (made < (all ? CRAFT_ALL : 1)) {
+            // one of each item from its storage, slot by slot, without taking it out yet
+            int[] slots = new int[craft.items().size()];
+            int[] used = new int[storage.getContainerSize()];
+            List<ItemStack> grid = new java.util.ArrayList<>();
+            boolean missing = false;
+            for (int k = 0; k < craft.items().size() && !missing; k++) {
+                String item = craft.items().get(k);
+                slots[k] = -1;
+                if (item.isEmpty()) {
+                    grid.add(ItemStack.EMPTY);
+                    continue;
+                }
+                for (int i = 0; i < storage.getContainerSize(); i++) {
+                    ItemStack stack = storage.getItem(i);
+                    if (!stack.isEmpty() && stack.getCount() > used[i] && net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(item)) {
+                        slots[k] = i;
+                        used[i]++;
+                        grid.add(stack.copyWithCount(1));
+                        break;
+                    }
+                }
+                missing = slots[k] < 0;
+            }
+            if (missing || grid.size() != craft.width() * craft.height()) break;
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(craft.width(), craft.height(), grid);
+            var recipe = server.recipeAccess().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, server);
+            if (recipe.isEmpty()) break;
+            ItemStack result = recipe.get().value().assemble(input);
+            if (result.isEmpty()) break;
+            var leftOver = recipe.get().value().getRemainingItems(input);
+            for (int i = 0; i < used.length; i++) if (used[i] > 0) storage.removeItem(i, used[i]);
+            if (first.isEmpty()) first = result.copy();
+            keepOrGive(owner, result);
+            for (ItemStack rest : leftOver) if (!rest.isEmpty()) keepOrGive(owner, rest);
+            made++;
+        }
+        if (made == 0) {
+            pinThought("thought.bleep.craft.missing");
+            return 0;
+        }
+        playSound(net.minecraft.sounds.SoundEvents.VILLAGER_WORK_TOOLSMITH, 0.7f, 1.4f);
+        server.sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 0.9, getZ(), 6, 0.3, 0.3, 0.3, 0);
+        io.hookdev.bleep.McVersion.swing(this);
+        feel(Emotion.HAPPY, 40);
+        pinThought("thought.bleep.craft.done");
+        rememberFirst("craft", "diary.bleep.craft", first.getItem().getDescriptionId());
+        return made;
+    }
+
+    /** Into its storage, or to its owner when it is full. */
+    private void keepOrGive(Player owner, ItemStack stack) {
+        ItemStack rest = storage.addItem(stack);
+        if (!rest.isEmpty()) giveBack(owner, rest);
+    }
+
+    /** For the craft screen: what it learned, and how many of each it could make now. */
+    public io.hookdev.bleep.network.CraftData craftData() {
+        return new io.hookdev.bleep.network.CraftData(getId(), List.copyOf(memory.crafts), memory.crafts.stream().map(this::makeable).toList());
+    }
+
+    /** Its owner opens the craft screen. */
+    public void openCrafts(net.minecraft.server.level.ServerPlayer player) {
+        if (player.connection.hasChannel(io.hookdev.bleep.network.CraftData.TYPE)) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, craftData());
+        }
+    }
+
+    // ---------- races (owner, 31 Oct 2026) ----------
+
+    /** How close to a flag counts as past it, and how fast it races (times its burst for this race, 0.92 to 1.08). */
+    public static final double RACE_REACH = 1.8, RACE_SPEED = 1.3;
+    private @Nullable Race race;
+    private int raceStep, raceLane, raceField;
+    private float raceBurst = 1;
+
+    public @Nullable Race race() {
+        return race;
+    }
+
+    /** Free to race: tamed, awake, charged enough, not parked on its homebase, not in a race already. */
+    public boolean mayRace() {
+        return isTame() && !slept && !abandoned() && assembly() == 0 && battery() >= TIRED && !parked() && race == null && !travelling;
+    }
+
+    /** Lines up for a race, in lane lane of field. */
+    public void joinRace(Race race, int lane, int field) {
+        this.race = race;
+        raceStep = 0;
+        raceLane = lane;
+        raceField = field;
+        raceBurst = 0.92f + getRandom().nextFloat() * 0.16f;
+        musicAt = null;
+        pinThought("thought.bleep.race.ready");
+        feel(Emotion.EXCITED, 60);
+    }
+
+    public void leaveRace() {
+        race = null;
+        getNavigation().stop();
+    }
+
+    /** Home, in this place of a field this big: a cup for the winner, a sulk for the last, a time to beat when alone. */
+    public void finishedRace(int place, int field) {
+        if (field == 1) {
+            feel(Emotion.HAPPY, 40);
+            pinThought("thought.bleep.race.trial");
+        } else if (place == 1) {
+            feel(Emotion.EXCITED, 100);
+            showDisplay(Display.TROPHY, 100);
+            pinThought("thought.bleep.race.won");
+            rememberFirst("race_won", "diary.bleep.race.won", "");
+        } else {
+            feel(place == field ? Emotion.SAD : Emotion.HAPPY, 60);
+            pinThought(place == field ? "thought.bleep.race.last" : "thought.bleep.race.lost");
+        }
+        rememberFirst("race", "diary.bleep.race", "");
+    }
+
+    // ---------- music (owner, 31 Oct 2026) ----------
+
+    /** How far it looks for a note block, how far it calls others to join, a band at most, one in how many goal checks it starts by itself. */
+    public static final int MUSIC_RANGE = 8, BAND_RANGE = 12, BAND_MAX = Music.PARTS, MUSIC_CHANCE = 2400;
+    /** The note block it plays, the tune, its part, the game time the tune starts, the beat it played last, how big the band is. */
+    private @Nullable BlockPos musicAt;
+    private int musicTune, musicPart, musicBeat = -1, musicBand;
+    private long musicStart;
+
+    public boolean makingMusic() {
+        return musicAt != null;
+    }
+
+    public int musicPart() {
+        return musicPart;
+    }
+
+    /**
+     * Starts a tune on the nearest free note block, and calls the free bleeps nearby to join in, each on a note block of
+     * its own: a band of three at most. False (and a thought) when there is no note block.
+     */
+    public boolean startMusic() {
+        return startMusic(true);
+    }
+
+    /** Asked: says so when there is no note block; by itself it just does not start. */
+    private boolean startMusic(boolean asked) {
+        if (level().isClientSide() || musicAt != null || !free() || busyWithOthers() || abandoned() || assembly() > 0 || !asked && !idle()) return false;
+        java.util.Set<BlockPos> taken = new java.util.HashSet<>(); // note blocks other bleeps play already
+        for (BleepEntity b : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(BAND_RANGE + MUSIC_RANGE), b -> b.musicAt != null)) taken.add(b.musicAt);
+        BlockPos at = noteBlockNear(blockPosition(), taken);
+        if (at == null) {
+            if (asked) pinThought("thought.bleep.music.none");
+            return false;
+        }
+        taken.add(at);
+        List<BleepEntity> band = new java.util.ArrayList<>(List.of(this));
+        for (BleepEntity other : level().getEntitiesOfClass(BleepEntity.class, getBoundingBox().inflate(BAND_RANGE), b -> b != this && b.musicAt == null
+                && b.free() && b.idle() && !b.busyWithOthers() && !b.abandoned() && b.assembly() == 0 && b.battery() >= TIRED)
+                .stream().sorted(Comparator.comparingDouble(this::distanceToSqr)).toList()) { // the nearest join first
+            if (band.size() >= BAND_MAX) break;
+            BlockPos theirs = noteBlockNear(other.blockPosition(), taken);
+            if (theirs == null) continue;
+            taken.add(theirs);
+            other.musicAt = theirs;
+            band.add(other);
+        }
+        musicAt = at;
+        int tune = getRandom().nextInt(Music.TUNES.length);
+        long start = level().getGameTime() + 60; // time to get to the note blocks
+        for (int i = 0; i < band.size(); i++) {
+            BleepEntity b = band.get(i);
+            b.musicTune = tune;
+            b.musicPart = i;
+            b.musicStart = start;
+            b.musicBand = band.size();
+            b.musicBeat = -1;
+            b.pinThought(i == 0 ? "thought.bleep.music.start" : "thought.bleep.music.join");
+        }
+        say("thought.bleep.music.tune." + Music.TUNES[tune]);
+        return true;
+    }
+
+    /** Doing nothing in particular: following, or staying put (not building a snowman, working, cooling down...). */
+    private boolean idle() {
+        Activity now = activity();
+        return (now == Activity.FOLLOWING || now == Activity.STAYING) && snowmanAt == null && coolAt == null;
+    }
+
+    /** The nearest note block within MUSIC_RANGE with room to stand next to it, not one in taken. */
+    private @Nullable BlockPos noteBlockNear(BlockPos from, java.util.Set<BlockPos> taken) {
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos p : BlockPos.betweenClosed(from.offset(-MUSIC_RANGE, -3, -MUSIC_RANGE), from.offset(MUSIC_RANGE, 3, MUSIC_RANGE))) {
+            if (!level().getBlockState(p).is(net.minecraft.world.level.block.Blocks.NOTE_BLOCK) || taken.contains(p)) continue;
+            double d = p.distSqr(from);
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = p.immutable();
+            }
+        }
+        return best;
+    }
+
+    /** One note on its note block: its instrument, a note flying up, an arm that swings. Allays come and listen. */
+    private void playNote(BlockPos at, int note) {
+        var state = level().getBlockState(at);
+        if (!state.is(net.minecraft.world.level.block.Blocks.NOTE_BLOCK) || !(level() instanceof ServerLevel server)) return;
+        var instrument = state.getValue(net.minecraft.world.level.block.NoteBlock.INSTRUMENT);
+        float pitch = instrument.isTunable() ? Music.pitch(note) : 1;
+        server.playSound(null, at, instrument.getSoundEvent().value(), net.minecraft.sounds.SoundSource.RECORDS, 3, pitch);
+        server.sendParticles(net.minecraft.core.particles.ParticleTypes.NOTE, at.getX() + 0.5, at.getY() + 1.2, at.getZ() + 0.5, 0, note / 24.0, 0, 0, 1);
+        server.gameEvent(this, net.minecraft.world.level.gameevent.GameEvent.NOTE_BLOCK_PLAY, at);
+        io.hookdev.bleep.McVersion.swing(this);
+    }
+
+    /** The tune is over: a happy face, and in its diary the first time (and the first time in a band). */
+    private void finishMusic() {
+        musicAt = null;
+        feel(Emotion.HAPPY, 60);
+        pinThought("thought.bleep.music.done");
+        rememberFirst("music", "diary.bleep.music", "");
+        if (musicBand >= 2) rememberFirst("band", "diary.bleep.band", "");
+        if (musicBand >= BAND_MAX && musicPart == Music.MELODY && getOwner() instanceof Player owner && distanceToSqr(owner) < 32 * 32) {
+            io.hookdev.bleep.Awards.award(owner, "band");
+        }
+    }
+
+    // ---------- the Nether and the End ----------
+
+    /**
+     * Heat (owner, 31 Oct 2026): the Nether warms it up (faster next to lava), at HEAT_MAX it overheats: slower, smoking,
+     * its battery running down, and off it goes to cool down in water, a cauldron of water, ice or snow. A snowball, ice
+     * or a bottle of water from its owner cools it at once. Below HEAT_COOLED it is fine again.
+     */
+    public static final float HEAT_MAX = 100, HEAT_COOLED = 40, HEAT_WARM = 60, HEAT_GIFT = 10;
+    /** Per second: warming in the Nether (about three minutes to overheat), how much faster by lava, cooling. */
+    public static final float HEAT_NETHER = 0.5f, HEAT_LAVA = 2.5f, HEAT_FIRE = 10, COOL_FAST = 8, COOL_SLOW = 1, HOT_COST = 0.1f;
+    private static final Identifier HOT_SPEED = Identifier.fromNamespaceAndPath("bleep", "hot");
+    private float heat;
+    private boolean overheated;
+    private @Nullable BlockPos coolAt;
+    private long endSignDay = -1;
+
+    public float heat() {
+        return heat;
+    }
+
+    public boolean overheated() {
+        return overheated;
+    }
+
+    /** Warms it up (tests: the Nether is far away). */
+    public void warm(float amount) {
+        heat = Mth.clamp(heat + amount, 0, HEAT_MAX);
+        if (heat >= HEAT_MAX && !overheated) overheat();
+    }
+
+    /** Too hot: smoke, a glitchy face, and off to cool down. */
+    private void overheat() {
+        overheated = true;
+        feel(Emotion.GLITCH, 40);
+        pinThought("thought.bleep.overheated");
+        playSound(net.minecraft.sounds.SoundEvents.LAVA_POP, 0.8f, 1.4f);
+        rememberFirst("overheated", "diary.bleep.overheated", "");
+    }
+
+    private void tickHeat() {
+        if (tickCount % 20 != 13) return;
+        float before = heat;
+        boolean nether = level().dimension() == Level.NETHER;
+        if (isInWaterOrRain() || coolingNear(blockPosition())) heat -= COOL_FAST;
+        else if (isOnFire() || isInLava()) heat += HEAT_FIRE;
+        else if (nether && !slept && !abandoned()) heat += HEAT_NETHER * (lavaNear() ? HEAT_LAVA : 1);
+        else heat -= COOL_SLOW;
+        heat = Mth.clamp(heat, 0, HEAT_MAX);
+        if (nether && before < HEAT_WARM && heat >= HEAT_WARM && !overheated) {
+            pinThought("thought.bleep.warm");
+            showDisplay(Display.HOT, 60);
+        }
+        if (!overheated && heat >= HEAT_MAX) {
+            overheat();
+        } else if (overheated && heat <= HEAT_COOLED) {
+            cooled();
+        }
+        if (overheated && !slept) {
+            ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.SMOKE, getX(), getY() + 0.9, getZ(), 3, 0.2, 0.1, 0.2, 0.01);
+            drain(HOT_COST);
+            if (display() == Display.FACE) showDisplay(Display.HOT, 40);
+        }
+        var speed = getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (overheated && !speed.hasModifier(HOT_SPEED)) speed.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(HOT_SPEED, -0.35,
+                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+        else if (!overheated && speed.hasModifier(HOT_SPEED)) speed.removeModifier(HOT_SPEED);
+    }
+
+    /** Cool again: a hiss and a puff of steam. */
+    private void cooled() {
+        overheated = false;
+        coolAt = null;
+        playSound(net.minecraft.sounds.SoundEvents.FIRE_EXTINGUISH, 0.5f, 1.6f);
+        ((ServerLevel) level()).sendParticles(net.minecraft.core.particles.ParticleTypes.CLOUD, getX(), getY() + 0.8, getZ(), 8, 0.25, 0.2, 0.25, 0.02);
+        feel(Emotion.HAPPY, 40);
+        pinThought("thought.bleep.cooled");
+        rememberFirst("cooled", "diary.bleep.cooled", "");
+    }
+
+    /** Cooled by its owner, at once. */
+    public void coolDown() {
+        heat = 0;
+        if (overheated) cooled();
+        else {
+            playSound(net.minecraft.sounds.SoundEvents.FIRE_EXTINGUISH, 0.4f, 1.8f);
+            pinThought("thought.bleep.cooled");
+        }
+    }
+
+    /** What cools it from its owner's hand: a snowball, ice, a snow block, a bottle of water. */
+    private static boolean cools(ItemStack stack) {
+        if (stack.is(Items.POTION)) {
+            var potion = stack.get(net.minecraft.core.component.DataComponents.POTION_CONTENTS);
+            return potion != null && potion.is(net.minecraft.world.item.alchemy.Potions.WATER);
+        }
+        return stack.is(Items.SNOWBALL) || stack.is(Items.ICE) || stack.is(Items.PACKED_ICE) || stack.is(Items.BLUE_ICE) || stack.is(Items.SNOW_BLOCK);
+    }
+
+    /** Water, a cauldron of water, ice or snow right next to this spot (or under it). */
+    private boolean coolingNear(BlockPos at) {
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-1, -1, -1), at.offset(1, 1, 1))) if (cooling(p)) return true;
+        return false;
+    }
+
+    private boolean cooling(BlockPos p) {
+        var state = level().getBlockState(p);
+        return state.getFluidState().is(net.minecraft.tags.FluidTags.WATER) || state.is(net.minecraft.world.level.block.Blocks.WATER_CAULDRON)
+                || state.is(net.minecraft.tags.BlockTags.ICE) || state.is(net.minecraft.world.level.block.Blocks.SNOW_BLOCK)
+                || state.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW) || state.is(net.minecraft.world.level.block.Blocks.SNOW);
+    }
+
+    /** The nearest place to cool down within 12 blocks, or null. */
+    private @Nullable BlockPos findCool() {
+        BlockPos here = blockPosition(), best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos p : BlockPos.betweenClosed(here.offset(-12, -3, -12), here.offset(12, 3, 12))) {
+            if (!cooling(p)) continue;
+            double d = p.distSqr(here);
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = p.immutable();
+            }
+        }
+        return best;
+    }
+
+    private boolean lavaNear() {
+        BlockPos at = blockPosition();
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-3, -2, -3), at.offset(3, 1, 3))) if (level().getFluidState(p).is(net.minecraft.tags.FluidTags.LAVA)) return true;
+        return false;
+    }
+
+    /** The first time in the Nether or the End: a diary line, a thought and a photo. */
+    private void firstVisit() {
+        if (!isTame() || slept || abandoned()) return;
+        if (level().dimension() == Level.NETHER && rememberFirst("nether", "diary.bleep.nether", "")) {
+            pinThought("thought.bleep.nether");
+            snap("nether", "");
+        } else if (level().dimension() == Level.END && rememberFirst("end", "diary.bleep.end", "")) {
+            pinThought("thought.bleep.end.arrive");
+            snap("end", "");
+        }
+    }
+
+    /** Thoughts while looking up at the stars in the End: thought.bleep.end.<n>. */
+    public static final int END_THOUGHTS = 5;
+
+    /** In the End it is quiet and looks up at the stars, often; once a day that adds a sign. */
+    private void endStars() {
+        if (slept || abandoned() || gazeTicks > 0 || tickCount % 300 != 150 || !free() || busyWithOthers() || getRandom().nextFloat() >= 0.5f) return;
+        gazeTicks = 160;
+        showDisplay(Display.STARS, 160);
+        hobbyPoint("stargazing");
+        pinThought("thought.bleep.end." + getRandom().nextInt(END_THOUGHTS));
+        rememberFirst("end_stars", "diary.bleep.end_stars", "");
+        long day = level().getGameTime() / Bond.DAY;
+        if (endSignDay != day) {
+            endSignDay = day;
+            addSigns(1);
+        }
+    }
+
+    /** Its owner goes through a portal: a bleep that follows them (close by, not staying, not asleep) comes along. */
+    public boolean followsAlong() {
+        return !isOrderedToSit() && !slept && !abandoned() && assembly() == 0 && !parked() && guardAt == null && !goingHome;
+    }
+
+    /** The bleeps that come along when this player goes through a portal now. */
+    public static List<BleepEntity> comingAlong(net.minecraft.server.level.ServerPlayer player) {
+        return player.level().getEntitiesOfClass(BleepEntity.class, player.getBoundingBox().inflate(16), b -> b.isOwnedBy(player) && b.followsAlong());
+    }
+
+    /** Through the portal after its owner: to their spot in the other world. */
+    public void travelTo(net.minecraft.server.level.ServerPlayer owner) {
+        getNavigation().stop();
+        teleportTo((ServerLevel) owner.level(), owner.getX(), owner.getY(), owner.getZ(), java.util.Set.of(), getYRot(), 0, false);
+    }
+
     public boolean boating() {
         return this.entityData.get(BOAT);
     }
@@ -3625,6 +4223,10 @@ public class BleepEntity extends TamableAnimal {
         if (moodTicks > 0 && mood == Emotion.BOOT) return Activity.STARTING;
         if (home) return display() == Display.DREAM ? Activity.DREAMING : battery() < FULL && !homeEmpty ? Activity.CHARGING : slept || dozing() ? Activity.SLEEPING : Activity.AT_HOME;
         if (slept) return Activity.SLEEPING;
+        if (race != null) return Activity.RACING;
+        if (coolAt != null) return Activity.COOLING;
+        if (musicAt != null) return Activity.MUSIC;
+        if (overheated) return Activity.OVERHEATED;
         if (bedside) return Activity.BEDSIDE;
         if (snowmanAt != null) return Activity.BUILDING;
         if (boating()) return Activity.BOATING;
@@ -3746,6 +4348,12 @@ public class BleepEntity extends TamableAnimal {
             if (level().isClientSide()) return super.mobInteract(player, hand);
             if (asleep() && !charges(stack)) return super.mobInteract(player, hand);
             if (stack.is(Items.SHEARS)) return takeOff(player) ? InteractionResult.SUCCESS : super.mobInteract(player, hand);
+            if (heat > HEAT_GIFT && cools(stack)) { // a snowball, ice or a bottle of water: ahh
+                if (stack.is(Items.POTION)) player.setItemInHand(hand, net.minecraft.world.item.ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE)));
+                else stack.consume(1, player);
+                coolDown();
+                return InteractionResult.SUCCESS;
+            }
             if (stack.is(BleepContent.POWER_BANK.get())) { // the bank is kept: it shows what is left
                 usePowerBank(player, stack);
                 return InteractionResult.SUCCESS;
@@ -3862,7 +4470,10 @@ public class BleepEntity extends TamableAnimal {
         memory.save(output);
         output.putBoolean("news", news());
         output.putBoolean("abandoned", abandoned());
+        output.putFloat("heat", heat);
+        output.putBoolean("overheated", overheated);
         storage.storeAsItemList(output.list("storage", ItemStack.CODEC));
+        output.putBoolean("trailer", hasTrailer());
         output.putBoolean("magnet", magnet());
         output.putBoolean("own_hand", ownHand);
         output.putBoolean("armed", armed);
@@ -3919,6 +4530,10 @@ public class BleepEntity extends TamableAnimal {
         memory.load(input);
         this.entityData.set(NEWS, input.getBooleanOr("news", false));
         this.entityData.set(ABANDONED, input.getBooleanOr("abandoned", false));
+        heat = input.getFloatOr("heat", 0);
+        overheated = input.getBooleanOr("overheated", false);
+        this.entityData.set(TRAILER, input.getBooleanOr("trailer", false));
+        storage = newStorage(hasTrailer() ? TRAILER_STORAGE : STORAGE);
         input.list("storage", ItemStack.CODEC).ifPresent(storage::fromItemList);
         setMagnet(input.getBooleanOr("magnet", false));
         ownHand = input.getBooleanOr("own_hand", false);
@@ -4112,6 +4727,166 @@ public class BleepEntity extends TamableAnimal {
      * scooped up from the ground. With a carved pumpkin in its storage it gives it a head, and the snowman comes alive
      * (a snow golem). Once a day at most.
      */
+    /** In a race: to its place at the start, then on GO from flag to flag and home, as fast as it goes. */
+    private class RaceGoal extends Goal {
+        RaceGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return race != null && !slept;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return race != null && !race.over() && !slept;
+        }
+
+        @Override
+        public void stop() {
+            race = null; // whatever stopped it, it is out of the race
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            Race r = race;
+            if (r == null) return;
+            long now = level().getGameTime();
+            if (display() == Display.FACE || display() == Display.RACE) showDisplay(Display.RACE, 20);
+            if (now < r.go) { // lining up next to the start flag
+                BlockPos lane = r.start.offset(raceLane - raceField / 2, 0, 0);
+                if (horizontalDistance(lane) > 0.7) {
+                    if (now % 10 < 2) getNavigation().moveTo(lane.getX() + 0.5, lane.getY(), lane.getZ() + 0.5, 1.0);
+                } else {
+                    getNavigation().stop();
+                    BlockPos first = r.route.getFirst();
+                    getLookControl().setLookAt(first.getX() + 0.5, first.getY() + 0.5, first.getZ() + 0.5);
+                }
+                return;
+            }
+            BlockPos flag = r.route.get(raceStep);
+            if (horizontalDistance(flag) < RACE_REACH) {
+                raceStep++;
+                if (raceStep >= r.route.size()) {
+                    r.finish(BleepEntity.this);
+                    race = null;
+                    return;
+                }
+                flag = r.route.get(raceStep);
+                getNavigation().moveTo(flag.getX() + 0.5, flag.getY(), flag.getZ() + 0.5, RACE_SPEED * raceBurst);
+            } else if (getNavigation().isDone() || now % 10 < 2) {
+                getNavigation().moveTo(flag.getX() + 0.5, flag.getY(), flag.getZ() + 0.5, RACE_SPEED * raceBurst);
+            }
+            getLookControl().setLookAt(flag.getX() + 0.5, flag.getY() + 0.5, flag.getZ() + 0.5);
+        }
+    }
+
+    private double horizontalDistance(BlockPos pos) {
+        double dx = getX() - (pos.getX() + 0.5), dz = getZ() - (pos.getZ() + 0.5);
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** Making music: to its note block, then the tune on the beat, together with the rest of the band. */
+    private class MusicGoal extends Goal {
+        MusicGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (musicAt != null) return !slept && getTarget() == null;
+            // now and then by itself, when there is a note block close by and its owner to listen
+            return getRandom().nextInt(MUSIC_CHANCE) == 0 && getOwner() instanceof Player owner && distanceToSqr(owner) < 16 * 16 && startMusic(false);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return musicAt != null && !slept && getTarget() == null && level().getBlockState(musicAt).is(net.minecraft.world.level.block.Blocks.NOTE_BLOCK)
+                    && level().getGameTime() < musicStart + (long) Music.length(musicTune) * Music.BEAT + 100;
+        }
+
+        @Override
+        public void start() {
+            musicBeat = -1;
+        }
+
+        @Override
+        public void stop() {
+            musicAt = null;
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            BlockPos at = musicAt;
+            if (at == null) return;
+            getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.8, at.getZ() + 0.5);
+            boolean there = distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(at)) < 2.6 * 2.6;
+            if (!there) {
+                if (level().getGameTime() % 10 < 2) getNavigation().moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 1.1);
+                return;
+            }
+            getNavigation().stop();
+            long time = level().getGameTime() - musicStart;
+            if (time < 0) return;
+            int beat = (int) (time / Music.BEAT);
+            if (beat == musicBeat) return;
+            musicBeat = beat;
+            if (beat >= Music.length(musicTune)) {
+                finishMusic();
+                return;
+            }
+            int note = Music.note(musicTune, musicPart, beat);
+            if (note >= 0) playNote(at, note);
+            if (display() == Display.FACE || display() == Display.MUSIC) showDisplay(Display.MUSIC, Music.BEAT * 2);
+        }
+    }
+
+    /** Overheated: to the nearest water, cauldron of water, ice or snow, and wait there until it has cooled down. */
+    private class CoolGoal extends Goal {
+        private int ticks;
+
+        CoolGoal() {
+            setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (!overheated || slept || parked() || getTarget() != null || assembly() > 0 || coolingNear(blockPosition()) || getRandom().nextInt(10) != 0) return false;
+            coolAt = findCool();
+            return coolAt != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return overheated && coolAt != null && !slept && getTarget() == null && ticks < 600;
+        }
+
+        @Override
+        public void start() {
+            ticks = 0;
+            pinThought("thought.bleep.find_cool");
+        }
+
+        @Override
+        public void stop() {
+            coolAt = null;
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            ticks++;
+            BlockPos at = coolAt;
+            if (at == null) return;
+            getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+            if (coolingNear(blockPosition())) getNavigation().stop();
+            else if (ticks % 10 == 1) getNavigation().moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 1.0);
+        }
+    }
+
     private class SnowmanGoal extends Goal {
         private int ticks, step;
 

@@ -29,7 +29,7 @@ public class BleepScreen extends Screen {
 
     private final BleepEntity bleep;
     private int left, top;
-    private Button goHome, torch, book, chest, magnet, mute, play, work, chips, way, yes, no;
+    private Button goHome, torch, book, chest, magnet, mute, play, work, chips, way, craft, yes, no;
     private net.minecraft.client.gui.components.EditBox name;
 
     public BleepScreen(BleepEntity bleep) {
@@ -53,6 +53,8 @@ public class BleepScreen extends Screen {
         magnet = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.MAGNET)).bounds(left + W - 32, top + 56, 22, 22).build());
         // next to the book: its sound on or off
         mute = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.MUTE)).bounds(left + W - 56, top + 8, 22, 22).build());
+        // next to its storage: what it learned to make by watching (a best friend)
+        craft = addRenderableWidget(Button.builder(Component.empty(), b -> send(BleepCommand.OPEN_CRAFT)).bounds(left + W - 56, top + 32, 22, 22).build());
         // and two more screens: games and tricks, and its work while it stays
         play = addRenderableWidget(Button.builder(Component.empty(), b -> McVersionClient.setScreen(new PlayScreen(bleep))).bounds(left + W - 32, top + 80, 22, 22)
                 .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("screen.bleep.play"))).build());
@@ -118,6 +120,8 @@ public class BleepScreen extends Screen {
             if (bleep.has(chip)) installed.append("\n- ").append(Component.translatable("item.bleep." + chip.id()));
         }
         chips.setTooltip(net.minecraft.client.gui.components.Tooltip.create(bleep.chips() == 0 ? Component.translatable("screen.bleep.chips.none") : installed));
+        craft.active = bleep.can(io.hookdev.bleep.entity.Skill.CRAFT);
+        craft.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(craft.active ? "screen.bleep.craft" : "screen.bleep.craft.locked")));
         work.active = bleep.isOrderedToSit() && !bleep.onHome();
         work.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(work.active ? "screen.bleep.work" : "screen.bleep.work.stay_first")));
         magnet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(bleep.magnet() ? "screen.bleep.magnet.on" : "screen.bleep.magnet.off")));
@@ -142,7 +146,7 @@ public class BleepScreen extends Screen {
         int tx = fx + fw + 10;
         g.fill(tx, fy + 10, tx + 100, fy + 11, name.isFocused() ? GLOW : 0xFF2C313A); // a line under its name: you can type there
         g.text(font, Component.translatable("screen.bleep.mood").append(": ").append(Component.translatable("emotion.bleep." + bleep.emotion().texture())), tx, fy + 15, GLOW, false);
-        g.text(font, Component.translatable(bleep.activity().key()), tx, fy + 27, DIM, false);
+        g.text(font, font.substrByWidth(Component.translatable(bleep.activity().key()), left + W - 60 - tx).getString(), tx, fy + 27, DIM, false); // not under the craft button
 
         // battery and bond
         int by = fy + fh + 12;
@@ -178,6 +182,7 @@ public class BleepScreen extends Screen {
         super.extractRenderState(g, mouseX, mouseY, partialTicks);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK), book.getX() + 3, book.getY() + 3);
         g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST), chest.getX() + 3, chest.getY() + 3);
+        g.item(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CRAFTING_TABLE), craft.getX() + 3, craft.getY() + 3);
         g.blit(MAGNET, magnet.getX() + 3, magnet.getY() + 3, magnet.getX() + 19, magnet.getY() + 19, 0, 1, 0, 1);
         g.blit(bleep.muted() ? SOUND_OFF : SOUND_ON, mute.getX() + 3, mute.getY() + 3, mute.getX() + 19, mute.getY() + 19, 0, 1, 0, 1);
         g.item(new net.minecraft.world.item.ItemStack(io.hookdev.bleep.BleepContent.BALL.get()), play.getX() + 3, play.getY() + 3);

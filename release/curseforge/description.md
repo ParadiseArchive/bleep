@@ -1,6 +1,6 @@
 # Bleep
 
-![Bleep: a robot pet with an attitude](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/banner.png)
+![Bleep: a robot pet with an attitude](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/banner.png)
 
 **A robot pet with an attitude: build one from a core you find deep down.**
 
@@ -16,7 +16,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Put together part by part.** The tracks go down first, then its body, its arms and its head, each with a clunk and a few sparks, and then its screen comes on for the very first time.
 - Missing a part? The core tells you which ones, and stays in your hand.
 
-![Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/shelf-parts.png)
+![Bleep Core, Bleep Display, Bleep Tracks, Bleep Arms and the homebase](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-parts.png)
 
 ## How it feels
 
@@ -24,7 +24,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **It blinks** every few seconds, each bleep at its own moment, and its arms and head move with its mood.
 - **A voice of its own.** Cute robot chirps, a few for every mood, a little higher or lower for every bleep.
 
-![Every face on the display](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/shelf-faces.png)
+![Every face on the display](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-faces.png)
 
 ## A battery and a home
 
@@ -34,7 +34,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **More ways to charge.** Redstone tops it up, even when it has switched off. A power bank carries one full charge along and fills up again on a homebase. And lightning fills it at once and overcharges it: fast, glitchy and very happy for half a minute. In a thunderstorm it hopes for exactly that.
 - **Never really gone.** Only /kill and the void remove a bleep. Break its homebase and it is homeless, and sad about it; die with your bed near the homebase, and your bleep is waiting for you there.
 
-![A bleep being put together, happy, excited, switched off and charging at home](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/shelf-bleep.png)
+![A bleep being put together, happy, excited, switched off and charging at home](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-bleep.png)
 
 ## A bond you build
 
@@ -43,7 +43,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **It learns.** A Friend carries a torch that lights the way where it drives. A Buddy fights the monsters that go for you, and brings you what lies about after a fight.
 - **It does not always listen.** It never refuses: it dawdles. A stubborn face, a turn on the spot, and then it does it anyway. In danger it always listens.
 
-![The info screen](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/info-screen.png)
+![The info screen](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/info-screen.png)
 
 ## Dress it up
 
@@ -51,11 +51,12 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Hats and stickers.** A party hat, a top hat or an antenna with a red bow, and a star, heart or lightning sticker on its front. Shears take them off again.
 - **Tricks on its display.** A new name scrolls across like a ticker, a bored bleep plays tic-tac-toe against itself, an arrow points the way home, and now and then it asks for a cookie.
 
-![Six bleeps in six colours, in hats, with stickers](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/shelf-dress.png)
+![Six bleeps in six colours, in hats, with stickers](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-dress.png)
 
 ## Storage and magnet
 
 - **Its own little chest.** 27 slots, as big as a small chest, behind the chest on its info screen.
+- **A trailer.** Give it a Trailer and it pulls a little cart behind it: its storage becomes as big as a large chest. Shears take it off again once the back half is empty.
 - **A magnet.** Switch it on and it pulls in what lies about within 6 blocks. Now and then it drives over to show you something it found, very proud, and puts it back.
 - **A sword for a fight.** Put a weapon in its storage and a Buddy fights with the one that hits hardest.
 - **Its name.** Every bleep is called Bleep until you type a new name on its info screen. It always shows above its head.
@@ -77,6 +78,21 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Tricks.** Spin, jump and wave from day one, dance as a Friend, play dead as a Buddy.
 - **Work while it stays.** Set how far it goes from its spot, and switch on its jobs: farmer (harvests and replants), guard (an alarm at night), tidy up (its storage into a chest), fisher (now and then a treasure), smelter (keeps a furnace going) and gardener (a garden of flowers).
 
+## Races, music and trips
+
+- **Races.** Put race flags around a start flag and right-click it: your bleeps line up, 3, 2, 1, GO! From the start to the nearest flag, each time on to the nearest one not yet visited, and back. Everyone near hears the times, every start flag keeps its course record, and friends standing at the start race with their bleeps too.
+- **A band.** Play a tune and it drives to a note block and plays one of four tunes. Up to three bleeps join on note blocks of their own: melody, harmony and bass.
+- **Expeditions.** Go exploring and it is away for a Minecraft day: a forest, a desert, the mountains, the snow, the ocean, the jungle, a swamp or a cave. It comes back with things it found, two photos (one a selfie) and a story.
+- **Crafting by watching.** A best friend watches you craft and remembers how. The crafting button on its info screen shows what it learned, and it makes it again from its storage, one or as many as it can.
+
+![A bleep with its trailer, the start flag and the race flag](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-fun.png)
+
+## The Nether and the End
+
+- **Through the portal.** Bleeps that follow you come along to the Nether and the End.
+- **Too hot.** In the Nether it slowly heats up, faster near lava. Too hot and it smokes, slows down and drains its battery. It drives to water, ice or snow to cool off, or hand it a snowball, ice or a water bottle.
+- **Very quiet.** In the End it says nothing at all, and looks at the stars.
+
 ## Chips and letters
 
 - **Upgrade chips.** A speed chip, a shield chip (hits cost half) and a battery chip (lasts half as long again). The chip on its info screen shows which are in, and takes one out again.
@@ -84,7 +100,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 ## From the stars
 
-- **Falling stars.** On a clear night, very rarely, a star falls nearby: a crater of glowing starstone, a fallen star at the bottom with star shards and, half the time, a Bleep Core.
+- **Falling stars.** On a clear night, very rarely, a star falls nearby: a crater of glowing starstone, a fallen star at the bottom with star shards and, half the time, a Bleep Core. Never on what you built, and never near your bed.
 - **A mystery.** Bleeps look up at the stars at night, sing together at full moon, and fill a page of their Bleepedia with signs nobody can read. Hints, never an answer.
 
 ## It looks after you
@@ -117,12 +133,12 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **About me and a diary.** Its age, days together, how far it drove, fights won, and a diary of what happened, in its own words.
 - **A ! for news.** When it has seen something new since you last looked, a ! blinks on the book now and then.
 
-![The Bleepedia](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/bleepedia.png)
+![The Bleepedia](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/bleepedia.png)
 
 ## Out in the world
 
-- **Abandoned bleeps.** Now and then an old bleep stands somewhere, faded and switched off. A block of redstone wakes it up, and it is yours, with a bit of its past in its diary.
-- **Music, bedtime, digging.** It dances when a record plays (a dance-off with an allay), sleeps next to your bed, and digs up bits and bobs, now and then an emerald.
+- **Abandoned bleeps.** Very rarely, in an ancient city, a trail ruin, a zombie village or a mineshaft, an old bleep stands faded and switched off. A block of redstone wakes it up, and it is yours: with an old photo from long ago, and its story, bit by bit.
+- **Records, bedtime, digging.** It dances when a record plays (a dance-off with an allay), sleeps next to your bed, and digs up bits and bobs, now and then an emerald.
 - **Big brother.** Bleeps think iron golems are their big brothers.
 - **Ahoy and wheee.** In the water a little boat pops up under it; on snow it rides a sled.
 - **A snowman.** Told to stay somewhere snowy, it builds one. A carved pumpkin in its storage brings it to life.
@@ -134,7 +150,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 - **Click!** At a nice moment it takes a photo of what you see: a sunset with you, a falling star, its best friend, a biome it has never been in.
 - **A Photos tab** in its Bleepedia, twelve at most. Click one to see it big, and Print puts it on an empty map, for an item frame.
 
-![An abandoned bleep, a dancing bleep, a sleeping bleep](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.2.0/.github/readme/shelf-world.png)
+![An abandoned bleep, a dancing bleep, a sleeping bleep](https://raw.githubusercontent.com/ParadiseArchive/bleep/v0.3.0/.github/readme/shelf-world.png)
 
 ## Character
 
@@ -149,7 +165,7 @@ The better you look after it, the more it likes you. A new bleep sometimes dawdl
 
 - Every part has a tooltip that says what it is for.
 - Works with **Jade** (battery, mood and bond when you look at a bleep, and who lives in a homebase) and **JEI** (every recipe, and where the core is found).
-- Thirteen advancements, in a Bleep tab of their own.
+- Sixteen advancements, in a Bleep tab of their own.
 - A mute button on its info screen; on its homebase it is quiet anyway.
 - A config for pack makers: bleeps per player, battery drain, magnet range, homebase power, cores in chests, falling stars, abandoned bleeps.
 - Stand-alone: no other mod needed.

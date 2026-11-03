@@ -1,5 +1,7 @@
 {
   "values": [
-    "bleep:display_case"
+    "bleep:display_case",
+    "bleep:start_flag",
+    "bleep:race_flag"
   ]
 }

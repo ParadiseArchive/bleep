@@ -23,6 +23,7 @@ public class BleepClient {
             event.registerLayerDefinition(AccessoryModel.LAYER, AccessoryModel::createLayer);
             event.registerLayerDefinition(BoatModel.LAYER, BoatModel::createLayer);
             event.registerLayerDefinition(SledModel.LAYER, SledModel::createLayer);
+            event.registerLayerDefinition(TrailerModel.LAYER, TrailerModel::createLayer);
         });
         modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.BLEEP.get(), BleepRenderer::new));
         modEventBus.addListener((EntityRenderersEvent.RegisterRenderers event) -> event.registerEntityRenderer(BleepContent.FALLING_STAR.get(), net.minecraft.client.renderer.entity.NoopRenderer::new)); // only its trail of particles
@@ -35,6 +36,9 @@ public class BleepClient {
         // a bleep says Click!: a tiny picture of what its owner sees
         modEventBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event) ->
                 event.register(io.hookdev.bleep.network.PhotoRequest.TYPE, (request, context) -> PhotoCamera.snap(request)));
+        // what it learned to make, for the craft screen
+        modEventBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event) ->
+                event.register(io.hookdev.bleep.network.CraftData.TYPE, (data, context) -> ClientHooks.openCrafts(data)));
         // the Bleep Tracker's screen
         modEventBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event) ->
                 event.register(io.hookdev.bleep.network.TrackerData.TYPE, (data, context) -> McVersionClient.setScreen(new TrackerScreen(data))));

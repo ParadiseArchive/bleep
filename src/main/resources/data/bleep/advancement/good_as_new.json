@@ -10,7 +10,7 @@
     "description": {
       "translate": "advancements.bleep.good_as_new.description"
     },
-    "frame": "goal",
+    "frame": "challenge",
     "show_toast": true,
     "announce_to_chat": true
   },
